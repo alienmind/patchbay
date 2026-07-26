@@ -172,10 +172,15 @@ path fields on each of a sample's two FileRefs are required.
 Belongs in the DSL as a binding, not a separate module.
 *Gate: eight pads with eight different samples, none offline.*
 
-~~**Phase 4. Rack composition from spec.**~~ **DONE.** This is the DSL.
-A spec declares engines bound to a shared macro grammar; the compiler
-assembles donor subtrees, distributes zones and writes mappings.
+~~**Phase 4. Rack composition from spec.**~~ **DONE, gate passed.** This
+is the DSL. A spec declares engines bound to a shared macro grammar; the
+compiler assembles donor subtrees, distributes zones and writes mappings.
 See `DSL.md`.
+
+*Gate: PASSED.* `build/PD1.adg`, compiled from `examples/playgrnd.py`,
+loads on a MIDI track. Macro 1 sweeps engines, Macro 2 drives Operator's
+filter frequency and Simpler's cutoff over the same declared 200-8000 Hz
+range. One grammar, two synthesis methods, verified by ear.
 
 **Phase 5. Macro variations.** NOT STARTED. **This is the next thing.**
 Generate variation sets. Must respect the sound family constraint from

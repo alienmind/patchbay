@@ -154,7 +154,9 @@ in Record/Warp/Launch preferences.
 **In code, `examples/playgrnd.py`:**
 
 - The grammar above, complete
-- PD1 as a two engine slice, Operator and Simpler, compiling and loading
+- PD1 as a two engine slice, Operator and Simpler. Compiles, loads on a
+  MIDI track, and both engines answer the same macros. Verified in Live
+  12.4.3, not merely generated.
 
 **Not yet declarable, and why:**
 

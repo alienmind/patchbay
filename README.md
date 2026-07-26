@@ -52,7 +52,10 @@ unnecessary, both kill criteria passed. What the format does is recorded
 in `doc/ARCHITECTURE.md`, each claim marked verified, inferred or open and
 traced to a file in `racks/`.
 
-Built, and gated by loading in Live:
+Built, and gated by loading in Live. The last gate passed was the whole
+chain end to end: a rack declared in `examples/playgrnd.py`, compiled with
+`patchbay build`, dropped on a MIDI track, with one grammar driving two
+different synthesis engines.
 
 - read, write, lossless round trip
 - structural diff — the discovery engine

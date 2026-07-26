@@ -68,6 +68,23 @@ Each capability traces to a spike, not an assumption:
 | copies devices from donors | S12: partial devices load, but donors carry the configured values |
 | strips a skeleton's own macro mappings | those describe how its *parent* drove it |
 
+## Verified, not merely designed
+
+`build/PD1.adg`, compiled from `examples/playgrnd.py`, loads on a MIDI
+track in Live 12.4.3. Macro 1 sweeps engines across the distributed zones.
+Macro 2 drives Operator's `Filter/Frequency` and Simpler's
+`Filter/Slot/Value/SimplerFilter/Freq`, both scoped to the declared
+200-8000 Hz range.
+
+That is the whole claim of this document demonstrated: one grammar, two
+synthesis methods, the same knob meaning the same thing in both.
+
+One thing the exercise caught. The DSL originally scanned `racks/` for a
+skeleton and would lift a rack out of another rack's chain, producing a
+file that passed every check and that Live refused to accept as a drop.
+Skeletons are now top-level only, and the underlying question is open as
+Q1b in `SPIKES.md`. It matters because DR1 needs racks nested INTO chains.
+
 ## Deliberate limits
 
 **Not a general graph DSL.** It expresses the racks in
