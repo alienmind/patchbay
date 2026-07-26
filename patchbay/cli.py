@@ -1,7 +1,7 @@
 import argparse
 import sys
 from . import compile as compile_spec
-from . import io, diff, clone, find, ids, mappings, roundtrip
+from . import io, diff, clone, find, ids, mappings, roundtrip, variations
 from .diff import ID_FIELDS
 
 
@@ -52,6 +52,11 @@ def _main():
     m = sub.add_parser("mappings", help="list macro mappings (S3)")
     m.add_argument("src")
 
+    v = sub.add_parser("variations",
+                       help="list macro variations (S8; the XML calls them "
+                            "snapshots)")
+    v.add_argument("src")
+
     cl = sub.add_parser("clone", help="duplicate a chain N times (Phase 2)")
     cl.add_argument("src")
     cl.add_argument("dest")
@@ -91,6 +96,8 @@ def _main():
         raise SystemExit(0 if ok else 1)
     elif args.cmd == "mappings":
         mappings.report(args.src)
+    elif args.cmd == "variations":
+        variations.report(args.src)
     elif args.cmd == "clone":
         root = io.load(args.src)
         preset = find.preset(root)

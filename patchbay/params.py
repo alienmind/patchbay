@@ -46,12 +46,16 @@ def set_value(param_el, v):
     return param_el
 
 
-def _fmt(v):
+def fmt(v):
+    """Format a value the way Live writes it: no trailing .0, bools as words."""
     if isinstance(v, bool):
         return "true" if v else "false"
     if isinstance(v, float) and v.is_integer():
         return str(int(v))
     return str(v)
+
+
+_fmt = fmt
 
 
 def range_of(param_el):

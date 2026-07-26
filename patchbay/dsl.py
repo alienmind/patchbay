@@ -1,6 +1,6 @@
 """A declarative way to say what a rack is.
 
-The design follows one line of TEMPLATE_SPEC.md: "This consistency is the
+The design follows one line of PATCHBAYGROUND.md: "This consistency is the
 actual product, more than any individual rack." The macro grammar is
 identical across every instrument rack, so the thing worth expressing is
 not "build a rack" but "bind this engine's parameters to the standard
@@ -19,9 +19,11 @@ grammar".
         e.bind(cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
                decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime")
 
+    rack.variations(Variation("dark", cutoff=30, decay=110))
+
     rack.save("build/PD1.adg")
 
-Two things fall out of that shape rather than being programmed:
+Three things fall out of that shape rather than being programmed:
 
   The sound family constraint. Every engine binds its own parameters to
   the same grammar slots, so one macro moves the same musical idea through
@@ -31,8 +33,13 @@ Two things fall out of that shape rather than being programmed:
   Engine select. Macro 1 drives the chain selector and zones are
   distributed evenly across 0..127, so that knob sweeps engines.
 
+  Variations. A variation is a vector over grammar slots, in macro space,
+  so it renders through every engine without being written per engine.
+  A sound is a variation, not a chain - which is what makes ~692 of them
+  tractable.
+
 What this is not: a general graph DSL. It expresses the racks in
-TEMPLATE_SPEC.md and stops there.
+PATCHBAYGROUND.md and stops there.
 """
 
 from __future__ import annotations
@@ -45,7 +52,7 @@ from typing import Iterator, Mapping, Sequence, Union
 
 from lxml import etree
 
-from . import clone, find, io, params
+from . import clone, find, io, params, variations
 from .library import Library
 
 MACRO_MAX: int = 127
@@ -131,6 +138,33 @@ class BoundParam:
         return self.lo is not None and self.hi is not None
 
 
+class Variation:
+    """One sound, as a position for each grammar slot it cares about.
+
+    Values are macro positions, 0..127, because that is the only scale a
+    variation has (ARCHITECTURE.md section 11). A slot left out is left
+    unset, so recalling this variation does not move that knob.
+
+        Variation("dark plucks", cutoff=40, decay=15, resonance=90)
+
+    The sound family constraint falls out of this rather than being
+    enforced: the vector is written in slot terms, every engine binds the
+    same slots to its own parameters, and Live applies each engine's own
+    range at recall. So variation N is the same musical idea whichever
+    engine is selected, and index alignment across engines is structural.
+    """
+
+    __slots__ = ("name", "values")
+
+    def __init__(self, name: str, **slots: float) -> None:
+        self.name = name
+        self.values: dict[str, float] = {k: float(v) for k, v in slots.items()}
+
+    def __repr__(self) -> str:
+        shown = ", ".join(f"{k}={v:g}" for k, v in self.values.items())
+        return f"<Variation {self.name!r} {shown}>"
+
+
 @dataclass(slots=True)
 class Engine:
     """One chain, and the bindings from its parameters to grammar slots."""
@@ -179,6 +213,7 @@ class Rack:
         self.kind = kind
         self.library: Library = library or Library.default()
         self.engines: list[Engine] = []
+        self.variation_set: list[Variation] = []
         self._skeleton = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
 
@@ -192,6 +227,55 @@ class Rack:
         e = Engine(self, name, device_tag)
         self.engines.append(e)
         return e
+
+    # --- variations -------------------------------------------------------
+
+    def variations(self, *added: Variation) -> "Rack":
+        """Add variations. Slots are checked against the grammar at once.
+
+        Whether the slot is actually *driven* by anything is checked at
+        build time, when the bindings are known.
+        """
+        for v in added:
+            if not isinstance(v, Variation):
+                raise TypeError(f"expected a Variation, got {type(v).__name__}")
+            for slot in v.values:
+                self.grammar.macro_of(slot)      # fail early on a typo
+            self.variation_set.append(v)
+        return self
+
+    def driven_slots(self) -> set[str]:
+        """Grammar slots something in this rack actually answers to.
+
+        A variation may only name these. Live accepts a participation flag
+        on an unmapped macro and then does nothing with it on recall, so the
+        entry reads as live and is not (SPIKES.md Q5). Silence is the worse
+        failure, so this refuses.
+        """
+        out = {b.slot.lower() for e in self.engines for b in e.bindings.values()}
+        if "engine" in self.grammar:
+            out.add("engine")
+        return out
+
+    def engine_macro(self, engine: str | int) -> float:
+        """The macro position that selects an engine, at its zone's centre.
+
+        Zones are distributed evenly by `_distribute_zones`, so this is
+        derived from the same arithmetic rather than restated. Use it to
+        make an engine choice part of a variation.
+        """
+        n = len(self.engines)
+        if not n:
+            raise ValueError(f"rack {self.name!r} has no engines")
+        if isinstance(engine, int):
+            i = engine
+        else:
+            names = [e.name for e in self.engines]
+            if engine not in names:
+                raise KeyError(f"{engine!r} is not an engine here: {names}")
+            i = names.index(engine)
+        lo, hi = self._zone_bounds(i, n)
+        return (lo + hi) / 2
 
     # --- realisation ------------------------------------------------------
 
@@ -213,6 +297,8 @@ class Rack:
 
         for engine, branch in zip(self.engines, branches):
             self._apply_bindings(engine, branch)
+
+        self._write_variations(rack_dev)
 
         user_name = rack_dev.find("UserName")
         if user_name is not None:
@@ -377,6 +463,14 @@ class Rack:
                 return copy.deepcopy(child)
         raise ValueError("skeleton chain has no AbletonDevicePreset to model on")
 
+    @staticmethod
+    def _zone_bounds(i: int, n: int) -> tuple[int, int]:
+        """Chain i of n, as absolute bounds on the 0..127 selector scale."""
+        width = (MACRO_MAX + 1) / n
+        lo = round(i * width)
+        hi = MACRO_MAX if i == n - 1 else round((i + 1) * width) - 1
+        return lo, hi
+
     def _distribute_zones(self, branches: Sequence[Element]) -> None:
         """Spread chain-select zones evenly across 0..127, without overlap.
 
@@ -384,10 +478,8 @@ class Rack:
         ARCHITECTURE.md section 7.
         """
         n = len(branches)
-        width = (MACRO_MAX + 1) / n
         for i, branch in enumerate(branches):
-            lo = round(i * width)
-            hi = MACRO_MAX if i == n - 1 else round((i + 1) * width) - 1
+            lo, hi = self._zone_bounds(i, n)
             zone = find.zone(branch)
             if zone is None:
                 continue
@@ -404,6 +496,28 @@ class Rack:
         selector = find.chain_selector(rack_dev)
         if selector is not None:
             params.map_to_macro(selector, self.grammar.macro_of("engine"))
+
+    def _write_variations(self, rack_dev: Element) -> None:
+        """Realise the variation set in macro space.
+
+        A skeleton carries whatever variations the rack it came from had, so
+        this replaces rather than appends. An empty set still clears them:
+        inheriting a donor's variations would be silent nonsense.
+        """
+        driven = self.driven_slots()
+        snapshots = []
+        for v in self.variation_set:
+            stray = sorted(s for s in v.values if s.lower() not in driven)
+            if stray:
+                raise ValueError(
+                    f"variation {v.name!r} sets {', '.join(stray)}, which no "
+                    f"engine binds. Live would load that and move nothing on "
+                    f"recall. Driven slots here: "
+                    f"{', '.join(sorted(driven)) or 'none'}. Either bind it on "
+                    f"an engine or drop it from the variation.")
+            snapshots.append(
+                (v.name, {self.grammar.macro_of(s): p for s, p in v.values.items()}))
+        variations.write(rack_dev, snapshots)
 
     def _apply_bindings(self, engine: Engine, branch: Element) -> None:
         devices = find.devices(branch)
