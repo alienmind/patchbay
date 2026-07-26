@@ -39,13 +39,33 @@ from lxml import etree
 from .io import load
 
 
+def _is_list_container(parent):
+    """True if parent is a plural container holding one repeated child tag.
+
+    Ableton names these consistently: MacroSnapshots holds MacroSnapshot,
+    BranchPresets holds <X>BranchPreset, SampleParts holds MultiSamplePart.
+    Children of these are always indexed, even when there is only one.
+
+    Without that, appending a second item renames the first from
+    MacroSnapshot to MacroSnapshot[0] and the diff reports the entire list
+    as removed and re-added — 210 facts of noise for one added variation.
+
+    Requiring a single repeated tag keeps heterogeneous nodes that merely
+    end in 's', like ViewSettings, out of it.
+    """
+    if not isinstance(parent.tag, str) or not parent.tag.endswith("s"):
+        return False
+    tags = {c.tag for c in parent if isinstance(c.tag, str)}
+    return len(tags) == 1
+
+
 def path_of(el):
     """Build a readable path like Chain[2]/DeviceChain/Devices/Simpler[0]."""
     parts = []
     while el is not None and el.getparent() is not None:
         parent = el.getparent()
         siblings = [c for c in parent if c.tag == el.tag]
-        if len(siblings) > 1:
+        if len(siblings) > 1 or _is_list_container(parent):
             parts.append(f"{el.tag}[{siblings.index(el)}]")
         else:
             parts.append(el.tag)
