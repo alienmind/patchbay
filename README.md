@@ -1,18 +1,31 @@
-# adgkit
+# patchbay
 
-Generate and manipulate Ableton Live rack presets (`.adg`) programmatically.
+Build Ableton Live racks and Sets from code.
 
-`.adg` files are gzipped XML. Live's API cannot group devices into a rack,
-create a macro mapping, or set a chain zone, so this works at the file level
-instead.
+A patchbay routes signals between things; this one routes macros to
+parameters, chains to zones, and racks onto tracks.
+
+Two halves, because Live splits this way and fighting it is wasted effort:
+
+- **Racks are built as files.** Live's API cannot group devices into a
+  rack, create a macro mapping, or set a chain zone — verified against
+  Live's own Object Model, see `MCP.md`. `.adg` files are gzipped XML, so
+  `patchbay` writes them directly.
+- **Sets are built through the API.** Track creation, naming, routing and
+  clips *are* scriptable, so those go through `ableton-mcp` rather than
+  generating `.als`.
+
+Racks are declared with a Python DSL: engines bound to a shared macro
+grammar, so the same knob means the same thing in every rack. See
+`DSL.md`.
 
 ## Current state
 
 **Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
-viable.** Next action is Phase 1–2: `adgkit` core and `clone.py`.
+viable.** Next action is Phase 1–2: `patchbay` core and `clone.py`.
 
 **Phases 1 and 2 are done and gated in Live**: node navigation, parameter
-and mapping read/write, and chain cloning. `python tests/test_adgkit.py`
+and mapping read/write, and chain cloning. `python tests/test_patchbay.py`
 runs 16 tests asserting the library still agrees with every recorded
 finding.
 
@@ -39,7 +52,7 @@ metadata on load, so rewriting two path fields per sample is enough.
 | **`SCHEMA.md`** | lab notebook: raw findings per spike, citing files | when you doubt a claim in ARCHITECTURE |
 | `CLAUDE.md` | working method and landmines | for the discovery discipline |
 | `TEMPLATE_SPEC.md` | the musical target this tooling builds | for the specific layer |
-| **`MCP.md`** | what Live's API can and cannot do, and how `adgkit` and `ableton-mcp` divide the work | before building anything that touches a running Live |
+| **`MCP.md`** | what Live's API can and cannot do, and how `patchbay` and `ableton-mcp` divide the work | before building anything that touches a running Live |
 | `KICKOFF.md` | the plan, phases and fallbacks | for sequencing |
 
 `ARCHITECTURE.md` is the model, `SCHEMA.md` is the evidence. If they
@@ -70,25 +83,25 @@ pip install -e .
 `-e` matters: the spikes involve editing `diff.py` (extending the id noise
 filter), and an editable install picks that up without reinstalling.
 
-That puts an `adgkit` command on PATH. Without installing, every command
-below also works as `python -m adgkit.cli ...` from the repo root.
+That puts an `patchbay` command on PATH. Without installing, every command
+below also works as `python -m patchbay.cli ...` from the repo root.
 
 Verify:
 
 ```
-adgkit --help
+patchbay --help
 ```
 
 ## Commands
 
-### `adgkit roundtrip SRC [-o OUT]`
+### `patchbay roundtrip SRC [-o OUT]`
 
 Spike S1. Loads a file and saves it back with zero changes, then reports
 whether the result is byte identical and whether it is structurally
 identical (every element, attribute and text node, ids included).
 
 ```
-adgkit roundtrip racks/s1_source.adg
+patchbay roundtrip racks/s1_source.adg
 ```
 
 `structurally identical: NO` means the round trip is lossy — stop, nothing
@@ -97,13 +110,13 @@ serialiser is not Live's) and is only a pass once Live opens the output.
 
 Exits non-zero on structural failure, so it is usable as a check.
 
-### `adgkit diff A B [--hide-ids] [--all] [--grep TEXT]`
+### `patchbay diff A B [--hide-ids] [--all] [--grep TEXT]`
 
 The discovery engine. Structural diff between two files.
 
 ```
-adgkit diff racks/s3_a.adg racks/s3_b.adg
-adgkit diff racks/s7_a.adg racks/s7_b.adg --grep FileRef
+patchbay diff racks/s3_a.adg racks/s3_b.adg
+patchbay diff racks/s7_a.adg racks/s7_b.adg --grep FileRef
 ```
 
 By default it hides only what S2 proved churns on every save
@@ -126,7 +139,7 @@ Output has three sections: `CHANGED` (a fact whose value moved), `REMOVED`
 (present in A only), `ADDED` (present in B only). A node appearing with no
 value still shows up, so structural additions are visible.
 
-### `adgkit ids SRC [--fields A,B,C]`
+### `patchbay ids SRC [--fields A,B,C]`
 
 Spike S6. Census of id-bearing fields. Per field: occurrence count, value
 range, and whether values are unique across the file (file-scoped — a clone
@@ -134,17 +147,17 @@ must reallocate them) or duplicated (narrower scope — a clone must **not**
 reallocate them, or mappings break).
 
 ```
-adgkit ids racks/s6_a.adg
-adgkit ids racks/s6_a.adg --fields Id,PointeeId,ReceivingNote
+patchbay ids racks/s6_a.adg
+patchbay ids racks/s6_a.adg --fields Id,PointeeId,ReceivingNote
 ```
 
-### `adgkit mappings SRC`
+### `patchbay mappings SRC`
 
 Lists every macro mapping in a preset: which macro drives which parameter,
 in which rack, at which nesting depth.
 
 ```
-adgkit mappings racks/s1_source.adg
+patchbay mappings racks/s1_source.adg
 ```
 
 ```
@@ -161,15 +174,15 @@ mapping whose channel is not the macro bus, or whose mode is not absolute.
 This is the check to run after every clone in Phase 2: the mapping list
 before and after must match, with the right multiplicity.
 
-### `adgkit clone SRC DEST [-c N] [-n N] [--pad] [--stride N]`
+### `patchbay clone SRC DEST [-c N] [-n N] [--pad] [--stride N]`
 
 Duplicate a chain. `-c` picks which chain (default 0), `-n` how many
 copies.
 
 ```
-adgkit clone racks/s3b.adg build/out.adg -n 3
-adgkit clone racks/s9_b.adg build/out.adg -n 3 --pad
-adgkit clone racks/s3b.adg build/out.adg -n 3 --stride 2
+patchbay clone racks/s3b.adg build/out.adg -n 3
+patchbay clone racks/s9_b.adg build/out.adg -n 3 --pad
+patchbay clone racks/s3b.adg build/out.adg -n 3 --stride 2
 ```
 
 **Ganged by default.** Copies keep the original's macro indices, so every
@@ -188,27 +201,27 @@ together.
 Refuses to write a file with sibling id collisions, which is the one thing
 Live rejects outright.
 
-### `adgkit check SRC`
+### `patchbay check SRC`
 
 Would Live accept this file? Reports sibling id collisions and exits
 non-zero if any exist. Verified against Live's actual behaviour on three
 deliberately broken files.
 
-### `adgkit unpack SRC [-o OUT]` / `adgkit repack SRC DEST`
+### `patchbay unpack SRC [-o OUT]` / `patchbay repack SRC DEST`
 
 Gunzip to readable XML and back. Use for eyeballing a node a diff pointed
 at, and for the deliberate-failure tests in S6, S7 and S12 (hand-edit the
 XML, repack, see what Live does).
 
 ```
-adgkit unpack racks/s1_source.adg          # -> racks/s1_source.adg.xml
-adgkit repack racks/s1_source.adg.xml build/patched.adg
+patchbay unpack racks/s1_source.adg          # -> racks/s1_source.adg.xml
+patchbay repack racks/s1_source.adg.xml build/patched.adg
 ```
 
 ## Layout
 
 ```
-adgkit/     generic library. Knows XML, ids, macros, chains, FileRefs.
+patchbay/     generic library. Knows XML, ids, macros, chains, FileRefs.
             Knows nothing about kick drums. Keep it that way.
 specs/      declarative description of the specific template
 donors/     real device instances harvested from Live, to copy from
@@ -224,7 +237,7 @@ Discovery is differential, never schema reading:
 1. In Live, save a rack as `a.adg`
 2. Change exactly **one** thing
 3. Save as `b.adg`
-4. `adgkit diff a.adg b.adg`
+4. `patchbay diff a.adg b.adg`
 5. Record the finding in `SCHEMA.md`
 
 Start with `SPIKES.md`, in the order it gives. S1 and S3 are kill criteria.

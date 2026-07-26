@@ -35,14 +35,14 @@ manifest, no binary blobs — everything is text.
 | empty elements | `<X />` | space before slash |
 | end of file | trailing newline | |
 
-**[V]** **Live does not require any of them.** `adgkit`'s writer (lxml)
+**[V]** **Live does not require any of them.** `patchbay`'s writer (lxml)
 violates all five — single-quoted declaration with `standalone='no'`, LF,
 `<X/>`, no trailing newline — and Live 12.4.3 opens the result correctly.
 A 560 KB rack round-tripped through load-then-save differs by 20,252
 bytes and zero facts.
 
 Consequence: **never byte-diff two `.adg` files.** Two semantically
-identical files differ by ~4%. Use `adgkit diff`, which compares the
+identical files differ by ~4%. Use `patchbay diff`, which compares the
 parsed tree.
 
 ## 2. Root element and versioning
@@ -111,7 +111,7 @@ Any code that resolves "which rack owns this macro" by walking up to the
 nearest `*GroupDevice` ancestor is wrong. The correct walk is: up to the
 nearest `BranchPresets`, then to its parent `GroupDevicePreset`, then
 into that preset's `Device/*GroupDevice`. Implemented in
-`adgkit/mappings.py:_owning_rack`.
+`patchbay/mappings.py:_owning_rack`.
 
 ### Rack device types
 
@@ -446,7 +446,7 @@ Landmine #1 in `CLAUDE.md` holds, but narrowly: duplicating a branch needs
 exactly one fixup — **an `Id` unused by its new siblings**. There is no web
 of references to remap, because there are no references.
 
-`adgkit.ids.next_free_id(parent, tag)` allocates one, and `adgkit ids`
+`patchbay.ids.next_free_id(parent, tag)` allocates one, and `patchbay ids`
 reports sibling collisions; its verdict matches Live's on every test file.
 
 ### Devices may be partial
@@ -468,7 +468,7 @@ survive untouched and still work.
 ## 9. Save-time nondeterminism
 
 **[V]** Two things change on every save regardless of edits. Both are
-filtered by default in `adgkit diff`.
+filtered by default in `patchbay diff`.
 
 **`RoundRobinRandomSeed`** — one per Simpler, at
 `OriginalSimpler/Player/MultiSampleMap/`. Live reseeds sample round-robin
@@ -727,7 +727,7 @@ until it is on, which is a UI trap rather than a format one.
 
 ## 13. Practical rules for generators
 
-Derived from the above; these are the invariants `adgkit` must respect.
+Derived from the above; these are the invariants `patchbay` must respect.
 
 1. **Never byte-compare.** §1.
 2. **Never guess a parameter's element name.** Diff for it. Drive is
@@ -802,15 +802,15 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 Reproduce with:
 
 ```
-adgkit roundtrip racks/s1_source.adg
-adgkit diff racks/s2_a.adg racks/s2_b.adg
-adgkit diff racks/s3_a.adg racks/s3_b.adg
-adgkit mappings racks/s1_source.adg
-adgkit diff racks/s3_b.adg racks/s3b.adg
-adgkit diff racks/s5_a.adg racks/s5_b.adg
-adgkit diff racks/s5_fade_aa.adg racks/s5_fade_bb.adg
-adgkit diff racks/s8_b.adg racks/s8_c.adg
-adgkit diff racks/s9_c.adg racks/s9_d.adg
-adgkit diff racks/s10_c.adg racks/s10_d.adg
-adgkit ids racks/s1_source.adg
+patchbay roundtrip racks/s1_source.adg
+patchbay diff racks/s2_a.adg racks/s2_b.adg
+patchbay diff racks/s3_a.adg racks/s3_b.adg
+patchbay mappings racks/s1_source.adg
+patchbay diff racks/s3_b.adg racks/s3b.adg
+patchbay diff racks/s5_a.adg racks/s5_b.adg
+patchbay diff racks/s5_fade_aa.adg racks/s5_fade_bb.adg
+patchbay diff racks/s8_b.adg racks/s8_c.adg
+patchbay diff racks/s9_c.adg racks/s9_d.adg
+patchbay diff racks/s10_c.adg racks/s10_d.adg
+patchbay ids racks/s1_source.adg
 ```

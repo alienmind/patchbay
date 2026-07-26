@@ -1,4 +1,4 @@
-# adgkit
+# patchbay
 
 Generate and manipulate Ableton Live rack presets (`.adg`) programmatically,
 so that building a large hyper-mapped Push template does not require
@@ -27,7 +27,7 @@ Do not try to understand the schema by reading it. The discovery loop is:
 2. Change exactly ONE thing (move one macro, remap one parameter, shift one
    chain zone)
 3. Save as `b.adg`
-4. `adgkit diff a.adg b.adg`
+4. `patchbay diff a.adg b.adg`
 
 The diff names the node. Record the finding in `SCHEMA.md`. Every feature
 in this project should be preceded by a diff that proves where the data lives.
@@ -96,7 +96,7 @@ must replicate, the macro grammar, and the sound family constraint that
 Before writing any generator, in this order:
 
 1. Save the same rack from Live twice with no changes between saves.
-   `adgkit diff a.adg b.adg`. This shows the noise floor and tells you
+   `patchbay diff a.adg b.adg`. This shows the noise floor and tells you
    whether the Id filter is catching everything it should.
 2. Round trip a real rack: `io.load` then `io.save`, no changes, then drag
    the output into Live. If it does not open, stop and fix this first.

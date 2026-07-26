@@ -77,7 +77,7 @@ stopped being a gate. Remaining order:
 
 **Run:**
 ```
-adgkit roundtrip racks/s1_source.adg
+patchbay roundtrip racks/s1_source.adg
 ```
 
 **Then:** drag `racks/s1_source.roundtrip.adg` into Live.
@@ -96,12 +96,12 @@ Save again as `racks/s2_b.adg`.
 
 **Run:**
 ```
-adgkit diff racks/s2_a.adg racks/s2_b.adg
-adgkit diff racks/s2_a.adg racks/s2_b.adg --all
+patchbay diff racks/s2_a.adg racks/s2_b.adg
+patchbay diff racks/s2_a.adg racks/s2_b.adg --all
 ```
 
 **Record:** anything the first command shows is noise the filter does not
-yet catch; add its field name to `SAVE_NOISE` in `adgkit/diff.py` and note
+yet catch; add its field name to `SAVE_NOISE` in `patchbay/diff.py` and note
 why in `SCHEMA.md`. The second shows what is already filtered.
 
 Ideal result: first command prints `identical`.
@@ -119,12 +119,12 @@ value, not the name. Save `racks/s3_b.adg`.
 
 **Run:**
 ```
-adgkit diff racks/s3_a.adg racks/s3_b.adg
+patchbay diff racks/s3_a.adg racks/s3_b.adg
 ```
 
 **Record in SCHEMA.md:** the node that appeared, and critically *how it
 names its target* — by id, by path, or by index. Quote the actual XML of
-the added subtree (`adgkit unpack` then find it).
+the added subtree (`patchbay unpack` then find it).
 
 If the target is addressed by an id, S6 becomes load bearing.
 If it is addressed positionally, cloning gets easier and remapping gets
@@ -154,18 +154,18 @@ Save as `racks/s3b.adg`.
 
 **Run:**
 ```
-adgkit diff racks/s3_b.adg racks/s3b.adg
-adgkit mappings racks/s3b.adg
+patchbay diff racks/s3_b.adg racks/s3b.adg
+patchbay mappings racks/s3b.adg
 ```
 
 **Expected:** a second `KeyMidi`, on the Output parameter, with
-`NoteOrController = 1` and `Channel = 16`. `adgkit mappings` should then
+`NoteOrController = 1` and `Channel = 16`. `patchbay mappings` should then
 report `Macro 1 -> PreDrive` and `Macro 2 -> <output param>`.
 
 **If instead** `NoteOrController` is 2, or the channel changes, or the
 index turns out to be 1-based, fix the mapping model in
 `ARCHITECTURE.md` §5 and the `macro` calculation in
-`adgkit/mappings.py` before any generator is written.
+`patchbay/mappings.py` before any generator is written.
 
 **Result: confirmed.** `PostDrive` (Saturator's Output) got
 `NoteOrController=1`, `Channel=16`. The mapping model in
@@ -189,7 +189,7 @@ depth appears anywhere in the encoding.
 
 **Result: no separate spike needed.** `racks/s1_source.adg` already
 contains three levels of macro-to-macro chaining, found by
-`adgkit mappings`. The structure is **identical** to S3 — a `KeyMidi` on
+`patchbay mappings`. The structure is **identical** to S3 — a `KeyMidi` on
 the inner rack's `MacroControls.N`, which is just another parameter node.
 `Channel` stays 16 at every depth, so nesting is not encoded in the
 mapping at all; it is purely structural.
@@ -234,8 +234,8 @@ one chain. Save `racks/s6_b.adg`.
 
 **Run:**
 ```
-adgkit ids racks/s6_a.adg
-adgkit diff racks/s6_a.adg racks/s6_b.adg
+patchbay ids racks/s6_a.adg
+patchbay diff racks/s6_a.adg racks/s6_b.adg
 ```
 
 **Downgraded, not cancelled.** S3 showed macro mappings carry no ids, so
@@ -276,8 +276,8 @@ for a different one. Save `racks/s7_b.adg`.
 
 **Run:**
 ```
-adgkit diff racks/s7_a.adg racks/s7_b.adg --grep FileRef
-adgkit diff racks/s7_a.adg racks/s7_b.adg
+patchbay diff racks/s7_a.adg racks/s7_b.adg --grep FileRef
+patchbay diff racks/s7_a.adg racks/s7_b.adg
 ```
 
 The second command matters as much as the first: sample data outside
@@ -326,7 +326,7 @@ memorable. A snapshot can be checked against the same file's live
 **Live:** save a drum rack as `racks/s9_drum.adg` and an instrument rack
 as `racks/s9_instrument.adg`.
 
-**Run:** `adgkit diff racks/s9_instrument.adg racks/s9_drum.adg` — a big
+**Run:** `patchbay diff racks/s9_instrument.adg racks/s9_drum.adg` — a big
 diff, read it for structure not detail.
 
 **Record:** how a pad maps to its receiving note, how return chains inside

@@ -7,7 +7,7 @@ on both — which is the sound family constraint, expressed structurally
 rather than enforced by convention.
 """
 
-from adgkit.dsl import Grammar, Rack, RackKind
+from patchbay.dsl import Grammar, Rack, RackKind
 
 PUSH = Grammar("Engine", "Cutoff", "Resonance", "Decay",
                "Drive", "Movement", "Space", "Character")

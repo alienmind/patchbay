@@ -1,6 +1,6 @@
 # Template spec
 
-The musical target that `adgkit` exists to serve. Read this alongside
+The musical target that `patchbay` exists to serve. Read this alongside
 `CLAUDE.md`, which covers the tooling.
 
 ## Goal
@@ -34,7 +34,7 @@ The template advertises 18 engines and ~692 sounds. That is ~38 sounds per
 engine, which means a "sound" is NOT a chain. Chains are engines. Sounds are
 **Macro Variations**.
 
-This matters enormously for `adgkit`: the expensive, repetitive, worth
+This matters enormously for `patchbay`: the expensive, repetitive, worth
 automating artifact is the macro variation set, not the chain structure.
 Generating variations by permuting macro values is the highest value module
 in the project.

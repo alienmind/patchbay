@@ -22,7 +22,7 @@ def main():
 
 
 def _main():
-    p = argparse.ArgumentParser(prog="adgkit")
+    p = argparse.ArgumentParser(prog="patchbay")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     u = sub.add_parser("unpack", help="gunzip an .adg to readable .xml")

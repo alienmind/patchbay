@@ -29,7 +29,7 @@ re-investigating it.
 
 ## Two layers, keep them separate
 
-**`adgkit/` is generic.** It knows about gzipped XML, Ableton's node
+**`patchbay/` is generic.** It knows about gzipped XML, Ableton's node
 structure, ids, macro mappings, chain zones, file references. It knows
 nothing about kick drums or darkwave. Its API should read roughly as:
 "load this preset, find that node, set this parameter, clone that chain,
@@ -37,9 +37,9 @@ write it back". Anyone building any Live template should be able to use it.
 
 **The rest of the project is specific.** It encodes one opinionated template:
 this eight track Push set. It expresses that template as data in `specs/`,
-and uses `adgkit` to realise it.
+and uses `patchbay` to realise it.
 
-If you find yourself putting the word "kick" or "drum" inside `adgkit/`,
+If you find yourself putting the word "kick" or "drum" inside `patchbay/`,
 that logic belongs in the specific layer.
 
 ## The donor pattern
@@ -149,7 +149,7 @@ pattern is load bearing.
 Each phase ends with a manual gate: generate, drag into Live, confirm
 behaviour. There is no automated test that proves Live will load a file.
 
-~~**Phase 1. adgkit core.**~~ **DONE.** `find.py` locates nodes, `params.py`
+~~**Phase 1. patchbay core.**~~ **DONE.** `find.py` locates nodes, `params.py`
 reads and writes values, ranges and mappings.
 
 **Phase 2. Clone with id remapping.**

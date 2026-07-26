@@ -28,7 +28,7 @@ re-run the spikes.
 `racks/s1_source.adg`, an Instrument Rack, 559,674 bytes of XML,
 18,148 facts.
 
-`adgkit roundtrip` reports **structurally identical: YES** with ids
+`patchbay roundtrip` reports **structurally identical: YES** with ids
 included — no fact lost, invented or renumbered. Output loads in Live 12.4.3
 and presents identically.
 
@@ -46,7 +46,7 @@ causes, none semantic:
 byte conventions, and no code should depend on byte identity.
 
 Consequence for later spikes: never diff `.adg` files with a byte-level
-tool, only with `adgkit diff`. A byte diff of two semantically identical
+tool, only with `patchbay diff`. A byte diff of two semantically identical
 files reports ~20 KB of noise.
 
 Open option, not currently needed: making `io.save` byte-exact (CRLF,
@@ -58,7 +58,7 @@ which is its own risk, and S1 passing means nothing requires it.
 
 `racks/s2_a.adg` / `racks/s2_b.adg`, same Drum Rack saved twice with no
 edit between saves. Eight facts moved, in two groups. Neither group is a
-mystery, and after retuning the filter `adgkit diff` reports `identical`.
+mystery, and after retuning the filter `patchbay diff` reports `identical`.
 
 ### Ids do NOT churn. This is the headline.
 
@@ -120,7 +120,7 @@ applies here too — these travel in pairs and must stay consistent.
 | `SAVE_NOISE` | RoundRobinRandomSeed | hidden |
 | `PRESET_REF_MARKERS` | `/PresetRef/`, `/LastPresetRef/` | hidden |
 
-Verified: `adgkit diff racks/s2_a.adg racks/s2_b.adg` prints `identical`.
+Verified: `patchbay diff racks/s2_a.adg racks/s2_b.adg` prints `identical`.
 
 ### Incidental
 
@@ -225,7 +225,7 @@ Saturator. Between saves, Drive was mapped to Macro 1 via right-click ->
 Map to Macro 1. Nothing else touched.
 
 **The mapping is not in the file.** Verified two ways, which agree:
-`adgkit diff` and a raw `difflib` line diff of the unpacked XML (66 lines
+`patchbay diff` and a raw `difflib` line diff of the unpacked XML (66 lines
 total). This rules out a `flatten` blind spot.
 
 The complete set of differences:
@@ -290,7 +290,7 @@ Saturator/PostDrive/KeyMidi/Channel@Value          = 16
 ```
 
 `Channel` stays 16 for the second macro, so the bus is fixed and only the
-CC number varies. `adgkit mappings racks/s3b.adg` reports both correctly.
+CC number varies. `patchbay mappings racks/s3b.adg` reports both correctly.
 
 ### Internal name: Output is `PostDrive`
 
@@ -348,7 +348,7 @@ until S10 isolates the trigger with a single-change diff.
 No structural difference from S3. An inner rack's macro is an ordinary
 parameter node, so it takes a `KeyMidi` child like any other parameter.
 
-Found already present in `racks/s1_source.adg` via `adgkit mappings`,
+Found already present in `racks/s1_source.adg` via `patchbay mappings`,
 chaining three levels:
 
 ```
@@ -490,7 +490,7 @@ than written. Cloning a branch does **not** require remapping a web of
 cross-references — macro mappings carry no ids at all (S3). It requires
 exactly one thing: **give the new branch an `Id` unused by its siblings.**
 
-`adgkit.ids.next_free_id(parent, tag)` does that. `adgkit ids` now reports
+`patchbay.ids.next_free_id(parent, tag)` does that. `patchbay ids` now reports
 sibling collisions directly and its verdict matches Live's behaviour on all
 three test files.
 
@@ -603,7 +603,7 @@ Both samples are 48 kHz, 1 channel, 16-bit WAV:
 
 `frames = (filesize - 44) / (channels * bits/8)`, i.e. a plain WAV header
 plus PCM. So `OriginalFileSize`, `DefaultDuration` and `SampleEnd` are all
-computable by `adgkit` from the target file without Live.
+computable by `patchbay` from the target file without Live.
 
 ### `OriginalCrc` — not yet reproducible
 

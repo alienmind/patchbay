@@ -26,7 +26,7 @@ generation is therefore the only route. **Confirmed.**
 | `add_macro`, `remove_macro` | present | changes the macro *count* only — `NumVisibleMacroControls` |
 | `randomize_macros`, `selected_variation_index`, `store_variation` | present | variations can be stored and selected, but not named |
 
-So `adgkit` has a real job that nothing else does: **rack structure, macro
+So `patchbay` has a real job that nothing else does: **rack structure, macro
 mappings, chain zones and variations, at the file level.** That is the core
 of Phases 1–5 and none of it is duplicated work.
 
@@ -69,7 +69,7 @@ track, not a system.
 
 ## Division of labour
 
-**`adgkit` — files.** Racks, macro mappings, chain zones, sample
+**`patchbay` — files.** Racks, macro mappings, chain zones, sample
 retargeting, variations. Everything the API cannot express. Produces
 `.adg` files dropped into the User Library.
 
@@ -77,10 +77,10 @@ retargeting, variations. Everything the API cannot express. Produces
 clips, loading presets by URI, reading back what is actually there.
 Everything the API can express.
 
-They meet at the User Library: `adgkit` writes a rack, `ableton-mcp` loads
+They meet at the User Library: `patchbay` writes a rack, `ableton-mcp` loads
 it onto a track by browser URI.
 
-**Do not migrate MCP code into `adgkit`.** They have different runtime
+**Do not migrate MCP code into `patchbay`.** They have different runtime
 models — one writes files offline, the other holds a socket to a running
 Live. Merging them would put a network dependency inside a library whose
 whole value is working without Live open. Keep the submodule, extend its
@@ -92,7 +92,7 @@ remote script.
 returns the devices present on a track, and `load_instrument_or_effect`
 loads a preset by browser URI. Together they give a smoke test:
 
-1. `adgkit` generates a rack
+1. `patchbay` generates a rack
 2. MCP loads it onto a track
 3. `get_track_info` confirms the expected device tree appeared
 
