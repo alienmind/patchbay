@@ -60,6 +60,9 @@ def _main():
                     help="how many copies (default 1)")
     cl.add_argument("--pad", action="store_true",
                     help="drum pad: give each copy the next free ReceivingNote")
+    cl.add_argument("--stride", type=int,
+                    help="give each copy its own block of STRIDE macros "
+                         "instead of ganging every copy to the same ones")
 
     ck = sub.add_parser("check", help="would Live accept this file?")
     ck.add_argument("src")
@@ -90,8 +93,17 @@ def _main():
             raise SystemExit(
                 f"chain {args.chain} out of range; file has {len(chains)}")
         target = chains[args.chain]
-        made = (clone.clone_pad(preset, target, args.count) if args.pad
-                else clone.clone_branch(target, args.count))
+        report = None
+        if args.stride:
+            made, report = clone.clone_branch_per_macro(
+                target, args.count, args.stride)
+            if args.pad:
+                notes = clone.free_receiving_notes(preset, len(made))
+                for dup, n in zip(made, notes):
+                    clone.set_receiving_note(dup, n)
+        else:
+            made = (clone.clone_pad(preset, target, args.count) if args.pad
+                    else clone.clone_branch(target, args.count))
         clone.assert_loadable(root)
         io.save(root, args.dest)
         print(f"cloned <{target.tag}> x{args.count} -> {len(chains) + len(made)} chains")
@@ -99,6 +111,13 @@ def _main():
             zs = m.find("ZoneSettings")
             note = zs.find("ReceivingNote").get("Value") if zs is not None else None
             print(f"  new Id={m.get('Id')}" + (f"  ReceivingNote={note}" if note else ""))
+        if report:
+            for dup, moved, skipped in report:
+                for tag, was, now in moved:
+                    print(f"    Id={dup.get('Id')} {tag}: macro {was} -> {now}")
+                for tag, was, now in skipped:
+                    print(f"    Id={dup.get('Id')} {tag}: macro {was} -> {now} "
+                          f"OUT OF RANGE, left on {was}")
         print(f"wrote {args.dest}")
     elif args.cmd == "check":
         bad = ids.report(args.src)

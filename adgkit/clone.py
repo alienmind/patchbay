@@ -61,6 +61,52 @@ def clone_branch(branch, count=1, receiving_notes=None):
     return made
 
 
+def shift_macros(branch, offset):
+    """Add `offset` to every macro mapping inside this branch.
+
+    A cloned chain keeps the original's macro indices, so all copies answer
+    to the same macro and move together. That is correct for ganged
+    control — the sound family constraint in TEMPLATE_SPEC.md wants exactly
+    it — but wrong when each chain should have its own knob.
+
+    Shifting a copy's mappings by its position gives per-chain control:
+    chain 0 on macros 1..k, chain 1 on macros k+1..2k, and so on.
+
+    Mappings that would land outside 1..16 are left alone and reported, so
+    running out of macros is visible rather than silent.
+    """
+    from . import params
+
+    moved, skipped = [], []
+    for el in branch.iter():
+        if not isinstance(el.tag, str) or el.find("KeyMidi") is None:
+            continue
+        current = params.mapped_macro(el)
+        if current is None:
+            continue
+        target = current + offset
+        if 1 <= target <= 16:
+            params.map_to_macro(el, target)
+            moved.append((el.tag, current, target))
+        else:
+            skipped.append((el.tag, current, target))
+    return moved, skipped
+
+
+def clone_branch_per_macro(branch, count, stride):
+    """Duplicate a chain, giving each copy its own block of macros.
+
+    stride is how many macros one chain uses. With stride 2, chain 0 keeps
+    macros 1-2, the first copy gets 3-4, the next 5-6.
+    """
+    made = clone_branch(branch, count)
+    report = []
+    for i, dup in enumerate(made, start=1):
+        moved, skipped = shift_macros(dup, i * stride)
+        report.append((dup, moved, skipped))
+    return made, report
+
+
 def set_receiving_note(branch, note):
     """Set which MIDI note a drum pad answers to.
 

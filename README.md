@@ -11,8 +11,10 @@ instead.
 **Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
 viable.** Next action is Phase 1–2: `adgkit` core and `clone.py`.
 
-No generator code exists yet. `adgkit/` currently holds discovery tooling
-only: read, write, diff, round trip, id census, mapping census.
+**Phases 1 and 2 are done and gated in Live**: node navigation, parameter
+and mapping read/write, and chain cloning. `python tests/test_adgkit.py`
+runs 16 tests asserting the library still agrees with every recorded
+finding.
 
 The headline finding so far: **macro mappings are not id-based.** A
 mapping is a `KeyMidi` element inside the target parameter, encoding a
@@ -158,6 +160,39 @@ mapping whose channel is not the macro bus, or whose mode is not absolute.
 
 This is the check to run after every clone in Phase 2: the mapping list
 before and after must match, with the right multiplicity.
+
+### `adgkit clone SRC DEST [-c N] [-n N] [--pad] [--stride N]`
+
+Duplicate a chain. `-c` picks which chain (default 0), `-n` how many
+copies.
+
+```
+adgkit clone racks/s3b.adg build/out.adg -n 3
+adgkit clone racks/s9_b.adg build/out.adg -n 3 --pad
+adgkit clone racks/s3b.adg build/out.adg -n 3 --stride 2
+```
+
+**Ganged by default.** Copies keep the original's macro indices, so every
+copy answers to the same macro and they move together. That is what the
+sound family constraint in `TEMPLATE_SPEC.md` wants.
+
+`--stride N` instead gives each copy its own block of N macros — chain 0
+on macros 1..N, the first copy on N+1..2N, and so on — for when each
+engine needs its own knob. Mappings that would pass macro 16 are left
+where they are and reported, so running out is visible.
+
+`--pad` assigns each copy the next free `ReceivingNote`, for drum racks.
+Without it every copy answers to the original's note and they all trigger
+together.
+
+Refuses to write a file with sibling id collisions, which is the one thing
+Live rejects outright.
+
+### `adgkit check SRC`
+
+Would Live accept this file? Reports sibling id collisions and exits
+non-zero if any exist. Verified against Live's actual behaviour on three
+deliberately broken files.
 
 ### `adgkit unpack SRC [-o OUT]` / `adgkit repack SRC DEST`
 

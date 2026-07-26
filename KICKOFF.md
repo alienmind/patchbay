@@ -149,9 +149,8 @@ pattern is load bearing.
 Each phase ends with a manual gate: generate, drag into Live, confirm
 behaviour. There is no automated test that proves Live will load a file.
 
-**Phase 1. adgkit core.**
-Read, write, round trip. Node location helpers. Get and set parameter values.
-Depends on S1, S2.
+~~**Phase 1. adgkit core.**~~ **DONE.** `find.py` locates nodes, `params.py`
+reads and writes values, ranges and mappings.
 
 **Phase 2. Clone with id remapping.**
 Duplicate a chain or a whole device subtree, allocating fresh ids so mappings
@@ -159,8 +158,13 @@ survive. Depends on S3, S4, S6.
 *Revised: mappings survive a verbatim copy — no id work needed for them.
 Remaining id work is whatever S6 turns up for other references, so this
 phase is cheaper than planned.*
-*Gate: clone one mapped pad, load it, confirm all three macro hops still
-drive the right parameters and that the two pads are independent.*
+*Gate: PASSED.* Cloning a mapped chain three times produced four chains
+whose macros all drive correctly, with no cross-wiring, confirmed in Live.
+
+Note what "independent" means here: the copies are separate objects, but
+they answer to the *same* macro and therefore move together. That is the
+default and it is what the sound family constraint wants. `--stride` gives
+each copy its own macro block when independent knobs are needed instead.
 
 **Phase 3. Sample retargeting.**
 Rewrite `FileRef` nodes from a manifest. Depends on S7.

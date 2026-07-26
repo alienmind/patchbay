@@ -190,6 +190,40 @@ def test_assert_loadable_raises_on_collision():
         raise AssertionError("expected a loud failure, got silence")
 
 
+def test_clone_ganged_vs_per_chain():
+    """Cloned chains gang to the same macro unless told otherwise.
+
+    Both behaviours are wanted: ganged for the sound family constraint,
+    per-chain when each engine needs its own knob.
+    """
+    root = io.load(RACKS / "s3b.adg")
+    preset = find.preset(root)
+    clone.clone_branch(find.branches(preset)[0], count=3)
+    ganged = sorted(m["macro"] for m in mappings.find(root))
+    assert ganged == [1, 1, 1, 1, 2, 2, 2, 2], "every copy answers to the same macros"
+
+    root = io.load(RACKS / "s3b.adg")
+    preset = find.preset(root)
+    clone.clone_branch_per_macro(find.branches(preset)[0], count=3, stride=2)
+    spread = sorted(m["macro"] for m in mappings.find(root))
+    assert spread == [1, 2, 3, 4, 5, 6, 7, 8], "each copy gets its own macro block"
+    assert not ids.collisions(root)
+
+
+def test_macro_overflow_is_reported_not_silent():
+    root = io.load(RACKS / "s3b.adg")
+    preset = find.preset(root)
+    _, report = clone.clone_branch_per_macro(
+        find.branches(preset)[0], count=8, stride=2)
+    skipped = [s for _, _, sk in report for s in sk]
+    assert skipped, "running past macro 16 must be visible"
+    for tag, was, would_be in skipped:
+        assert would_be > 16
+    # and the mappings that could not move are left valid, not corrupted
+    for m in mappings.find(root):
+        assert 1 <= m["macro"] <= 16
+
+
 # --- S12: devices may be partial ------------------------------------------
 
 def test_params_survives_a_gutted_device():
