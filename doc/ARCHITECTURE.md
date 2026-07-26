@@ -138,6 +138,13 @@ GroupDevicePreset                        (DrumGroupDevice)
 This is the DR1 pattern from `TEMPLATE_SPEC.md`, confirmed to exist and
 function in a real file.
 
+**[V] A nested rack cannot be lifted out and used standalone.** Taking an
+inner `GroupDevicePreset`, wrapping it in a fresh `<Ableton>` root and
+saving produces a file Live refuses to accept as a drop, without ever
+loading it. Nothing checkable differs from a working rack. See
+`SPIKES.md` Q1b; this is open, and it is a warning for anyone writing
+nested racks rather than only reading them.
+
 ## 4. Parameter nodes
 
 **[V]** Every automatable parameter is an element named after the

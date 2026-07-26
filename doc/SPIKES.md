@@ -39,6 +39,29 @@ attached: confirm a generated nested rack loads and that macro-to-macro
 mappings survive being written rather than saved by Live.
 *Blocks: DR1, VA1, VA2.*
 
+**Q1b. Why a nested rack cannot be lifted out.** A `GroupDevicePreset`
+taken from inside another rack's chain, wrapped in a fresh `<Ableton>`
+root and saved, produces a file Live REFUSES TO ACCEPT AS A DROP. It never
+gets as far as loading.
+
+Everything checkable looks correct: same top-level children as a working
+rack, same `PresetRef` shape with the right `DeviceId`, no sibling id
+collisions, no parent-referencing state in `LastPresetRef`,
+`SourceContext`, `LockId` or `LockSeal`.
+
+Evidence: `build/probe_a_extracted.adg` refuses to drag, while
+`build/probe_b_audio.adg` built by the same code from a top-level skeleton
+drags onto both track types.
+
+This matters beyond skeletons: DR1 needs racks nested INTO chains, and if
+Live is sensitive to something about a nested rack's serialisation then
+writing one may hit the same wall. Diff a hand-built nested rack against a
+Live-saved one to find it.
+
+*Workaround in place:* the DSL now only accepts a top-level rack as a
+skeleton and raises otherwise, rather than silently producing a file that
+cannot be loaded.
+
 **Q2. Aftertouch.** `TEMPLATE_SPEC.md` wants aftertouch mapped to filter
 and pitch on every sound, excluding drum pads. Nothing is known about how
 that is stored. It is probably a sibling of the `KeyMidi` mechanism, since

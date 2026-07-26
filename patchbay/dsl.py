@@ -288,11 +288,20 @@ class Rack:
         return removed
 
     def _preset_of_kind(self, root: Element) -> Element | None:
-        """The first GroupDevicePreset whose device matches this rack kind."""
-        for gdp in root.iter("GroupDevicePreset"):
-            dev = find.rack_device(gdp)
-            if dev is not None and dev.tag == self.kind.value:
-                if find.branches(gdp):
+        """The TOP-LEVEL GroupDevicePreset, if it matches this rack kind.
+
+        Top level only, deliberately. A rack nested inside another rack's
+        chain cannot be lifted out and used as a standalone preset: Live
+        refuses to even accept the drop. Cause unknown, recorded as an open
+        question in doc/SPIKES.md.
+
+        Silently falling back to a nested rack is how this produced files
+        that looked fine, passed every check, and could not be loaded.
+        """
+        for gdp in root:
+            if isinstance(gdp.tag, str) and gdp.tag == "GroupDevicePreset":
+                dev = find.rack_device(gdp)
+                if dev is not None and dev.tag == self.kind.value and find.branches(gdp):
                     return gdp
         return None
 
@@ -301,16 +310,23 @@ class Rack:
         named = root / "donors" / f"skeleton_{self.kind.name.lower()}.adg"
         if named.exists():
             return named
+
+        checked: list[str] = []
         for folder in ("donors", "racks"):
             for candidate in sorted((root / folder).glob("*.adg")):
+                checked.append(candidate.name)
                 try:
                     if self._preset_of_kind(io.load(candidate)) is not None:
                         return candidate
                 except Exception:
                     continue
+
         raise FileNotFoundError(
-            f"no {self.kind.value} skeleton found. Save a rack of that kind "
-            f"to donors/skeleton_{self.kind.name.lower()}.adg")
+            f"no top-level {self.kind.value} to use as a skeleton.\n"
+            f"Save an empty rack of that kind from Live to "
+            f"donors/skeleton_{self.kind.name.lower()}.adg.\n"
+            f"Checked {len(checked)} file(s). Racks nested inside another "
+            f"rack are not usable as skeletons: Live rejects the result.")
 
     def _name_macros(self, rack_dev: Element) -> None:
         """Write the grammar's slot names onto the macros."""
