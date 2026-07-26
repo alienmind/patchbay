@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "ableton-knowledge": {
+      "command": "node",
+      "cwd": "C:\\Users\\jaime\\AppData\\Roaming\\Claude\\Claude Extensions\\ant.dir.gh.ableton.ableton-knowledge",
+      "args": [
+        "C:\\Users\\jaime\\AppData\\Roaming\\Claude\\Claude Extensions\\ant.dir.gh.ableton.ableton-knowledge\\server\\index.js"
+      ],
+      "env": {
+        "ABLETON_KNOWLEDGE_DATA_DIR": "C:\\Users\\jaime\\AppData\\Roaming\\Claude\\Claude Extensions\\ant.dir.gh.ableton.ableton-knowledge\\data",
+        "EMBEDDING_MODEL_PATH": "C:\\Users\\jaime\\AppData\\Roaming\\Claude\\Claude Extensions\\ant.dir.gh.ableton.ableton-knowledge\\model\\snowflake-arctic-embed-m-v1.5-q8_0.gguf",
+        "WASM_DIR": "C:\\Users\\jaime\\AppData\\Roaming\\Claude\\Claude Extensions\\ant.dir.gh.ableton.ableton-knowledge\\wasm",
+        "ABLETON_KNOWLEDGE_ROOT": "C:\\Users\\jaime\\AppData\\Roaming\\Claude\\Claude Extensions\\ant.dir.gh.ableton.ableton-knowledge",
+        "ENABLE_LIVE": "true",
+        "ENABLE_PUSH": "true",
+        "ENABLE_MOVE": "false",
+        "ENABLE_NOTE": "false"
+      }
+    },
+    "AbletonMCP": {
+      "command": "uvx",
+      "args": ["ableton-mcp"]
+    }
+  }
+}
