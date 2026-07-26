@@ -509,6 +509,74 @@ def test_va1_builds_two_levels():
     assert all(m["channel"] == "16" for m in chained), "depth is not encoded"
 
 
+# --- drum pads ------------------------------------------------------------
+
+def _kit():
+    inner = Rack("KICK", Grammar("Engine", "Cutoff"))
+    inner.engine("S1", "OriginalSimpler").bind(
+        cutoff="Filter/Slot/Value/SimplerFilter/Freq")
+    kit = Rack("DR1", Grammar("Tune", "Decay"), kind=RackKind.DRUM)
+    kit.pad("KICK", 36, rack=inner)
+    kit.pad("RIM", 37, device="OriginalSimpler")
+    return kit
+
+
+def test_a_pad_is_addressed_by_note():
+    branches = find.branches(find.preset(_kit().build()))
+    notes = [b.find("ZoneSettings/ReceivingNote").get("Value") for b in branches]
+    assert notes == ["36", "37"]
+    for b in branches:
+        assert b.find("ZoneSettings/SendingNote").get("Value") == "60", (
+            "a pad's sampler plays at root pitch wherever the pad sits")
+
+
+def test_pads_are_exempt_from_zone_distribution():
+    """Live leaves every pad's zone at 0/0/0/0; the note is the selector."""
+    for b in find.branches(find.preset(_kit().build())):
+        assert {c.tag: c.get("Value") for c in find.zone(b)} == {
+            "Min": "0", "Max": "0", "CrossfadeMin": "0", "CrossfadeMax": "0"}
+
+
+def test_a_pad_may_hold_a_device_or_a_whole_rack():
+    branches = find.branches(find.preset(_kit().build()))
+    assert [d.tag for d in find.devices(branches[0])] == ["GroupDevicePreset"]
+    assert [d.tag for d in find.devices(branches[1])] == ["OriginalSimpler"]
+
+
+def test_two_pads_on_one_note_is_refused():
+    """Legal and loadable, and almost never what anyone means: they fire
+    together."""
+    kit = Rack("DR1", Grammar("Tune"), kind=RackKind.DRUM)
+    kit.pad("KICK", 36, device="OriginalSimpler")
+    try:
+        kit.pad("SNARE", 36, device="OriginalSimpler")
+    except ValueError as e:
+        assert "already triggers" in str(e)
+    else:
+        raise AssertionError("two pads on one note must not reach a file")
+
+
+def test_pads_need_a_drum_rack():
+    rack = Rack("PD1", Grammar("Cutoff"), kind=RackKind.INSTRUMENT)
+    try:
+        rack.pad("KICK", 36, device="OriginalSimpler")
+    except ValueError as e:
+        assert "drum rack" in str(e)
+    else:
+        raise AssertionError("an instrument rack has no pads")
+
+
+def test_a_pad_holds_exactly_one_thing():
+    kit = Rack("DR1", Grammar("Tune"), kind=RackKind.DRUM)
+    for kwargs in ({}, {"device": "OriginalSimpler", "rack": Rack("X", Grammar("A"))}):
+        try:
+            kit.pad("KICK", 36, **kwargs)
+        except ValueError as e:
+            assert "exactly one" in str(e)
+        else:
+            raise AssertionError(f"pad({kwargs}) should not build")
+
+
 # --- S12: devices may be partial ------------------------------------------
 
 def test_params_survives_a_gutted_device():

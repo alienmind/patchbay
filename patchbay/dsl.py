@@ -173,6 +173,8 @@ class Engine:
     name: str
     device_tag: str
     bindings: dict[str, BoundParam] = field(default_factory=dict)
+    #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
+    note: int | None = None
 
     def bind(self, **slots: Binding) -> "Engine":
         """Bind grammar slots to this device's parameters.
@@ -217,6 +219,8 @@ class Nest:
     name: str
     inner: "Rack"
     bindings: dict[str, str] = field(default_factory=dict)
+    #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
+    note: int | None = None
 
     def bind(self, **slots: str) -> "Nest":
         """Bind outer grammar slots to inner ones. `cutoff="cutoff"`.
@@ -267,6 +271,7 @@ class Rack:
         self.variation_set: list[Variation] = []
         self._skeleton = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
+        self._wrapper_template: Element | None = None
 
     def engine(self, name: str, device_tag: str) -> Engine:
         """Add an engine. One engine is one chain."""
@@ -295,6 +300,41 @@ class Rack:
         n = Nest(self, name, inner)
         self.engines.append(n)
         return n
+
+    def pad(self, name: str, note: int, device: str | None = None,
+            rack: "Rack | None" = None) -> Chain:
+        """Add a drum pad: one chain, triggered by a MIDI note.
+
+        A pad is a chain like any other, with one thing swapped. An
+        ordinary chain is selected by a zone on the rack's chain selector;
+        a pad is selected by `ReceivingNote`, and Live leaves its zone at
+        0/0/0/0. So pads are exempt from zone distribution and nothing else
+        changes.
+
+        Holds either a device or a whole rack, which is how DR1 reaches
+        three levels:
+
+            kit.pad("KICK", 36, rack=pad_rack("KICK"))
+            kit.pad("RIM", 37, device="OriginalSimpler")
+        """
+        if self.kind is not RackKind.DRUM:
+            raise ValueError(
+                f"pads belong to a drum rack; {self.name!r} is "
+                f"{self.kind.name.lower()}. Use engine() or nest().")
+        if not 0 <= note <= 127:
+            raise ValueError(f"{name}: MIDI note must be 0..127, got {note}")
+        if (device is None) == (rack is None):
+            raise ValueError(f"{name}: pass exactly one of device= or rack=")
+
+        taken = {c.note: c.name for c in self.engines if c.note is not None}
+        if note in taken:
+            raise ValueError(
+                f"{name}: note {note} already triggers pad {taken[note]!r}. "
+                f"Two pads on one note fire together.")
+
+        chain = self.nest(name, rack) if rack is not None else self.engine(name, device)
+        chain.note = note
+        return chain
 
     # --- variations -------------------------------------------------------
 
@@ -422,6 +462,9 @@ class Rack:
 
         self._strip_inherited_mappings(preset)
 
+        self._wrapper_template = next(
+            (copy.deepcopy(w) for w in preset.iter("AbletonDevicePreset")), None)
+
         container = preset.find("BranchPresets")
         self._branch_template = None
         for child in list(container):
@@ -532,6 +575,9 @@ class Rack:
                 wrapper.set("Id", "0")
                 devices.append(wrapper)
 
+            if chain.note is not None:
+                clone.set_receiving_note(branch, chain.note)
+
             container.append(branch)
             made.append(branch)
         return made
@@ -552,13 +598,18 @@ class Rack:
         return preset
 
     def _device_wrapper(self) -> Element:
-        """An empty AbletonDevicePreset, modelled on the skeleton's."""
-        assert self._branch_template is not None
-        presets = self._branch_template.find("DevicePresets")
-        for child in presets:
-            if child.tag == "AbletonDevicePreset":
-                return copy.deepcopy(child)
-        raise ValueError("skeleton chain has no AbletonDevicePreset to model on")
+        """An empty AbletonDevicePreset, modelled on the skeleton's.
+
+        Searched across the whole skeleton rather than its first chain,
+        because a chain may hold a nested rack instead of a device and then
+        has no wrapper to copy - which is exactly the case in the only drum
+        rack available as a skeleton.
+        """
+        if self._wrapper_template is None:
+            raise ValueError(
+                "skeleton has no AbletonDevicePreset anywhere to model a "
+                "device wrapper on")
+        return copy.deepcopy(self._wrapper_template)
 
     @staticmethod
     def _zone_bounds(i: int, n: int) -> tuple[int, int]:
@@ -573,9 +624,15 @@ class Rack:
 
         Bounds, not start plus length, with fades collapsed onto them - see
         ARCHITECTURE.md section 7.
+
+        Pads are skipped. A pad is selected by its note, and Live leaves
+        every pad's zone at 0/0/0/0 - slicing the selector across them
+        would express a choice a drum rack does not make.
         """
-        n = len(branches)
-        for i, branch in enumerate(branches):
+        spread = [b for i, b in enumerate(branches)
+                  if self.engines[i].note is None]
+        n = len(spread)
+        for i, branch in enumerate(spread):
             lo, hi = self._zone_bounds(i, n)
             zone = find.zone(branch)
             if zone is None:
