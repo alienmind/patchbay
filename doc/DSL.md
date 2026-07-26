@@ -27,23 +27,26 @@ promise; expressed through a shared grammar it is structural.
 ## The shape
 
 ```python
-PUSH = Grammar("Engine", "Cutoff", "Resonance", "Decay",
-               "Drive", "Movement", "Space", "Character")
+PUSH = Grammar("Instrument", "Sound", "Filter", "Drive",
+               "Movement", "Character", "Release", "Volume",
+               selector="Instrument")
 
 rack = Rack("PD1", PUSH, kind=RackKind.INSTRUMENT)
 
 with rack.engine("FM", "Operator") as e:
-    e.bind(cutoff=("Filter/Frequency", 200, 8000),
-           resonance="Filter/Resonance",
-           decay="Filter/Envelope/DecayTime")
+    e.bind(filter=("Filter/Frequency", 30, 18500),
+           character="Filter/Resonance",
+           release="Operator.0/Envelope/ReleaseTime",
+           volume=("Globals/Volume", 0.0003162277571, 1.0))
 
 with rack.engine("Sample", "OriginalSimpler") as e:
-    e.bind(cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
-           resonance="Filter/Slot/Value/SimplerFilter/Res",
-           decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime")
+    e.bind(filter=("Filter/Slot/Value/SimplerFilter/Freq", 30, 18500),
+           character="Filter/Slot/Value/SimplerFilter/Res",
+           release="VolumeAndPan/Envelope/ReleaseTime",
+           volume=("VolumeAndPan/Volume", -36.0, 0.0))
 
-rack.variations(Variation("dark", cutoff=30, decay=110),
-                Variation("open", cutoff=120, decay=20))
+rack.variations(Variation("dark", filter=30, release=110),
+                Variation("open", filter=120, release=20))
 
 rack.save("build/PD1.adg")
 ```
@@ -53,9 +56,73 @@ parameters to the standard grammar"**. Everything else follows:
 
 - one engine is one chain
 - chain-select zones are distributed evenly across 0..127
-- macro 1 drives the chain selector, so the Engine knob sweeps engines
+- the grammar's `selector` slot drives the chain selector
 - the same grammar slot means the same macro in every engine, which *is*
   the sound family constraint
+
+## The selector slot is named, not fixed
+
+`Grammar(..., selector="Instrument")` says which slot drives the chain
+selector. It defaults to `"engine"` and may be `None` for a grammar with
+no selector at all, such as a drum kit whose macro 1 is Tune.
+
+This was hardcoded to `"engine"` once. Renaming the slot then produced a
+rack that compiled, passed every check the tooling has, loaded in Live,
+and whose first macro moved nothing, because the code silently found no
+slot to map. A grammar is a contract the caller writes; the library must
+not also assume one of its words.
+
+## A chain may name its own sample
+
+```python
+with rack.engine("Kick", "OriginalSimpler") as e:
+    e.sample("samples/kicks/ebm_01.wav")
+```
+
+Path only. S7 established that Live re-reads the file on load and
+recomputes duration, sample end and the loop ends, so the other 18 facts a
+real swap moves in Live are its own bookkeeping. Nothing computes a CRC.
+
+Two refusals, both because the alternative is silent:
+
+- **A path that is not a file raises at declaration.** Live loads a
+  missing sample as an offline rack, which passes every check this tooling
+  has and makes no sound.
+- **A device with no `SampleRef` raises at build.** Pointing a sample at
+  Operator is a mistake, not a no-op.
+
+Both FileRefs move together, the live reference and the provenance one
+under `SourceContext`. In a donor they routinely point at DIFFERENT files,
+so writing only the first leaves the second naming a sample this rack no
+longer plays.
+
+## A slot is only as consistent as its ranges
+
+Two engines binding the same slot to their own equivalent parameter
+satisfies the sound family constraint and is still not enough.
+
+PD1's Volume slot bound `Globals/Volume` on Operator and
+`VolumeAndPan/Volume` on Simpler. Both correct, both the right parameter.
+One is linear amplitude bottoming at -70 dB, the other decibels bottoming
+at -36. Macro 8 at zero silenced one engine and left the other playing.
+See Q14 in `SCHEMA.md`.
+
+So the range argument is not decoration for taste. **Where engines
+disagree about units, `MidiControllerRange` is the only place the
+agreement can live.** `library.Device.range_of(path)` reports a
+parameter's native range without opening Live, which is how the divergence
+above was measured after ears found it.
+
+Rule of thumb: bind bare when engines agree about units, bind with a range
+when they do not, and assume they do not until checked.
+
+**A shared slot reads 0..127, never Hz.** A macro driving more than one
+parameter has no single unit to show, so Live displays the raw macro
+position. Every slot in this grammar is multiply mapped by design, one
+target per engine, so no instrument knob will ever show a unit. That is
+the cost of one knob reaching every engine, and it is not
+`ForceDisplayGenericValue` (S10), which forces the same display on a
+SINGLY mapped macro and cannot undo this.
 
 ## A chain may be another rack
 
@@ -64,7 +131,7 @@ be able to hold a rack as easily as a device:
 
 ```python
 rack.nest("PADS", pd1())
-rack.nest("KEYS", ld1()).bind(cutoff="cutoff", decay="decay")
+rack.nest("KEYS", ld1()).bind(filter="filter", release="release")
 ```
 
 `nest` is `engine`'s sibling, not a separate construct. Both add one
@@ -91,30 +158,34 @@ carry none. That is handled in `_nested_preset` and `_load_skeleton` and
 is invisible from the spec. It is also the whole of what once made nested
 racks look intractable - see `THE_BASEMENT.md`.
 
-## A sound is a variation
-
-`PATCHBAYGROUND.md` puts ~692 sounds across 18 engines. As chains that is
-impossible; as variations it is a loop.
+## A variation is a vector, not a sound
 
 A `Variation` is a vector over grammar slots, in macro space 0..127 - the
 only scale a variation has, since Live applies each target's own
 `MidiControllerRange` at recall. It names slots, never device parameters:
 
 ```python
-Variation("dark plucks", cutoff=30, decay=110, resonance=90)
+Variation("dark plucks", filter=30, release=110, character=90)
 ```
 
 **That is why the sound family constraint needs no enforcing.** Both engines
-bind `cutoff` to their own parameter, so one vector is one sound in each,
+bind `filter` to their own parameter, so one vector is one sound in each,
 and index alignment across engines is structural rather than a rule someone
 has to remember. Nothing in the variation code knows how many engines there
 are.
 
-Engine choice is itself a slot, because macro 1 drives the chain selector
-and a selector is an ordinary parameter:
+A variation is NOT how PATCHBAYGROUND addresses a sound. Nothing maps a
+knob to a variation, so a variation cannot be dialled in while a clip
+plays; a sound is `(instrument, sound)`, two macros driving two chain
+selectors. What a variation carries that a selector position cannot is the
+WHOLE vector at once, which makes it the right mechanism for a preset
+across the entire grammar. See `PATCHBAYGROUND.md`.
+
+Instrument choice is itself a slot, because the grammar's selector slot
+drives the chain selector and a selector is an ordinary parameter:
 
 ```python
-Variation("sampled", engine=rack.engine_macro("Sample"), cutoff=40)
+Variation("sampled", instrument=rack.engine_macro("Sample"), filter=40)
 ```
 
 `engine_macro` returns the centre of that engine's zone, from the same
@@ -154,9 +225,9 @@ Each capability traces to a spike, not an assumption:
 
 `build/PD1.adg`, compiled from `examples/patchbayground.py`, loads on a MIDI
 track in Live 12.4.3. Macro 1 sweeps engines across the distributed zones.
-Macro 2 drives Operator's `Filter/Frequency` and Simpler's
+Macro 3 drives Operator's `Filter/Frequency` and Simpler's
 `Filter/Slot/Value/SimplerFilter/Freq`, both scoped to the declared
-200-8000 Hz range.
+30-18500 Hz range.
 
 That is the whole claim of this document demonstrated: one grammar, two
 synthesis methods, the same knob meaning the same thing in both.

@@ -24,6 +24,11 @@ Nesting has passed the same gate. `build/VA1.adg` is two levels written
 from scratch, with macros chaining into whichever sub-rack is selected.
 DR1's remaining blockers are the pad side, not the nesting.
 
+The eight slot grammar in `PATCHBAYGROUND.md` is what the code declares
+and is gated in Live 12.4.3 on both racks, ranges included. Donors for
+Wavetable, Drift and Meld are harvested and their bindings measured, so
+BS1, LD1 and PD1 proper are blocked on being written, not on evidence.
+
 ## In progress
 
 Nothing. Pick from Next.
@@ -36,13 +41,7 @@ and `Rack.nest` already puts a rack inside a chain; nothing joins them up.
 A drum rack declares pads by note rather than chains by zone, so
 `RackKind.DRUM` needs a pad-shaped entry point rather than `engine`, and
 zone distribution does not apply to a pad.
-*Blocks: DR1. Wants T3 for the samples and Q6 for the return selectors.*
-
-**T3. Sample retargeting** (KICKOFF Phase 3). Much smaller than budgeted:
-S7 showed Live re-reads sample metadata on load, so only the two path
-fields on each of a sample's two FileRefs are required. Belongs in the DSL
-as a binding, not a separate module.
-*Gate: eight pads, eight samples, none offline.*
+*Blocks: DR1. Wants Q6 for the return selectors; samples are done.*
 
 **T4. Extend the `ableton-mcp` remote script** (KICKOFF Phase 6, revised).
 `create_audio_track`, `create_return_track` and an output-routing setter
@@ -58,9 +57,7 @@ run backwards.
 
 *Not blocked on any external library.* `io.load` already opens `.adg`,
 `.adv` and `.als`, because all three are gzipped XML and that is 17 lines.
-`find.py` already walks a preset tree. What is missing is an emitter, and
-no third party has one, because the DSL is ours. See `THE_BASEMENT.md` for
-why ableton-inspector does not help here.
+`find.py` already walks a preset tree. What is missing is an emitter - he DSL is ours.
 
 Four steps, each with its own gate. Do them in order; the first is the
 whole value and the last is optional.
