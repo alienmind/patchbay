@@ -23,13 +23,13 @@ Revision="e3d8be4d07c71dbd4de9e4183bf90652f680375b"
 `SchemaChangeCount` is the one to watch after a Live update. If it moves,
 re-run the spikes.
 
-## S1. Round trip fidelity — PASSES
+## S1. Round trip fidelity - PASSES
 
 `racks/s1_source.adg`, an Instrument Rack, 559,674 bytes of XML,
 18,148 facts.
 
 `patchbay roundtrip` reports **structurally identical: YES** with ids
-included — no fact lost, invented or renumbered. Output loads in Live 12.4.3
+included - no fact lost, invented or renumbered. Output loads in Live 12.4.3
 and presents identically.
 
 Bytes differ by 20,252 (lxml serialiser vs Live's), from four cosmetic
@@ -51,10 +51,10 @@ files reports ~20 KB of noise.
 
 Open option, not currently needed: making `io.save` byte-exact (CRLF,
 double-quoted declaration, `<X />`) would turn round trip into an exact
-regression check. Deferred — it means post-processing serialised bytes,
+regression check. Deferred - it means post-processing serialised bytes,
 which is its own risk, and S1 passing means nothing requires it.
 
-## S2. Noise floor — PASSES, floor is zero
+## S2. Noise floor - PASSES, floor is zero
 
 `racks/s2_a.adg` / `racks/s2_b.adg`, same Drum Rack saved twice with no
 edit between saves. Eight facts moved, in two groups. Neither group is a
@@ -74,7 +74,7 @@ Consequences:
 - Ids are now **shown by default**; `--hide-ids` opts out.
 - Early positive signal for S6 and therefore Phase 2: ids are stable
   identities, not per-save serial numbers. Still to be established is
-  what happens when a device is *added* — stability across a no-op save
+  what happens when a device is *added* - stability across a no-op save
   does not prove stability across an edit.
 
 ### Genuine per-save churn: `RoundRobinRandomSeed`
@@ -104,13 +104,13 @@ A rack stores where it was last saved, in two places: `PresetRef` (the
 preset's own identity) and the device's `LastPresetRef`. Both carry an
 absolute `Path` and a User-Library-relative `RelativePath`.
 
-This is a real Phase 4 finding, not churn — but it is unavoidable churn
+This is a real Phase 4 finding, not churn - but it is unavoidable churn
 in *every* spike pair, since a pair needs two filenames. Hidden by
 default via `PRESET_REF_MARKERS`, visible with `--all`.
 
 Note the shape: `FileRef` with parallel `Path` + `RelativePath` is the
 same structure S7 will meet for samples. Landmine #2 in `CLAUDE.md`
-applies here too — these travel in pairs and must stay consistent.
+applies here too - these travel in pairs and must stay consistent.
 
 ### Filter state after S2
 
@@ -129,7 +129,7 @@ Verified: `patchbay diff racks/s2_a.adg racks/s2_b.adg` prints `identical`.
 GroupDevicePreset -> InstrumentBranchPreset`, i.e. already the DR1
 three-level pattern from `TEMPLATE_SPEC.md`. Good subject for S4 and S6.
 
-## S3. Macro mapping — ANSWERED
+## S3. Macro mapping - ANSWERED
 
 **A macro mapping is a `KeyMidi` element on the target parameter.**
 There is no id, no pointer and no path string. The target is named by
@@ -165,7 +165,7 @@ Live implements rack macros as MIDI CC on a virtual channel:
 | `PersistentKeyString` = "" | empty for macro mappings (computer-key mapping field) |
 | `LowerRangeNote` / `UpperRangeNote` = -1 | unused when `IsNote` is false |
 
-Which rack owns the macro is **not** stored — it is resolved structurally.
+Which rack owns the macro is **not** stored - it is resolved structurally.
 The rule is *not* "nearest enclosing rack device": in preset format a
 rack's `Device` and its `BranchPresets` are siblings, so a mapped
 parameter is never a descendant of the rack node owning the macro. Walk up
@@ -198,7 +198,7 @@ for `TEMPLATE_SPEC.md`'s chain-select layout.
 
 ### Still open
 
-1. ~~`NoteOrController` = macro index is inferred.~~ **Closed by S3b** —
+1. ~~`NoteOrController` = macro index is inferred.~~ **Closed by S3b** -
    confirmed with Macro 2 -> `CC=1`.
 2. Live 12 supports a custom min/max range per mapping. Not present in
    any sample here; likely `MidiControllerRange` on the target parameter,
@@ -211,14 +211,14 @@ The first pass at this spike wrongly concluded the mapping was absent,
 by reading the `KeyMidi` block as empty MIDI-mapping defaults. It was the
 finding. Two follow-on errors came from the same guess: treating
 `racks/s2_a.adg` as an unmapped control because its macros had default
-names and zero values — it has three mappings — and looking for an
+names and zero values - it has three mappings - and looking for an
 id-based reference because that is what `CLAUDE.md` predicted.
 
 Lesson, consistent with the project method: a diff of a single confirmed
 change contains the answer somewhere. When it appears not to, the reading
 is wrong, not the diff.
 
-## S3 (superseded first pass) — why it looked inconclusive
+## S3 (superseded first pass) - why it looked inconclusive
 
 `racks/s3_a.adg` / `racks/s3_b.adg`. Audio Effect Rack containing one
 Saturator. Between saves, Drive was mapped to Macro 1 via right-click ->
@@ -237,7 +237,7 @@ The complete set of differences:
    `NoteOrController=0`, `LowerRangeNote=-1`, `UpperRangeNote=-1`,
    `ControllerMapMode=0`.
 3. `PresetRef` changed from `AbletonDefaultPresetRef` to `FilePresetRef`
-   — first save vs re-save, unrelated.
+   - first save vs re-save, unrelated.
 
 ### The macro value proves Live made the mapping
 
@@ -252,7 +252,7 @@ Ruled out by inspection, worth recording so nobody re-checks:
 
 - **On the macro.** `MacroControls.0` contains only `LomId`,
   `Manual`, `MidiControllerRange`, `AutomationTarget Id="0"`,
-  `ModulationTarget Id="0"` — identical in shape to an unmapped rack.
+  `ModulationTarget Id="0"` - identical in shape to an unmapped rack.
 - **On the target parameter.** `PreDrive` has the same five children plus
   the new empty `KeyMidi`. No pointer of any kind.
 - **On the rack device.** `AudioEffectGroupDevice` has ~160 children:
@@ -270,14 +270,14 @@ Ruled out by inspection, worth recording so nobody re-checks:
 ### Resolution
 
 `racks/s3_b.adg` reloads in Live with Macro 1 correctly driving Drive, so
-the mapping was in the file all along — as the `KeyMidi` block. Kill
+the mapping was in the file all along - as the `KeyMidi` block. Kill
 criterion **not triggered**; see the answered section above.
 
 Retained as a caution: a macro whose display name is the default
 `Macro N` and whose value is `0` may still be mapped. Neither field is
 evidence either way. Count `KeyMidi` elements instead.
 
-## S3b. Macro index confirmation — ANSWERED
+## S3b. Macro index confirmation - ANSWERED
 
 `racks/s3_b.adg` -> `racks/s3b.adg`. Saturator's Output mapped to Macro 2,
 on top of the existing Drive -> Macro 1. Both macros then moved.
@@ -295,8 +295,8 @@ CC number varies. `patchbay mappings racks/s3b.adg` reports both correctly.
 ### Internal name: Output is `PostDrive`
 
 Second confirmation that GUI labels are not element names. Saturator:
-Drive = `PreDrive`, Output = `PostDrive`. Their ranges differ —
-`-36..36` and `-36..0` — so ranges are per parameter, not per device.
+Drive = `PreDrive`, Output = `PostDrive`. Their ranges differ -
+`-36..36` and `-36..0` - so ranges are per parameter, not per device.
 
 ### Macro to parameter transfer function
 
@@ -335,7 +335,7 @@ integer CC value. Macro values are continuous, not 0-127 integers.
 | `MacroDefaults.2-15` | `-1` | `0` |
 
 `MacroDefaults.0` captured `63.5`, which is exactly the value Macro 1 held
-before it was moved to 69 — so a default appears to be recorded at some
+before it was moved to 69 - so a default appears to be recorded at some
 point after mapping.
 
 **[?] `MacroDefaults.1` staying `-1` while every other slot materialised
@@ -343,7 +343,7 @@ is unexplained.** Macro 2 was mapped and moved in this same step, so
 whatever writes defaults did not fire for it. Do not model macro defaults
 until S10 isolates the trigger with a single-change diff.
 
-## S4. Macro to macro mapping — ANSWERED (no separate spike)
+## S4. Macro to macro mapping - ANSWERED (no separate spike)
 
 No structural difference from S3. An inner rack's macro is an ordinary
 parameter node, so it takes a `KeyMidi` child like any other parameter.
@@ -358,14 +358,14 @@ Macro 1  ->  ChainSelector     [InstrumentGroupDevice, depth 2]
 ```
 
 `Channel` is 16 at every depth, so **nesting depth is not encoded in the
-mapping**. Which rack owns a macro is resolved structurally — see
+mapping**. Which rack owns a macro is resolved structurally - see
 `ARCHITECTURE.md` §3 for the walk, which is not the obvious one.
 
 `ChainSelector` is an ordinary parameter and mappable identically. This is
 the DR1 three-level pattern from `TEMPLATE_SPEC.md`, confirmed working in
 a real file rather than assumed.
 
-## S5. Chain select zone — PARTIAL
+## S5. Chain select zone - PARTIAL
 
 `racks/s5_a.adg` / `racks/s5_b.adg`. Audio Effect Rack, two chains.
 Chain 2's chain-select zone dragged from position 0 to 8.
@@ -398,13 +398,13 @@ Established:
 - Units are **raw positions on the chain selector's own scale**, whose
   `MidiControllerRange` is `0..127`. Not normalised.
 - Fade is **two values**, not one, and they are absolute positions rather
-  than widths — moving a zero-width zone moved all four together.
+  than widths - moving a zero-width zone moved all four together.
 - Untouched chains are untouched: `AudioEffectBranchPreset[0]` kept
   `0/0/0/0`. Zones are per chain and independent.
 - The rack's `ChainSelector` is an ordinary parameter (`Manual`,
-  `MidiControllerRange` `0..127`) and is macro-mappable — see S3.
+  `MidiControllerRange` `0..127`) and is macro-mappable - see S3.
 
-### Width drag — `racks/s5_len_a.adg` / `racks/s5_len_b.adg`
+### Width drag - `racks/s5_len_a.adg` / `racks/s5_len_b.adg`
 
 Chain 2's zone right edge dragged from 16 to 40. Exactly two facts moved:
 
@@ -429,14 +429,14 @@ addressable and an edge drag is a two-field edit.
 **[?] Still open**, needs the fade pair:
 
 1. Is `Max` inclusive or exclusive? A width drag alone cannot show this.
-2. Which direction does a fade grow — does dragging the handle inward make
+2. Which direction does a fade grow - does dragging the handle inward make
    `CrossfadeMin > Min`, or does the fade extend outward past the bound?
    `Crossfade == bound` means no fade, but the sign is unknown.
 
 Key and velocity zones are untested. They are Instrument Rack only and
 are presumably siblings of this structure; do not assume it.
 
-## S6. Id allocation and scope — ANSWERED
+## S6. Id allocation and scope - ANSWERED
 
 **An `Id` must be unique among its siblings. Nothing else about it
 matters.**
@@ -447,7 +447,7 @@ Across `s9_b`, `s1_source`, `s8_c` and `s7_b`: **2347 of 2359** elements
 carrying an `Id` attribute have `Id` equal to their index among same-tag
 siblings. `Id` is a sequence number assigned on insert.
 
-The 12 exceptions are gaps, not errors — `s1_source.adg` has
+The 12 exceptions are gaps, not errors - `s1_source.adg` has
 `AbletonDevicePreset Id="2"` sitting at index 1, left behind when a device
 was deleted. Live opens that file fine, so **ids are not compacted and
 gaps are legal**.
@@ -468,7 +468,7 @@ Three files built and loaded in Live 12.4.3:
 | `build/s6_dup_pads_only.adg` | both pads `Id=0`, devices untouched | **refuses to load** |
 | `build/s6_high_id_only.adg` | all devices `Id=7`, no duplicates | **loads fine** |
 
-The first test changed two things at once and had to be re-run split —
+The first test changed two things at once and had to be re-run split -
 the one-change rule applies to constructed files as much as to Live saves.
 
 **Conclusions:**
@@ -487,14 +487,14 @@ the one-change rule applies to constructed files as much as to Live saves.
 
 Landmine #1 in `CLAUDE.md` survives, but in a far narrower and cheaper form
 than written. Cloning a branch does **not** require remapping a web of
-cross-references — macro mappings carry no ids at all (S3). It requires
+cross-references - macro mappings carry no ids at all (S3). It requires
 exactly one thing: **give the new branch an `Id` unused by its siblings.**
 
 `patchbay.ids.next_free_id(parent, tag)` does that. `patchbay ids` now reports
 sibling collisions directly and its verdict matches Live's behaviour on all
 three test files.
 
-## S12. Minimal device viability — ANSWERED
+## S12. Minimal device viability - ANSWERED
 
 Four copies of the `s3b` Saturator rack with parameter nodes deleted, all
 loaded in Live 12.4.3:
@@ -515,7 +515,7 @@ required subset.
 The donor pattern is **not** required for loadability. It is still required
 for **fidelity**: absent parameters come back as defaults, so a donor is
 how a device arrives with the right values. That is the whole point of
-`donors/` — carrying a *configured* device, not a loadable one.
+`donors/` - carrying a *configured* device, not a loadable one.
 
 So the KICKOFF rationale stands, with the reason corrected: donors save us
 from having to know every parameter's default and name, not from producing
@@ -530,7 +530,7 @@ Saturator.
 
 **[V]** Every variant dropped `PreDrive` (first parameter in document
 order), which was Macro 1's target. All four loaded with **Macro 1
-unmapped** — because a mapping *is* a `KeyMidi` element inside the target
+unmapped** - because a mapping *is* a `KeyMidi` element inside the target
 parameter (S3). Remove the parameter, remove the mapping.
 
 **[V]** Macro 2 -> `PostDrive` survived in `s12_one` and `s12_five`, and
@@ -541,7 +541,7 @@ This is a clean confirmation of the containment model from an angle S3
 could not reach, and it is reassuring for Phase 2: editing a chain cannot
 corrupt a mapping it does not touch.
 
-## S7. FileRef / sample reference — PARTIAL, failure test outstanding
+## S7. FileRef / sample reference - PARTIAL, failure test outstanding
 
 `racks/s7_a.adg` / `racks/s7_b.adg`. Instrument Rack + Simpler, one sample
 swapped for another. **16 facts moved and 4 were removed.** Rewriting the
@@ -555,14 +555,14 @@ MultiSamplePart/SampleRef/SourceContext/SourceContext/
                           OriginalFileRef/FileRef        <- provenance
 ```
 
-Both moved. The second records where the sample *came from* — in `s7_a` it
+Both moved. The second records where the sample *came from* - in `s7_a` it
 still pointed at `C:/Music/AlienMindLibrary/CIRCUIT TRACKS/BACKUP/...`,
 the pre-import location, while the live ref already pointed into the User
 Library.
 
 **[V]** `RelativePathType` differs per ref and per location: `6` for a file
 inside the User Library, `1` for the imported-from original, whose
-`RelativePath` was `../../../../../CIRCUIT TRACKS/BACKUP/07_EBM/PCM/...` —
+`RelativePath` was `../../../../../CIRCUIT TRACKS/BACKUP/07_EBM/PCM/...` -
 i.e. type 1 permits escaping upward with `..`.
 
 **[V]** `FileRef@Id` changed `1 -> 0` on the OriginalFileRef. First
@@ -605,17 +605,17 @@ Both samples are 48 kHz, 1 channel, 16-bit WAV:
 plus PCM. So `OriginalFileSize`, `DefaultDuration` and `SampleEnd` are all
 computable by `patchbay` from the target file without Live.
 
-### `OriginalCrc` — not yet reproducible
+### `OriginalCrc` - not yet reproducible
 
 **[?]** 16-bit (both values < 65536). Ruled out by brute force: zlib
 `crc32` and `adler32` masked to 16 bits, and CRC-16 CCITT-FALSE, XMODEM,
-KERMIT, MODBUS, ARC/IBM, MAXIM, USB, DNP, GENIBUS, MCRF4XX — each over the
+KERMIT, MODBUS, ARC/IBM, MAXIM, USB, DNP, GENIBUS, MCRF4XX - each over the
 whole file, the PCM body, the first 1 KB and the first 16 KB. No match.
 
 Whether this blocks Phase 3 depends entirely on whether Live *checks* it.
 That is what the failure test below is for.
 
-### Failure test — DONE. All six combinations load
+### Failure test - DONE. All six combinations load
 
 Six variants built from `racks/s7_b.adg`, each retargeting to
 `00_EBM Kick1.wav`, isolating one field group. All loaded in Live 12.4.3:
@@ -641,8 +641,8 @@ B initially appeared to fail. Live's log showed exactly one
 ```
 
 B had been **double-clicked**, which launches a second Live instance rather
-than loading into the running one. The symptom — several seconds of
-unresponsive UI, then nothing loaded, no error dialog — was an instance
+than loading into the running one. The symptom - several seconds of
+unresponsive UI, then nothing loaded, no error dialog - was an instance
 collision. The other five were dragged in. No sample-loading error, and no
 `missing`, `offline` or `could not` line, appears anywhere in the log.
 
@@ -663,7 +663,7 @@ not requirements.
 failure as proof that `OriginalFileSize` + `OriginalCrc` form a
 cache-validity key, with B breaking because a *correct* key made Live trust
 *stale* derived values. The model was elegant, fit all six data points, and
-was wrong — it rested entirely on the one contaminated point. Recorded here
+was wrong - it rested entirely on the one contaminated point. Recorded here
 rather than deleted, because the failure mode is instructive: a single
 surprising result that confirms a tidy theory deserves more suspicion than
 a boring one.
@@ -671,7 +671,7 @@ a boring one.
 ### The CRC is irrelevant
 
 `samples.py` never needs to compute the CRC, because nothing reads it on
-load. Write `0`, or leave the donor's value stale — both work.
+load. Write `0`, or leave the donor's value stale - both work.
 
 Recommended write strategy, matching `s7_test_F`:
 
@@ -685,7 +685,7 @@ Recommended write strategy, matching `s7_test_F`:
 
 Only steps 1 and 2 are load-bearing. Steps 3 to 5 are hygiene: they keep a
 generated preset indistinguishable from one Live saved, which keeps future
-diffs clean. Since the frame arithmetic is verified and cheap, do them —
+diffs clean. Since the frame arithmetic is verified and cheap, do them -
 but a bug there cannot break a preset.
 
 ### Method note, learned the hard way
@@ -699,7 +699,7 @@ two: grep for `CommandLine` and `Another instance`.
 **[?]** Whether Live rewrites the zeroed key on its next save is untested.
 Expected yes, since it re-reads the file. Harmless either way.
 
-## S8. Macro variations — ANSWERED
+## S8. Macro variations - ANSWERED
 
 `racks/s8_a.adg` (no variations) -> `s8_b` (one) -> `s8_c` (two).
 Audio Effect Rack, Saturator, macros 1 and 2 mapped.
@@ -728,7 +728,7 @@ A variation is a `MacroSnapshot` in a positional list on the rack device:
 **[V]** Proven without needing chosen values: `s8_b`'s Variation 1 holds
 `69, 127`, which is exactly that same file's live
 `MacroControls.0/Manual` and `MacroControls.1/Manual`. Identical units,
-identical scale — **not normalised 0..1**.
+identical scale - **not normalised 0..1**.
 
 So a variation stores macro positions, and §5's transfer function converts
 them to parameter values. Phase 5 works entirely in macro space.
@@ -754,14 +754,14 @@ alone.
 
 **[V]** Two fields, both written:
 
-- `SnapshotName` — the display name, defaulting to `"Variation N"`
-- `AutogeneratedNameIndex` — the `N` used to build that default, `1` then `2`
+- `SnapshotName` - the display name, defaulting to `"Variation N"`
+- `AutogeneratedNameIndex` - the `N` used to build that default, `1` then `2`
 
 `Id` runs `0`, `1`, matching list position. Order is positional.
 
 Since `SnapshotName` is free text, Phase 5 can encode a variation's
 parameter values into its name, which is what makes culling informed
-rather than blind — see the workflow note in `KICKOFF.md`.
+rather than blind - see the workflow note in `KICKOFF.md`.
 
 ### A snapshot captures macro state at the click, then drifts
 
@@ -770,7 +770,7 @@ are `94, 2`. The user clicked New, then moved the macros again before
 saving. A snapshot is a copy taken at the instant New is pressed; it does
 not track the live macros afterwards.
 
-Harmless for generation — `variations.py` writes snapshots directly — but
+Harmless for generation - `variations.py` writes snapshots directly - but
 it means a rack's current macro values tell you nothing about its
 variations.
 
@@ -780,14 +780,14 @@ Writing a variation set is: append N `MacroSnapshot` elements, each with 16
 `MacroHasValue` and 16 `MacroValues`, sequential `Id`, a name. No ids to
 reconcile, no references to fix, no interaction with mappings.
 
-The sound-family constraint from `TEMPLATE_SPEC.md` — variation index N
-means the same musical idea across every engine — is satisfiable because
+The sound-family constraint from `TEMPLATE_SPEC.md` - variation index N
+means the same musical idea across every engine - is satisfiable because
 snapshots are positional and per rack: emit the same index across each
 rack's list, with values chosen per engine.
 
 ## S9. Drum rack specifics
 
-## S9. Drum rack specifics — ANSWERED
+## S9. Drum rack specifics - ANSWERED
 
 `racks/s9_a.adg` (2 pads) -> `s9_b` (return chain added) -> `s9_c` (one
 send raised) -> `s9_d` (one pad moved to another slot).
@@ -807,12 +807,12 @@ send raised) -> `s9_d` (one pad moved to another slot).
 **[V]** Moving a pad to a different grid slot changes **exactly one fact**,
 `ReceivingNote` (`91 -> 90`). `SendingNote` stayed at `60`.
 
-- `ReceivingNote` — the MIDI note that triggers this pad. This is the pad's
+- `ReceivingNote` - the MIDI note that triggers this pad. This is the pad's
   grid position.
-- `SendingNote` — the note handed to the chain's instrument, `60` (C3) on
+- `SendingNote` - the note handed to the chain's instrument, `60` (C3) on
   every pad. That is why each pad's sampler plays at its root pitch
   wherever it sits.
-- `ChokeGroup` — `0` for none.
+- `ChokeGroup` - `0` for none.
 
 ### Return chains live in a sibling of BranchPresets
 
@@ -826,8 +826,8 @@ GroupDevicePreset
 └─ ReturnBranchPresets/AudioEffectBranchPreset[i]   the returns
 ```
 
-**[V]** A return branch is an **`AudioEffectBranchPreset`** — the same tag
-an audio effect rack uses for its chains — regardless of the parent being a
+**[V]** A return branch is an **`AudioEffectBranchPreset`** - the same tag
+an audio effect rack uses for its chains - regardless of the parent being a
 drum rack. It has the same children as any branch: `Name`, `DevicePresets`,
 `MixerPreset`, `BranchSelectorRange`, colours.
 
@@ -856,7 +856,7 @@ which is empty in presets exactly like `Branches`. Same trap as §3.
 
 At `MixerPreset/AbletonDevicePreset/Device/AudioBranchMixerDevice/SendInfos`.
 
-**[V]** `Index` selects the return **positionally** — `0` is the first
+**[V]** `Index` selects the return **positionally** - `0` is the first
 entry in `ReturnBranchPresets`. No id reference.
 
 **[V]** Adding a return chain seeds an `AudioBranchSendInfo` on **every**
@@ -864,7 +864,7 @@ existing chain at once, all at the floor value. So send count per chain
 tracks return count, and a generator adding a return must add the matching
 send entry to every chain.
 
-**[V]** Send level is **linear amplitude**, not dB and not 0..127 — a third
+**[V]** Send level is **linear amplitude**, not dB and not 0..127 - a third
 scale, distinct from macros (§5) and zones (§7):
 
 | | value | meaning |
@@ -882,13 +882,13 @@ percentages of knob travel rather than as dB or amplitude.
 
 **[V]** `AreSendsVisible` on the rack device gates the send column in the
 chain list. It is `false` by default, which makes per-pad sends invisible
-in the UI until toggled — this cost real time during the spike.
+in the UI until toggled - this cost real time during the spike.
 
 **[V]** Adding a return flipped pad 0's mixer
 `RoutingHelper/Routable/UpperDisplayString` from `No Output` to
 `Sends Only`. Recorded as an observation; routing is S11's subject.
 
-## S10. Macro metadata — ANSWERED except mapping range
+## S10. Macro metadata - ANSWERED except mapping range
 
 Chain of saves from `racks/s3b.adg`, one change each:
 `s10_c` -> `s10_d` -> `s10_e` -> `s10_f` -> `s10_g`.
@@ -908,7 +908,7 @@ Live's right-click menu on a macro knob maps cleanly onto the `.N` families:
 | *Exclude Macro From Variations* | `ExcludeMacroFromSnapshots.0` | `false` -> `true` |
 | *Show Generic 0-127 Value* | `ForceDisplayGenericValue.0` | `false` -> `true` |
 | *Return to Default* | `MacroDefaults.0` | see below |
-| — (macro panel control) | `NumVisibleMacroControls` | `8` -> `16` |
+| - (macro panel control) | `NumVisibleMacroControls` | `8` -> `16` |
 
 **[V]** Note the vocabulary split: the UI says **Variations**, the XML says
 **Snapshots** (`ExcludeMacroFromSnapshots`), matching
@@ -934,7 +934,7 @@ Saturator/DryWet/KeyMidi/Channel@Value          = 16
 
 Zero-based macro index, fixed channel. Consistent with S3 and S3b.
 
-### `MacroDefaults.N` — the S3b anomaly, mostly resolved
+### `MacroDefaults.N` - the S3b anomaly, mostly resolved
 
 **[V]** Observed across the chain:
 
@@ -949,7 +949,7 @@ s10_g:   MacroControls.2=127  (just mapped) MacroDefaults.2=-1
 
 1. **`MacroDefaults` lags one save.** `s10_c`'s defaults are exactly
    `s3b`'s *macro values*. This is the third field with a one-save lag,
-   after `PresetRef` (S3) and `UserName` (S5) — evidently Live serialises
+   after `PresetRef` (S3) and `UserName` (S5) - evidently Live serialises
    some bookkeeping from the pre-save state.
 2. **Mapping a macro resets its default to `-1`.** `s10_g` shows
    `MacroDefaults.2` going `0 -> -1` at the moment Macro 3 was mapped,
@@ -963,7 +963,7 @@ the next save anyway.
 
 ### Mapping ranges
 
-**Answered — see below.** Live 12.4.3's macro right-click menu contains no
+**Answered - see below.** Live 12.4.3's macro right-click menu contains no
 range editor, and none was found on the target parameter or via Map mode.
 The full menu is:
 Show Automation, Show Automation In New Lane, Show Modulation Source,
@@ -972,7 +972,7 @@ Copy Parameter Name, Remove Mapping, Show Generic 0-127 Value, Rename,
 Edit Info Text, Exclude Macro from Randomization, Exclude Macro From
 Variations, colour palette.
 
-### Resolved by reverse test — ranges ARE `MidiControllerRange`
+### Resolved by reverse test - ranges ARE `MidiControllerRange`
 
 `build/s10_range_test.adg` is `s3b` with
 `Saturator/PreDrive/MidiControllerRange/Max` changed from `36` to `12`.
@@ -986,13 +986,13 @@ no UI involved**, which matters because Live 12.4.3 exposes no range
 editor at all. A generator has a capability the GUI does not.
 
 For the macro grammar in `TEMPLATE_SPEC.md` this means a macro can be
-scoped to a musically sensible slice of a parameter — e.g. filter cutoff
-over 200 Hz..8 kHz rather than the full sweep — per mapping, per engine.
+scoped to a musically sensible slice of a parameter - e.g. filter cutoff
+over 200 Hz..8 kHz rather than the full sweep - per mapping, per engine.
 
 ### Incidental
 
-The `s3b -> s10_c` diff carried extra drift — `IsExpanded`,
-`DocumentColorIndex`, `PreDrive/Manual`, `MacroControls.0` — because that
+The `s3b -> s10_c` diff carried extra drift - `IsExpanded`,
+`DocumentColorIndex`, `PreDrive/Manual`, `MacroControls.0` - because that
 step bundled a rename with the randomisation toggle and some knob
 movement. The two fields of interest were still unambiguous, but it is a
 reminder that the one-change discipline is what keeps these diffs to a

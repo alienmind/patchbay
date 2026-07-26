@@ -17,7 +17,7 @@ module-level `RACKS`, or define `build()` returning them:
 Any module-level `Rack` is picked up if neither is present, so the
 smallest useful spec is a few `Rack(...)` assignments.
 
-Targets today are `.adg` rack presets. Sets are not compiled to `.als` —
+Targets today are `.adg` rack presets. Sets are not compiled to `.als` -
 Live's API can build those, so they go through `ableton-mcp` instead. See
 `MCP.md`.
 """

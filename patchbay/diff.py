@@ -48,7 +48,7 @@ def _is_list_container(parent):
 
     Without that, appending a second item renames the first from
     MacroSnapshot to MacroSnapshot[0] and the diff reports the entire list
-    as removed and re-added — 210 facts of noise for one added variation.
+    as removed and re-added - 210 facts of noise for one added variation.
 
     Requiring a single repeated tag keeps heterogeneous nodes that merely
     end in 's', like ViewSettings, out of it.
@@ -148,8 +148,8 @@ def compare(path_a, path_b, hide_ids=False, show_all=False, grep=None):
 def report(path_a, path_b, hide_ids=False, show_all=False, grep=None, limit=None):
     """limit caps the lines printed per section.
 
-    Adding one device drags its whole parameter blob in — a Reverb is some
-    800 facts — which buries whatever you were looking for. Section counts
+    Adding one device drags its whole parameter blob in - a Reverb is some
+    800 facts - which buries whatever you were looking for. Section counts
     are always printed in full, so nothing is hidden silently.
     """
     changed, only_a, only_b = compare(path_a, path_b, hide_ids, show_all, grep)

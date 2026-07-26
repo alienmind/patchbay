@@ -23,12 +23,12 @@ generation is therefore the only route. **Confirmed.**
 | `add_chain`, `delete_chain` | **absent** | chains cannot be created or removed |
 | `zone` | **absent** | chain/key/velocity zones are not reachable |
 | `chains`, `return_chains`, `drum_pads`, `chain_selector` | present | existing structure is *readable*, not constructible |
-| `add_macro`, `remove_macro` | present | changes the macro *count* only — `NumVisibleMacroControls` |
+| `add_macro`, `remove_macro` | present | changes the macro *count* only - `NumVisibleMacroControls` |
 | `randomize_macros`, `selected_variation_index`, `store_variation` | present | variations can be stored and selected, but not named |
 
 So `patchbay` has a real job that nothing else does: **rack structure, macro
 mappings, chain zones and variations, at the file level.** That is the core
-of Phases 1–5 and none of it is duplicated work.
+of Phases 1-5 and none of it is duplicated work.
 
 ## But Phase 6 largely is duplicated work
 
@@ -63,17 +63,17 @@ after every Live update.
 sidechain source cannot be set from the API.
 
 `TEMPLATE_SPEC.md` wants DR1 sidechaining into other tracks, so that stays
-either manual — one afternoon, per `KICKOFF.md`'s own fallback — or is
+either manual - one afternoon, per `KICKOFF.md`'s own fallback - or is
 done at the file level later if it proves worth it. It is one setting per
 track, not a system.
 
 ## Division of labour
 
-**`patchbay` — files.** Racks, macro mappings, chain zones, sample
+**`patchbay` - files.** Racks, macro mappings, chain zones, sample
 retargeting, variations. Everything the API cannot express. Produces
 `.adg` files dropped into the User Library.
 
-**`ableton-mcp` — the live session.** Tracks, naming, routing, tempo,
+**`ableton-mcp` - the live session.** Tracks, naming, routing, tempo,
 clips, loading presets by URI, reading back what is actually there.
 Everything the API can express.
 
@@ -81,7 +81,7 @@ They meet at the User Library: `patchbay` writes a rack, `ableton-mcp` loads
 it onto a track by browser URI.
 
 **Do not migrate MCP code into `patchbay`.** They have different runtime
-models — one writes files offline, the other holds a socket to a running
+models - one writes files offline, the other holds a socket to a running
 Live. Merging them would put a network dependency inside a library whose
 whole value is working without Live open. Keep the submodule, extend its
 remote script.
@@ -97,7 +97,7 @@ loads a preset by browser URI. Together they give a smoke test:
 3. `get_track_info` confirms the expected device tree appeared
 
 That catches gross failures without a human dragging files. It **cannot**
-confirm macros are mapped correctly — `mapped_parameter` does not exist —
+confirm macros are mapped correctly - `mapped_parameter` does not exist -
 so that check stays manual, exactly as `KICKOFF.md` says.
 
 ## Revised plan

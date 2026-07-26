@@ -11,7 +11,7 @@ Any binding written from imagination is wrong; a binding written against
 this index is checkable.
 
 S12 showed devices load with parameters missing, so a donor is not needed
-for a file to load — it is needed for the device to arrive *configured*,
+for a file to load - it is needed for the device to arrive *configured*,
 and for us to know what it can be asked to do.
 """
 
@@ -63,7 +63,7 @@ class Library:
     """Devices indexed by tag, harvested from a set of files.
 
     When the same device appears in several files, the copy with the most
-    parameters wins — a fuller donor is a better donor.
+    parameters wins - a fuller donor is a better donor.
     """
 
     def __init__(self):

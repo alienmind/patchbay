@@ -5,7 +5,7 @@
 `TEMPLATE_SPEC.md` line 60: *"This consistency is the actual product, more
 than any individual rack."* The macro grammar is identical across every
 instrument rack. Six racks sharing one grammar is a program, not a
-document — in YAML you would copy the grammar six times and watch it
+document - in YAML you would copy the grammar six times and watch it
 drift.
 
 Three further pressures point the same way:

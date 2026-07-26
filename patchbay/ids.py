@@ -4,7 +4,7 @@ Established by deliberate-failure test (see SCHEMA.md S6):
 
   An Id must be unique among its SIBLINGS. Nothing else about it matters.
 
-Not file-wide unique — Id="0" occurs 548 times in one real rack that Live
+Not file-wide unique - Id="0" occurs 548 times in one real rack that Live
 opens happily. Not contiguous, and not equal to the element's index: a
 rack with AbletonDevicePreset Id="2" sitting at index 1 loads fine, and so
 does one where every device id is forced to 7.
@@ -87,10 +87,10 @@ def report(path, fields=ID_FIELDS):
 
     bad = collisions(root)
     if not bad:
-        print("no sibling id collisions — Live will accept this file")
+        print("no sibling id collisions - Live will accept this file")
         return bad
 
-    print(f"SIBLING ID COLLISIONS ({len(bad)}) — Live will REFUSE to load this")
+    print(f"SIBLING ID COLLISIONS ({len(bad)}) - Live will REFUSE to load this")
     for container, tag, idv, count in bad:
         print(f"  {count}x <{tag} Id=\"{idv}\"> under {container}")
     return bad

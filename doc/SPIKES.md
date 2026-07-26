@@ -116,7 +116,7 @@ on load.
 
 - **Load-test by dragging the file into a running Live instance.**
   Double-clicking an `.adg` starts a *second* Live, which hangs for a few
-  seconds and loads nothing — indistinguishable from Live rejecting the
+  seconds and loads nothing - indistinguishable from Live rejecting the
   file, and it has already produced one wrong conclusion. Live's log at
   `%APPDATA%/Ableton/Live <version>/Preferences/Log.txt` settles which
   happened: grep for `CommandLine` and `Another instance`.
@@ -139,18 +139,18 @@ cloning is viable, then the rest, S11 last.
 id-addressed, so cloning does not depend on id hygiene for macros and S6
 stopped being a gate. Remaining order:
 
-1. **S3b** — confirm the macro index encoding. One diff, and everything in
+1. **S3b** - confirm the macro index encoding. One diff, and everything in
    Phase 2 rests on it.
-2. **S5, S7, S10** — feed Phases 3 and 4.
-3. **S8** — feeds Phase 5, the highest-value module.
-4. **S9, S12** — fill in the drum rack and donor details.
-5. **S6** — still worth doing before `clone.py` ships, for non-macro
+2. **S5, S7, S10** - feed Phases 3 and 4.
+3. **S8** - feeds Phase 5, the highest-value module.
+4. **S9, S12** - fill in the drum rack and donor details.
+5. **S6** - still worth doing before `clone.py` ships, for non-macro
    references.
-6. **S11** — last, and skippable per KICKOFF's fallback.
+6. **S11** - last, and skippable per KICKOFF's fallback.
 
 ---
 
-## ~~S1. Round trip fidelity~~ — DONE, PASSED (kill criterion)
+## ~~S1. Round trip fidelity~~ - DONE, PASSED (kill criterion)
 
 **Live:** save any real rack (the more complex the better) as
 `racks/s1_source.adg`.
@@ -169,7 +169,7 @@ fine *provided Live opens it*. Only Live's opinion counts.
 If it fails: stop. Do not proceed. The likely culprits are the XML
 declaration, encoding, or self-closing tag style in `io.save`.
 
-## ~~S2. Noise floor~~ — DONE, PASSED
+## ~~S2. Noise floor~~ - DONE, PASSED
 
 **Live:** open a rack, save as `racks/s2_a.adg`. Change nothing at all.
 Save again as `racks/s2_b.adg`.
@@ -186,15 +186,15 @@ why in `SCHEMA.md`. The second shows what is already filtered.
 
 Ideal result: first command prints `identical`.
 
-**Done for Live 12.4.3 — see SCHEMA.md.** Floor is zero after adding
+**Done for Live 12.4.3 - see SCHEMA.md.** Floor is zero after adding
 `RoundRobinRandomSeed` and the `PresetRef` paths to the filter. Ids were
 found *not* to churn, so they are now shown by default. Re-run this spike
 after any Live update.
 
-## ~~S3. Macro mapping~~ — DONE, PASSED (kill criterion)
+## ~~S3. Macro mapping~~ - DONE, PASSED (kill criterion)
 
 **Live:** rack with one device, no macro mapped. Save `racks/s3_a.adg`.
-Map Macro 1 to one device parameter. Change nothing else — not the macro
+Map Macro 1 to one device parameter. Change nothing else - not the macro
 value, not the name. Save `racks/s3_b.adg`.
 
 **Run:**
@@ -203,14 +203,14 @@ patchbay diff racks/s3_a.adg racks/s3_b.adg
 ```
 
 **Record in SCHEMA.md:** the node that appeared, and critically *how it
-names its target* — by id, by path, or by index. Quote the actual XML of
+names its target* - by id, by path, or by index. Quote the actual XML of
 the added subtree (`patchbay unpack` then find it).
 
 If the target is addressed by an id, S6 becomes load bearing.
 If it is addressed positionally, cloning gets easier and remapping gets
 harder.
 
-**Result: neither.** The target is addressed by **containment** — the
+**Result: neither.** The target is addressed by **containment** - the
 mapping is a `KeyMidi` element inside the target parameter, encoding a
 virtual MIDI CC. No id, no path, no index into a table. See
 `ARCHITECTURE.md` §5 for the full mechanism and `SCHEMA.md` for evidence.
@@ -222,14 +222,14 @@ Caution for whoever repeats this: the first read of this diff wrongly
 concluded no mapping was present, because `KeyMidi` looks like inert MIDI
 defaults. It is the finding.
 
-## ~~S3b. Macro index confirmation~~ — DONE, CONFIRMED
+## ~~S3b. Macro index confirmation~~ - DONE, CONFIRMED
 
 Small but load bearing. Every mapping observed so far targets Macro 1
 (`NoteOrController = 0`), so "CC number = zero-based macro index" is
 inference, not fact.
 
 **Live:** take `racks/s3_b.adg` (Saturator, Drive mapped to Macro 1).
-Map a *second* parameter — Saturator's **Output** — to **Macro 2**.
+Map a *second* parameter - Saturator's **Output** - to **Macro 2**.
 Save as `racks/s3b.adg`.
 
 **Run:**
@@ -253,10 +253,10 @@ index turns out to be 1-based, fix the mapping model in
 
 Two extras came free: the **macro to parameter transfer function** (linear
 over the target's `MidiControllerRange`, see ARCHITECTURE §5), and
-`MacroDefaults.N` using `-1` as an unset sentinel — with an anomaly now
+`MacroDefaults.N` using `-1` as an unset sentinel - with an anomaly now
 tracked under S10.
 
-## ~~S4. Macro to macro~~ — DONE, answered by S3 evidence
+## ~~S4. Macro to macro~~ - DONE, answered by S3 evidence
 
 **Live:** rack containing a rack. Save `racks/s4_a.adg`. Map the outer
 rack's Macro 1 to the inner rack's Macro 1. Save `racks/s4_b.adg`.
@@ -269,7 +269,7 @@ depth appears anywhere in the encoding.
 
 **Result: no separate spike needed.** `racks/s1_source.adg` already
 contains three levels of macro-to-macro chaining, found by
-`patchbay mappings`. The structure is **identical** to S3 — a `KeyMidi` on
+`patchbay mappings`. The structure is **identical** to S3 - a `KeyMidi` on
 the inner rack's `MacroControls.N`, which is just another parameter node.
 `Channel` stays 16 at every depth, so nesting is not encoded in the
 mapping at all; it is purely structural.
@@ -279,18 +279,18 @@ mapping at all; it is purely structural.
 Re-run this spike properly only if a case appears where the implicit
 owning-rack resolution is ambiguous.
 
-## ~~S5. Chain select zones~~ — DONE for chain zones; key/vel outstanding
+## ~~S5. Chain select zones~~ - DONE for chain zones; key/vel outstanding
 
 **Live:** rack with two chains. Save `racks/s5_a.adg`. Drag one chain's
 chain-select zone. Save `racks/s5_b.adg`. Repeat as `s5_key_*` for a key
 zone and `s5_vel_*` for a velocity zone.
 
 **Done so far:** zone position. It is `BranchSelectorRange` on the chain,
-holding `Min`, `Max`, `CrossfadeMin`, `CrossfadeMax` — absolute values on
+holding `Min`, `Max`, `CrossfadeMin`, `CrossfadeMax` - absolute values on
 the chain selector's 0..127 scale, stored as bounds rather than
 start+length. See `SCHEMA.md`.
 
-**Chain zones are fully characterised** across three pairs — position
+**Chain zones are fully characterised** across three pairs - position
 (`s5_a`/`s5_b`), width (`s5_len_a`/`s5_len_b`) and fade
 (`s5_fade_aa`/`s5_fade_bb`). Model and invariant in `ARCHITECTURE.md` §7.
 
@@ -305,9 +305,9 @@ zone. Widen the zone first.
 
 **Record:** how start, length and the two fade values are stored, and
 whether key/velocity/chain zones are siblings of one structure. Note the
-units — raw semitones vs normalised.
+units - raw semitones vs normalised.
 
-## ~~S6. Id allocation and scope~~ — DONE
+## ~~S6. Id allocation and scope~~ - DONE
 
 **Live:** rack with two chains. Save `racks/s6_a.adg`. Add one device to
 one chain. Save `racks/s6_b.adg`.
@@ -331,12 +331,12 @@ file (file-scoped, must reallocate on clone) or repeat (narrower scope,
 must NOT reallocate). Getting this backwards is landmine #1 in CLAUDE.md.
 
 **Record:** for each of `Id`, `PointeeId`, `LomId`, `LomIdView` and
-anything else the census surfaces — its scope, whether it is a definition
+anything else the census surfaces - its scope, whether it is a definition
 or a reference, and what the new device's id was relative to the existing
 maximum (sequential? max+1? reuses gaps?).
 
 Then the destructive test: hand-edit an unpacked file to give two nodes
-the same id, repack, load in Live. Record what Live actually does —
+the same id, repack, load in Live. Record what Live actually does -
 refuses, silently cross-wires, or repairs. That failure mode determines
 how loud `clone.py` has to be.
 
@@ -349,7 +349,7 @@ Method note: the first collision file changed two things at once and had to
 be rebuilt split. The one-change rule applies to constructed test files
 just as much as to saves from Live.
 
-## ~~S7. FileRef anatomy~~ — DONE
+## ~~S7. FileRef anatomy~~ - DONE
 
 **Live:** Simpler with a sample. Save `racks/s7_a.adg`. Swap the sample
 for a different one. Save `racks/s7_b.adg`.
@@ -363,11 +363,11 @@ patchbay diff racks/s7_a.adg racks/s7_b.adg
 The second command matters as much as the first: sample data outside
 FileRef (length, warp markers, default slice points) also moves.
 
-**Record:** every field, not only Path. Then the deliberate failure —
+**Record:** every field, not only Path. Then the deliberate failure -
 rewrite *only* the path in an unpacked file, repack, load. Confirm what
 Live does. Expect offline.
 
-**Result — and the expectation was wrong.** A path-only rewrite *works*.
+**Result - and the expectation was wrong.** A path-only rewrite *works*.
 
 20 facts move on a real swap, across **two** FileRefs plus frame-derived
 values outside them, but six deliberately inconsistent variants all load:
@@ -381,7 +381,7 @@ One false start worth remembering: an intermediate variant appeared to
 fail, which fit a tidy cache-key theory. It had been double-clicked instead
 of dragged. See the ground rule at the top of this file.
 
-## ~~S8. Macro variations~~ — DONE
+## ~~S8. Macro variations~~ - DONE
 
 **Live:** rack with a few macros. Save `racks/s8_a.adg`. Click New in the
 variations panel. Save `racks/s8_b.adg`. Change macro values, click New
@@ -401,19 +401,19 @@ Note: the macro values chosen when clicking New do not need to be
 memorable. A snapshot can be checked against the same file's live
 `MacroControls.N/Manual`, which is what proved the scale.
 
-## ~~S9. Drum rack specifics~~ — DONE
+## ~~S9. Drum rack specifics~~ - DONE
 
 **Live:** save a drum rack as `racks/s9_drum.adg` and an instrument rack
 as `racks/s9_instrument.adg`.
 
-**Run:** `patchbay diff racks/s9_instrument.adg racks/s9_drum.adg` — a big
+**Run:** `patchbay diff racks/s9_instrument.adg racks/s9_drum.adg` - a big
 diff, read it for structure not detail.
 
 **Record:** how a pad maps to its receiving note, how return chains inside
 the drum rack are represented, how per-chain send levels are stored.
 
 **Done differently, and better:** rather than one huge drum-vs-instrument
-diff, this was four saves with one change each — 2 pads, add a return, raise
+diff, this was four saves with one change each - 2 pads, add a return, raise
 a send, move a pad. See `ARCHITECTURE.md` §12.
 
 Two UI traps that cost time, worth knowing before repeating this:
@@ -426,19 +426,19 @@ Two UI traps that cost time, worth knowing before repeating this:
   (`IsReturnBranchesListVisible`), and the right-click must happen inside
   *that* pane.
 
-Adding a device brings its whole parameter blob into the diff — the Reverb
+Adding a device brings its whole parameter blob into the diff - the Reverb
 on the return chain was ~800 facts. Use `-n` to cap it.
 
-## ~~S10. Macro metadata~~ — DONE, except mapping range
+## ~~S10. Macro metadata~~ - DONE, except mapping range
 
 Four separate one-change diffs from a common `racks/s10_a.adg`:
 rename a macro, set a custom min/max range, toggle exclude from
 randomisation, change visible macro count 8 -> 16.
 
-**Record:** one line each. The macro count one is the interesting one —
+**Record:** one line each. The macro count one is the interesting one -
 note whether unused macros are present-but-hidden or absent.
 
-**Result:** present, not absent — all 16 slots exist in every family, and
+**Result:** present, not absent - all 16 slots exist in every family, and
 changing the count alters exactly one fact. Each menu item maps to one
 field; see `ARCHITECTURE.md` §6 for the table.
 
@@ -446,23 +446,23 @@ Two things worth knowing before repeating this:
 
 - Save from the **rack's** save button, not the device's. Two saves here
   came out as `.adv` device presets with no macro data in them.
-- Live 12.4.3 has **no macro range editor** — not on the macro knob, not
+- Live 12.4.3 has **no macro range editor** - not on the macro knob, not
   on the target parameter, not in Map mode. That part of the spike is
   still open, with a reverse test prepared at `build/s10_range_test.adg`.
 
 ## S11. .als track structure
 
-Do after S1–S10. Live Set, not rack. Three separate diffs:
+Do after S1-S10. Live Set, not rack. Three separate diffs:
 change one track's Audio To; point a compressor's sidechain at another
 track; compare a return track against a regular track.
 
-**Record:** how routing targets are named — by id, by name, by index.
+**Record:** how routing targets are named - by id, by name, by index.
 This decides whether Phase 6 is viable or gets skipped per KICKOFF's
 fallback.
 
 **Dropped, and the reason is better than the fallback.** Live's API *does*
 expose `create_audio_track`, `create_return_track`, `output_routing_type`
-and `output_routing_channel` — verified against Live 12.4.3's own
+and `output_routing_channel` - verified against Live 12.4.3's own
 `_MxDCore/LomTypes.pyc`. The `ableton-mcp` submodule simply has not wired
 them up.
 
@@ -470,13 +470,13 @@ So there is no reason to reverse-engineer Set structure: adding a few
 command handlers to the remote script is smaller work and survives Live
 updates, which `.als` generation would not. See `MCP.md`.
 
-Sidechain source is the one exception — absent from the LOM — and stays
+Sidechain source is the one exception - absent from the LOM - and stays
 manual.
 
 Both kill criteria passed, and all remaining spikes are answered or
 retired. **Phase 0 is complete.**
 
-## ~~S12. Minimal device viability~~ — DONE
+## ~~S12. Minimal device viability~~ - DONE
 
 **Live:** save any donor device.
 
@@ -489,5 +489,5 @@ XML is off the table permanently.
 
 **Result: a device loads with all 18 of its parameters deleted.** Live
 defaults whatever is absent. Donors are therefore about *fidelity*, not
-loadability — they carry a configured device, saving us from knowing every
+loadability - they carry a configured device, saving us from knowing every
 parameter name and default. Generators may write partial device nodes.

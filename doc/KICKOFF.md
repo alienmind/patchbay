@@ -71,25 +71,25 @@ is in `SPIKES.md`; the resulting model of the format is in
 Do these before writing anything else. Each one is a question with a yes or
 no answer, recorded in `SCHEMA.md`. Several are kill criteria.
 
-~~**S1. Round trip fidelity.**~~ **DONE — PASSED.** Lossless over 18,148
+~~**S1. Round trip fidelity.**~~ **DONE - PASSED.** Lossless over 18,148
 facts; Live 12.4.3 opens the output. Live tolerates lxml's serialiser
 conventions, so byte identity is not required.
 
-~~**S2. Noise floor.**~~ **DONE — PASSED, floor is zero.** Real churn is
+~~**S2. Noise floor.**~~ **DONE - PASSED, floor is zero.** Real churn is
 `RoundRobinRandomSeed` plus the preset self-identity paths, now filtered.
 Ids were found **not** to churn, so the id filter was inverted: ids are
 shown by default.
 
-~~**S3. Macro mapping representation.**~~ **DONE — PASSED.** None of the
+~~**S3. Macro mapping representation.**~~ **DONE - PASSED.** None of the
 three guesses. A mapping is a `KeyMidi` element *inside* the target
 parameter, encoding a virtual MIDI CC: channel 16, CC number = macro
 index. The target is named by containment. `ARCHITECTURE.md` §5.
 
-~~**S3b (new). Macro index confirmation.**~~ **DONE — CONFIRMED.**
+~~**S3b (new). Macro index confirmation.**~~ **DONE - CONFIRMED.**
 `NoteOrController` is the zero-based macro index. Also established the
 macro-to-parameter transfer function, which Phase 5 needs.
 
-~~**S4. Macro to macro mapping.**~~ **DONE — no structural difference.**
+~~**S4. Macro to macro mapping.**~~ **DONE - no structural difference.**
 An inner rack's macro is an ordinary parameter, so it takes a `KeyMidi`
 like any other. Three working levels already exist in
 `racks/s1_source.adg`. Depth is not encoded anywhere; it is structural.
@@ -100,7 +100,7 @@ length and fade are stored. Do the same for key and velocity zones, since
 they are probably siblings of the same structure.
 
 **S6. Id allocation and scope.** ~~The critical one.~~ **Downgraded by
-S3** — macro mappings carry no ids, so this no longer decides whether
+S3** - macro mappings carry no ids, so this no longer decides whether
 cloning is viable. Still needed before `clone.py` ships, for any other
 cross-reference. Add a device, diff, and
 work out how ids are assigned. What is the uniqueness scope: the file, the
@@ -126,7 +126,7 @@ drum rack are represented, and how per chain send levels are stored.
 toggle exclude from randomisation, change the visible macro count from 8 to
 16. One diff each.
 
-~~**S11. `.als` track structure.**~~ **DROPPED — see `MCP.md`.** Live's API
+~~**S11. `.als` track structure.**~~ **DROPPED - see `MCP.md`.** Live's API
 does expose track creation and output routing; the `ableton-mcp` submodule
 just had not wired them up. Extending the remote script is smaller work
 than generating `.als` and survives Live updates. Original text follows.
@@ -155,7 +155,7 @@ reads and writes values, ranges and mappings.
 **Phase 2. Clone with id remapping.**
 Duplicate a chain or a whole device subtree, allocating fresh ids so mappings
 survive. Depends on S3, S4, S6.
-*Revised: mappings survive a verbatim copy — no id work needed for them.
+*Revised: mappings survive a verbatim copy - no id work needed for them.
 Remaining id work is whatever S6 turns up for other references, so this
 phase is cheaper than planned.*
 *Gate: PASSED.* Cloning a mapped chain three times produced four chains
@@ -188,14 +188,14 @@ Generate variation sets. Must respect the sound family constraint from
 every engine in the rack, not independent randomisation per engine. Depends
 on S8, S10.
 
-**Phase 6. Live Set assembly — REVISED, see `MCP.md`.**
+**Phase 6. Live Set assembly - REVISED, see `MCP.md`.**
 ~~Emit the whole `.als`.~~ Instead: extend the `ableton-mcp` remote script
 with `create_audio_track`, `create_return_track` and an output-routing
 setter, then drive it to build the eight tracks, returns, routing, tempo
 and starter clips, loading each generated rack by browser URI.
 
-All of that is already in the Live Object Model — verified against Live
-12.4.3's `_MxDCore/LomTypes.pyc` — so no Set XML needs reverse
+All of that is already in the Live Object Model - verified against Live
+12.4.3's `_MxDCore/LomTypes.pyc` - so no Set XML needs reverse
 engineering. **Sidechain source is the exception**: absent from the LOM,
 so it stays manual.
 

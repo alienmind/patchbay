@@ -1,6 +1,6 @@
 """Tests against the real racks in racks/.
 
-These do not prove Live will load anything — only dragging a file in does
+These do not prove Live will load anything - only dragging a file in does
 that. What they do prove is that the library still agrees with every
 finding recorded in SCHEMA.md. If Live changes its schema, these fail and
 point at the spike that needs re-running.

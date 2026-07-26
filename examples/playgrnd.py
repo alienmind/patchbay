@@ -1,4 +1,4 @@
-"""PLAYGRND — the template this project exists to build.
+"""PLAYGRND - the template this project exists to build.
 
 The musical target is described in `doc/TEMPLATE_SPEC.md`. This file is
 the machine-readable half: the same intent, in a form the compiler can
@@ -9,7 +9,7 @@ realise.
 Status: **partial and tentative.** The grammar below is settled; the
 engine bindings are not. Only racks whose engines exist in the device
 library can be built today, and the library currently holds Operator,
-Simpler, Saturator, Reverb and MidiPitcher — harvested from spike files
+Simpler, Saturator, Reverb and MidiPitcher - harvested from spike files
 rather than curated donors. Wavetable, Drift, Meld and the rest need
 donors saved before BS1, PD1 and LD1 can be declared properly.
 
@@ -26,14 +26,14 @@ from patchbay.dsl import Grammar, Rack, RackKind
 # ---------------------------------------------------------------------------
 
 # Identical across every instrument rack, so muscle memory transfers. This
-# consistency is the product, more than any individual rack — so it is
+# consistency is the product, more than any individual rack - so it is
 # declared once, here, and every rack below takes it as an argument.
 #
 # Push shows 8 macros per page. Slots 1-8 are page one, 9-13 page two.
 # 14-16 are deliberately unassigned: TEMPLATE_SPEC.md does not name them,
 # and inventing slots would be inventing intent.
 PLAYGRND = Grammar(
-    # page one — the eight knobs that matter during a jam
+    # page one - the eight knobs that matter during a jam
     "Engine",      # 1  chain selector: sweeps engines, and therefore sounds
     "Cutoff",      # 2
     "Resonance",   # 3
@@ -52,7 +52,7 @@ PLAYGRND = Grammar(
 
 
 # ---------------------------------------------------------------------------
-# PD1 — polyphonic pads
+# PD1 - polyphonic pads
 # ---------------------------------------------------------------------------
 
 def pd1() -> Rack:
@@ -90,14 +90,14 @@ RACKS: list[Rack] = [pd1()]
 #
 # DR1  drum rack, three levels of nesting per pad, eight pads.
 #      Needs: nested Rack-inside-Chain in the DSL, and per-pad sends.
-#      The nesting pattern itself is verified — racks/s1_source.adg has it.
+#      The nesting pattern itself is verified - racks/s1_source.adg has it.
 #
 # BS1  multi engine bass.      Needs donors.
 # LD1  FM leads, mono, glide.  Needs donors and a mono/glide binding.
 # SR1  sampler plus hotswap.   Needs Phase 3 sample retargeting.
 # VA1  nests the five above.   Needs rack-in-rack composition.
 # VA2  second instance of VA1.
-# PM1  audio track, pre-master. Not a rack — built through ableton-mcp.
+# PM1  audio track, pre-master. Not a rack - built through ableton-mcp.
 #
 # Variations are absent everywhere: the highest-value module per
 # TEMPLATE_SPEC.md, and the next thing to build.

@@ -55,7 +55,7 @@ def _fmt(v):
 
 
 def range_of(param_el):
-    """(min, max) — the range a macro drives this parameter across.
+    """(min, max) - the range a macro drives this parameter across.
 
     This is MidiControllerRange, confirmed by S10 to be the *mapping*
     range: narrowing it narrows what the macro reaches.
@@ -69,8 +69,8 @@ def range_of(param_el):
 def set_range(param_el, lo, hi):
     """Set the range a macro drives this parameter across.
 
-    Live 12.4.3 offers no way to do this through its UI — not on the
-    macro, the target, or in Map mode — so this is a capability the file
+    Live 12.4.3 offers no way to do this through its UI - not on the
+    macro, the target, or in Map mode - so this is a capability the file
     format has and the GUI does not.
     """
     r = param_el.find("MidiControllerRange")
@@ -131,7 +131,7 @@ def map_to_macro(param_el, n):
     match it rather than find out.
 
     The parameter must live in the BranchPresets subtree of the rack whose
-    macro n is — there is nothing else to register, because the mapping is
+    macro n is - there is nothing else to register, because the mapping is
     addressed by containment.
     """
     from lxml import etree

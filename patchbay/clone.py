@@ -1,7 +1,7 @@
 """Duplicate chains, with the one fixup Live actually requires.
 
 S6 settled what cloning costs. An Id must be unique among its siblings and
-nothing else about it matters — not contiguity, not matching the index,
+nothing else about it matters - not contiguity, not matching the index,
 not file-wide uniqueness. Give two sibling branches the same Id and Live
 rejects the entire preset with a dialog.
 
@@ -33,7 +33,7 @@ def clone_branch(branch, count=1, receiving_notes=None):
 
     receiving_notes: for drum rack pads, the MIDI note each copy should
     answer to. Without it every copy keeps the original's ReceivingNote and
-    they all trigger together — legal, loadable, and almost never what you
+    they all trigger together - legal, loadable, and almost never what you
     want, so passing it is strongly encouraged for DrumBranchPreset.
 
     Returns the list of new branch elements.
@@ -66,8 +66,8 @@ def shift_macros(branch, offset):
 
     A cloned chain keeps the original's macro indices, so all copies answer
     to the same macro and move together. That is correct for ganged
-    control — the sound family constraint in TEMPLATE_SPEC.md wants exactly
-    it — but wrong when each chain should have its own knob.
+    control - the sound family constraint in TEMPLATE_SPEC.md wants exactly
+    it - but wrong when each chain should have its own knob.
 
     Shifting a copy's mappings by its position gives per-chain control:
     chain 0 on macros 1..k, chain 1 on macros k+1..2k, and so on.
@@ -111,7 +111,7 @@ def set_receiving_note(branch, note):
     """Set which MIDI note a drum pad answers to.
 
     ReceivingNote is the pad's grid position. SendingNote stays at 60 so
-    the chain's instrument still plays at root pitch — see ARCHITECTURE.md
+    the chain's instrument still plays at root pitch - see ARCHITECTURE.md
     section 12.
     """
     zs = branch.find("ZoneSettings")

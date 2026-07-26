@@ -3,7 +3,7 @@
 Build Ableton Live racks and Sets from code.
 
 A patchbay routes signals between things. This one routes macros to
-parameters, chains to zones, and racks onto tracks — so that building a
+parameters, chains to zones, and racks onto tracks - so that building a
 large hyper-mapped Push template does not mean thousands of manual macro
 mappings.
 
@@ -37,7 +37,7 @@ Fighting that split wastes effort, so the tool follows it.
 
 **Racks are built as files.** Live's API cannot group devices into a rack,
 create a macro mapping, or set a chain zone. Verified against Live's own
-Object Model, not assumed — see `doc/MCP.md`. `.adg` files are gzipped
+Object Model, not assumed - see `doc/MCP.md`. `.adg` files are gzipped
 XML, so patchbay writes them directly.
 
 **Sets are built through the API.** Track creation, naming, routing and
@@ -58,14 +58,14 @@ chain end to end: a rack declared in `examples/playgrnd.py`, compiled with
 different synthesis engines.
 
 - read, write, lossless round trip
-- structural diff — the discovery engine
+- structural diff - the discovery engine
 - node navigation and parameter addressing, including nested paths
 - macro mapping read and write, including ranges Live's own UI cannot set
 - chain and drum-pad cloning
 - the declarative DSL, and a compiler for specs
 
 **Not built: macro variations**, which `doc/TEMPLATE_SPEC.md` argues is
-the highest-value module here — ~692 sounds across 18 engines are
+the highest-value module here - ~692 sounds across 18 engines are
 variations, not chains. That is the next thing.
 
 `python tests/test_patchbay.py` runs 16 tests asserting the library still
@@ -88,7 +88,7 @@ git submodule update --init     # ableton-mcp
 | command | does |
 |---|---|
 | `patchbay build SPEC -o DIR` | compile a spec into rack presets |
-| `patchbay diff A B` | structural diff — the discovery engine |
+| `patchbay diff A B` | structural diff - the discovery engine |
 | `patchbay mappings SRC` | list macro mappings |
 | `patchbay clone SRC DEST -n N` | duplicate a chain |
 | `patchbay check SRC` | would Live accept this file? |
@@ -98,7 +98,7 @@ git submodule update --init     # ableton-mcp
 
 `patchbay <command> --help` for options. Two worth knowing: `diff -n N`
 caps output per section, because adding one device drags its whole
-parameter blob in — a Reverb is some 800 facts. And `clone --stride N`
+parameter blob in - a Reverb is some 800 facts. And `clone --stride N`
 gives each copy its own macro block rather than ganging them together.
 
 ## Layout
@@ -120,7 +120,7 @@ ableton-mcp/ submodule: the Live-side half.
 
 | file | what it is | read it when |
 |---|---|---|
-| **`doc/ARCHITECTURE.md`** | how the `.adg` format works — the consolidated model | before writing code that touches XML |
+| **`doc/ARCHITECTURE.md`** | how the `.adg` format works - the consolidated model | before writing code that touches XML |
 | **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
 | **`doc/SPIKES.md`** | discovery procedure, progress, open questions | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
@@ -143,7 +143,7 @@ Discovery is differential, never schema reading:
 5. Record the finding in `doc/SCHEMA.md`
 
 Two rules learned the hard way, both in `doc/SPIKES.md`. Load-test by
-**dragging into a running Live**, never by double-clicking — a second
+**dragging into a running Live**, never by double-clicking - a second
 instance hangs in a way indistinguishable from a rejected file, and that
 cost one wrong conclusion. And the one-change rule applies to constructed
 test files as much as to saves from Live.

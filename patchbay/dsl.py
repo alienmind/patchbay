@@ -269,7 +269,7 @@ class Rack:
         """Drop mappings on the skeleton rack's own macros.
 
         A skeleton harvested from a nested rack carries KeyMidi blocks on
-        its MacroControls and ChainSelector — but those describe how its
+        its MacroControls and ChainSelector - but those describe how its
         *parent* drove it, and this rack has no parent. Left in place they
         are mappings to a macro that does not exist.
 
@@ -380,7 +380,7 @@ class Rack:
     def _distribute_zones(self, branches: Sequence[Element]) -> None:
         """Spread chain-select zones evenly across 0..127, without overlap.
 
-        Bounds, not start plus length, with fades collapsed onto them — see
+        Bounds, not start plus length, with fades collapsed onto them - see
         ARCHITECTURE.md section 7.
         """
         n = len(branches)

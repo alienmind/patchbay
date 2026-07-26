@@ -2,8 +2,8 @@
 
 The navigation here follows ARCHITECTURE.md section 3: a rack preset is a
 GroupDevicePreset with two sibling subtrees. Device holds what the rack
-IS — its macros, its chain selector. BranchPresets holds what the rack
-CONTAINS — its chains and their devices.
+IS - its macros, its chain selector. BranchPresets holds what the rack
+CONTAINS - its chains and their devices.
 
 Getting that backwards is the single easiest mistake to make in this
 format, so every helper here is explicit about which side it walks.
@@ -37,7 +37,7 @@ def preset(root):
 
 
 def rack_device(preset_el):
-    """The rack's own device node — where macros and the chain selector live.
+    """The rack's own device node - where macros and the chain selector live.
 
     This is Device/<X>GroupDevice, NOT anything under BranchPresets.
     """
@@ -61,7 +61,7 @@ def return_branches(preset_el):
     """The rack's return chains, in order.
 
     Note the container is ReturnBranchPresets, a sibling of BranchPresets.
-    The rack device's ReturnBranches element is empty in presets — see
+    The rack device's ReturnBranches element is empty in presets - see
     ARCHITECTURE.md section 12.
     """
     container = preset_el.find("ReturnBranchPresets")
@@ -113,7 +113,7 @@ def walk_racks(preset_el):
 def param(device, path):
     """A parameter on a device, by name or by slash-separated path.
 
-    Simple devices keep parameters as direct children — Saturator's Drive
+    Simple devices keep parameters as direct children - Saturator's Drive
     is `PreDrive`. Larger ones nest them: Simpler has 109 parameters and
     Operator 217, at paths like `Operator.0/Envelope/DecayTime`. Both
     address the same way here.
@@ -149,7 +149,7 @@ def all_params(device):
     """Every parameter at any depth, as {path: element}.
 
     This is what makes a device's real vocabulary visible. Use it to build
-    a binding rather than guessing element names — Saturator's Drive knob
+    a binding rather than guessing element names - Saturator's Drive knob
     is `PreDrive` and its Output is `PostDrive`, and no amount of reasoning
     gets you there.
     """
