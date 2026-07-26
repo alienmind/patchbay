@@ -9,7 +9,7 @@ instead.
 ## Current state
 
 **Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
-viable.** Next action is spike **S8** in `SPIKES.md`.
+viable.** Next action is spike **S9** in `SPIKES.md`.
 
 No generator code exists yet. `adgkit/` currently holds discovery tooling
 only: read, write, diff, round trip, id census, mapping census.
@@ -47,7 +47,7 @@ disagree, `SCHEMA.md` wins, because it cites files in `racks/`.
 Read `SPIKES.md`'s progress table, then `ARCHITECTURE.md`. Between them
 they carry the full state — nothing important lives only in a chat
 transcript. Every **[V]** claim in `ARCHITECTURE.md` is reproducible from
-the files in `racks/` with the commands listed in its §13.
+the files in `racks/` with the commands listed in its §14.
 
 ## Requirements
 

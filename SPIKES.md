@@ -21,8 +21,8 @@ then `SCHEMA.md` for the raw evidence.
 | S5 | chain select zones | **DONE** (key/vel zones still todo) | `BranchSelectorRange` on the chain; fades grow inward; `Min<=XfMin<=XfMax<=Max` |
 | S6 | id allocation and scope | todo — **downgraded** | no longer gates macro mappings, see ARCHITECTURE §5 |
 | S7 | FileRef anatomy | **DONE** | two FileRefs; 20 facts move but only the 2 paths are required; metadata is advisory |
-| S8 | macro variations | **NEXT** | |
-| S9 | drum rack specifics | todo | |
+| S8 | macro variations | **DONE** | `MacroSnapshot` list; absolute 0..127 macro values; 16 slots + `MacroHasValue.N` |
+| S9 | drum rack specifics | **NEXT** | |
 | S10 | macro metadata | todo — **now also owns** `MacroDefaults` trigger | |
 | S11 | `.als` track structure | todo | |
 | S12 | minimal device viability | todo | |
@@ -292,7 +292,7 @@ One false start worth remembering: an intermediate variant appeared to
 fail, which fit a tidy cache-key theory. It had been double-clicked instead
 of dragged. See the ground rule at the top of this file.
 
-## S8. Macro variations
+## ~~S8. Macro variations~~ — DONE
 
 **Live:** rack with a few macros. Save `racks/s8_a.adg`. Click New in the
 variations panel. Save `racks/s8_b.adg`. Change macro values, click New
@@ -301,6 +301,16 @@ again. Save `racks/s8_c.adg`.
 **Record:** where variations live, whether stored values are absolute or
 normalised 0..1, where names live, and whether variation order is
 positional.
+
+**Result:** `MacroVariations/MacroSnapshots/MacroSnapshot[N]` on the rack
+device. Values are **absolute on the macro 0..127 scale**, all 16 slots
+always written, participation carried by `MacroHasValue.N` with `-1` as
+the unset value. Names in `SnapshotName`, order positional. See
+`ARCHITECTURE.md` §11.
+
+Note: the macro values chosen when clicking New do not need to be
+memorable. A snapshot can be checked against the same file's live
+`MacroControls.N/Manual`, which is what proved the scale.
 
 ## S9. Drum rack specifics
 
