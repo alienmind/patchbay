@@ -62,7 +62,7 @@ Live-saved one to find it.
 skeleton and raises otherwise, rather than silently producing a file that
 cannot be loaded.
 
-**Q2. Aftertouch.** `TEMPLATE_SPEC.md` wants aftertouch mapped to filter
+**Q2. Aftertouch.** `PATCHBAYGROUND.md` wants aftertouch mapped to filter
 and pitch on every sound, excluding drum pads. Nothing is known about how
 that is stored. It is probably a sibling of the `KeyMidi` mechanism, since
 that already encodes MIDI, but that is a guess.
@@ -76,19 +76,29 @@ Save an instrument rack with two chains, drag a key zone, then a velocity
 zone, one save each.
 *Blocks: multi-sampled racks.*
 
-**Q4. Variation limits and naming.** How many `MacroSnapshot` entries will
-Live accept, and does it truncate or reject beyond that? ~692 sounds
-across 18 engines means tens of variations per rack, and nothing yet says
-where the ceiling is.
-Generate 8, 64 and 256 variations and load each.
-*Blocks: knowing whether the variation grid needs chunking.*
+**~~Q4. Variation limits.~~ ANSWERED: no ceiling at 256.** Live 12.4.3 loads
+`build/probe_q4_256.adg` and shows all 256 entries. Nothing is truncated and
+nothing is refused. `build/PD1.adg`'s 96 load likewise.
 
-**Q5. Unmapped macros in a variation.** Can `MacroHasValue.N` be true for
-a macro that has no mapping? Only mapped macros were flagged in the sample.
-Minor, but it decides whether a generator writes participation per macro
-or per binding.
+~692 sounds across 18 engines is ~38 per rack, so the ceiling is far above
+what the template needs and **the variation grid does not need chunking**.
+The exact limit is unmeasured and now uninteresting.
 
-**Q6. Drum rack return selectors.** `TEMPLATE_SPEC.md` wants each DR1
+**~~Q5. Unmapped macros in a variation.~~ ANSWERED: accepted, and inert.**
+`build/probe_q5_unmapped.adg` flags macro 6 with nothing mapped to it. Live
+loads the file and the entry appears in the panel, so `MacroHasValue.N` on
+an unmapped macro is **not** a load error. Recalling it does not move macro
+6.
+
+So the failure mode is silence, not rejection: the entry looks like it does
+something and does nothing. The guard in `Rack._write_variations` stays, now
+because a no-op variation is worse than an error rather than because the
+answer was unknown.
+
+*Untested tail, cheap if ever wanted:* whether Live keeps the flag or strips
+it. Save the probe back out of Live and diff `MacroHasValue.5`.
+
+**Q6. Drum rack return selectors.** `PATCHBAYGROUND.md` wants each DR1
 return chain to hold a selector across several reverbs and delays, so a
 macro swaps the EFFECT rather than the send level. The pieces are known
 separately; the combination is untested.
@@ -104,7 +114,7 @@ if a spec ever states send levels as knob percentages.
 ## Retired
 
 **Sidechain source.** Absent from the Live Object Model AND not yet found
-in the file format. `TEMPLATE_SPEC.md` needs it for DR1. It stays manual,
+in the file format. `PATCHBAYGROUND.md` needs it for DR1. It stays manual,
 which `KICKOFF.md` prices at one afternoon. Revisit only if that proves
 annoying in practice.
 

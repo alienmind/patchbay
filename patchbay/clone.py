@@ -66,7 +66,7 @@ def shift_macros(branch, offset):
 
     A cloned chain keeps the original's macro indices, so all copies answer
     to the same macro and move together. That is correct for ganged
-    control - the sound family constraint in TEMPLATE_SPEC.md wants exactly
+    control - the sound family constraint in PATCHBAYGROUND.md wants exactly
     it - but wrong when each chain should have its own knob.
 
     Shifting a copy's mappings by its position gives per-chain control:

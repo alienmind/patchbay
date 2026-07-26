@@ -1,7 +1,23 @@
-# Template spec
+# PATCHBAYGROUND
 
-The musical target that `patchbay` exists to serve. Read this alongside
-`CLAUDE.md`, which covers the tooling.
+The musical target that `patchbay` exists to serve, and the spec
+`examples/patchbayground.py` compiles. Read this alongside `CLAUDE.md`,
+which covers the tooling.
+
+## Inspired by PLAYGRND
+
+The idea came from **PLAYGRND**, an Ableton Live Set by **Andri Soren**:
+https://www.youtube.com/watch?v=plQ9F-0RmDw
+
+What that Set demonstrates is an architecture: one macro grammar across every
+rack, engines as chains, sounds as macro variations, three levels of nesting
+inside a drum rack. This document reconstructs that shape to our own taste,
+and the numbers it reasons from - 18 engines, ~692 sounds - are the publicly
+stated ones.
+
+Assembling a template of that kind by hand is thousands of macro mappings and
+tens of thousands of variation values, entered one at a time by mouse. **That
+tedium is what `patchbay` exists to remove.**
 
 ## Goal
 
@@ -9,9 +25,6 @@ A hyper-mapped Ableton Live template for Push 3, run tethered to a
 computer (so VSTs are available, no standalone restrictions). Darkwave and
 minimal techno. The design goal is that the mouse is never needed during a
 jam: every meaningful control sits on a macro, reachable from Push encoders.
-
-Modelled on a commercial template called PLAYGRND. We are not copying its
-files, we are rebuilding the same architecture to taste.
 
 ## The eight tracks
 
@@ -30,9 +43,10 @@ Tempo 128. Eight return tracks.
 
 ## The architectural insight
 
-The template advertises 18 engines and ~692 sounds. That is ~38 sounds per
-engine, which means a "sound" is NOT a chain. Chains are engines. Sounds are
-**Macro Variations**.
+18 engines and ~692 sounds is ~38 sounds per engine, which means a "sound" is
+NOT a chain. Chains are engines. Sounds are **Macro Variations**.
+
+Arithmetic, and the most useful thing to know before writing any code.
 
 This matters enormously for `patchbay`: the expensive, repetitive, worth
 automating artifact is the macro variation set, not the chain structure.
@@ -59,10 +73,10 @@ index-aligned across engines, not independently randomised per engine.
 Identical across every instrument rack so muscle memory transfers. This
 consistency is the actual product, more than any individual rack.
 
-Declared once, in `examples/playgrnd.py`, and passed to every rack:
+Declared once, in `examples/patchbayground.py`, and passed to every rack:
 
 ```python
-PLAYGRND = Grammar(
+PATCHBAYGROUND = Grammar(
     "Engine",      # 1  chain selector
     "Cutoff",      # 2
     "Resonance",   # 3
@@ -151,12 +165,14 @@ in Record/Warp/Launch preferences.
   working through all three macro hops. That rack is `racks/s1_source.adg`
   and it is the evidence for the whole nesting model.
 
-**In code, `examples/playgrnd.py`:**
+**In code, `examples/patchbayground.py`:**
 
 - The grammar above, complete
 - PD1 as a two engine slice, Operator and Simpler. Compiles, loads on a
   MIDI track, and both engines answer the same macros. Verified in Live
   12.4.3, not merely generated.
+- 96 variations on PD1, over engine, cutoff, decay and resonance. All 96
+  recall in Live, and a variation selects its own engine.
 
 **Not yet declarable, and why:**
 
@@ -168,8 +184,10 @@ in Record/Warp/Launch preferences.
 | VA1, VA2 | rack-in-rack composition |
 | PM1 | not a rack; built through `ableton-mcp` |
 
-Variations are absent everywhere, which is the largest gap: this document
-argues they are the highest value artifact in the project.
+Variations were the largest gap and are now built, which this document
+argued for: they are the highest value artifact in the project. They arrive
+on any rack whose slots are bound, so each row above gains its variation
+grid the moment the rack itself is declarable.
 
 ## What was tried and rejected
 

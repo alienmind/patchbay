@@ -11,7 +11,7 @@ Build a system that generates a complete Ableton Live 12 template for Push 3
 from a declarative specification, with as little manual work in Live as
 possible.
 
-Read `TEMPLATE_SPEC.md` first. It defines the target: eight tracks, the DR1
+Read `PATCHBAYGROUND.md` first. It defines the target: eight tracks, the DR1
 three level nesting pattern, the macro grammar, the sound family constraint,
 and the PM1 pre master mechanism. That document is the requirement. This one
 is the plan.
@@ -177,16 +177,29 @@ is the DSL. A spec declares engines bound to a shared macro grammar; the
 compiler assembles donor subtrees, distributes zones and writes mappings.
 See `DSL.md`.
 
-*Gate: PASSED.* `build/PD1.adg`, compiled from `examples/playgrnd.py`,
+*Gate: PASSED.* `build/PD1.adg`, compiled from `examples/patchbayground.py`,
 loads on a MIDI track. Macro 1 sweeps engines, Macro 2 drives Operator's
 filter frequency and Simpler's cutoff over the same declared 200-8000 Hz
 range. One grammar, two synthesis methods, verified by ear.
 
-**Phase 5. Macro variations.** NOT STARTED. **This is the next thing.**
-Generate variation sets. Must respect the sound family constraint from
-`TEMPLATE_SPEC.md`: variation index N means the same musical idea across
-every engine in the rack, not independent randomisation per engine. Depends
-on S8, S10.
+**Phase 5. Macro variations.** BUILT.
+`patchbay/variations.py` writes the `MacroSnapshot` list; `Variation` in the
+DSL expresses one sound as a vector over grammar slots.
+
+The sound family constraint came out structural rather than enforced. A
+variation names slots, never a device parameter, so there is nothing per
+engine to keep aligned: index N is the same musical idea in every engine
+because the grammar is what they share. Engine choice is itself a slot, so a
+variation selects its own chain.
+
+*Gate: PASSED.* `build/PD1.adg` carries 96 variations over engine, cutoff,
+decay and resonance. All 96 recall, unbound macros stay put, and a variation
+selects its own engine. Recalling a Sample variation then turning Engine
+left gives the same idea through FM, which is the sound family constraint
+holding without being enforced.
+
+Two probes rode along and closed `SPIKES.md` Q4 and Q5: no snapshot ceiling
+at 256, and flagging an unmapped macro is accepted but inert.
 
 **Phase 6. Live Set assembly - REVISED, see `MCP.md`.**
 ~~Emit the whole `.als`.~~ Instead: extend the `ableton-mcp` remote script
@@ -200,7 +213,7 @@ engineering. **Sidechain source is the exception**: absent from the LOM,
 so it stays manual.
 
 ~~**Phase 7. Full build.**~~ **DONE in shape, thin in content.**
-`patchbay build examples/playgrnd.py -o build/` compiles a spec into rack
+`patchbay build examples/patchbayground.py -o build/` compiles a spec into rack
 presets. The spec declares one rack so far; the machinery is not the
 missing part.
 
@@ -273,7 +286,7 @@ It cannot verify that macros are mapped correctly. That still needs a person.
 
 `python build.py` produces a `.als` that opens in Live 12, presents eight
 correctly named and routed tracks, with racks whose macros are mapped
-according to the grammar in `TEMPLATE_SPEC.md`, playable from Push 3 without
+according to the grammar in `PATCHBAYGROUND.md`, playable from Push 3 without
 touching a mouse.
 
 ## Start here

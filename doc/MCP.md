@@ -62,7 +62,7 @@ after every Live update.
 `sidechain` and `side_chain` are **absent** from the LOM. A compressor's
 sidechain source cannot be set from the API.
 
-`TEMPLATE_SPEC.md` wants DR1 sidechaining into other tracks, so that stays
+`PATCHBAYGROUND.md` wants DR1 sidechaining into other tracks, so that stays
 either manual - one afternoon, per `KICKOFF.md`'s own fallback - or is
 done at the file level later if it proves worth it. It is one setting per
 track, not a system.

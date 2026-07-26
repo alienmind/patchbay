@@ -2,16 +2,46 @@
 
 Build Ableton Live racks and Sets from code.
 
+## Why this project?
+
+Live already exposes a programming interface. The Live Object Model
+drives a session that is **open and running**: create a track, name it,
+set its routing, fire a clip, move a parameter. Anything you can script
+against a live Set, script through the LOM.
+
+The LOM stops short in two ways. Parts of it are undocumented, and parts
+of what the Set contains simply has no API at all. Grouping devices into
+a rack, creating a macro mapping, setting a chain zone: none of these are
+in the Object Model. Verified against Live's own model, not assumed, see
+`doc/MCP.md`.
+
+patchbay covers the other half by writing the **files**. An `.adg` is a
+gzipped XML document, so is an `.als`, so is an `.adv`. What the API will
+not build, the file format will, and patchbay writes and reads that XML
+directly.
+
+That changes what maintenance costs. A rack or a project kept current by
+hand is hands on work: every mapping clicked, every variation dialled,
+every fix repeated in each copy that inherited it, and all of it held
+together by the author's discipline. Nothing records what changed or why,
+and nothing carries a correction forward.
+
+Declared as code, a rack gets the tools ordinary software already has. It
+lives in version control, it diffs, it reviews, it rebuilds. A new Live
+version, a renamed parameter, or a change of taste by whoever authored
+the racks is an edit to a spec and one `patchbay build`, not an afternoon
+of mousing. The source of truth is the spec, and the `.adg` is output.
+
 A patchbay routes signals between things. This one routes macros to
 parameters, chains to zones, and racks onto tracks - so that building a
 large hyper-mapped Push template does not mean thousands of manual macro
 mappings.
 
 ```python
-PLAYGRND = Grammar("Engine", "Cutoff", "Resonance", "Decay",
-                   "Drive", "Movement", "Space", "Character")
+PATCHBAYGROUND = Grammar("Engine", "Cutoff", "Resonance", "Decay",
+                         "Drive", "Movement", "Space", "Character")
 
-rack = Rack("PD1", PLAYGRND, kind=RackKind.INSTRUMENT)
+rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
 
 with rack.engine("FM", "Operator") as e:
     e.bind(cutoff=("Filter/Frequency", 200, 8000),
@@ -23,27 +53,60 @@ with rack.engine("Sample", "OriginalSimpler") as e:
 ```
 
 ```
-patchbay build examples/playgrnd.py -o build/
+patchbay build examples/patchbayground.py -o build/
 ```
 
 Both engines bind the same grammar slots to their own parameters, so one
 knob moves the same musical idea through different synthesis. That is the
-sound family constraint from `doc/TEMPLATE_SPEC.md`, structural rather
-than a matter of discipline.
+sound family constraint from [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md),
+structural rather than a matter of discipline.
+
+## Inspired by PLAYGRND
+
+The idea came from **PLAYGRND**, an Ableton Live Set by **Andri Soren**:
+https://www.youtube.com/watch?v=plQ9F-0RmDw
+
+Hearing it described settles the architecture. 18 engines and ~692 sounds is
+~38 sounds per engine, so a sound cannot be a chain: chains are engines and
+sounds are macro variations. Add one macro grammar shared by every rack and
+three levels of nesting inside a drum rack, and the shape is clear.
+
+Assembling that by hand is thousands of macro mappings and tens of thousands
+of variation values, all clicked in one at a time. patchbay generates it from
+a declaration instead. Same architecture, our own taste, in a spec that
+diffs.
+
+The target is spelled out in [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md)
+and declared in code in
+[`examples/patchbayground.py`](examples/patchbayground.py).
 
 ## Two halves, because Live splits this way
 
-Fighting that split wastes effort, so the tool follows it.
+The split above is not a design choice, it is where Live's API ends.
+Fighting it wastes effort, so the tool follows it.
 
-**Racks are built as files.** Live's API cannot group devices into a rack,
-create a macro mapping, or set a chain zone. Verified against Live's own
-Object Model, not assumed - see `doc/MCP.md`. `.adg` files are gzipped
-XML, so patchbay writes them directly.
+**Racks are built as files.** Racks, macro mappings and chain zones are
+outside the Object Model, so patchbay writes the gzipped XML of the
+`.adg` itself.
 
 **Sets are built through the API.** Track creation, naming, routing and
-clips *are* scriptable, so those go through the `ableton-mcp` submodule
-rather than generating `.als`. Sidechain source is missing from both, and
-stays manual.
+clips *are* scriptable, so those go through the LOM via the `ableton-mcp`
+submodule rather than generating `.als`. Sidechain source is missing from
+both, and stays manual.
+
+`ableton-mcp` is vendored for inspiration, not as a dependency to build
+on. It is one worked example of driving the LOM, and it inherits every
+limit the LOM has. What patchbay learns about the file format could make
+a better MCP server possible, one that reaches past the Object Model.
+Whether that is what this becomes, time will tell.
+
+Its standing role here is the test harness. A file that passes
+`patchbay check` is still only a file, and no unit test proves Live will
+load it. MCP is how a build gets tested **live**: drive a running Live,
+put the device we just wrote onto a track, read back what Live made of
+it, and do that programmatically rather than by hand. That makes
+integration tests possible against the real application, and it is the
+only way patchbay ever confirms a device actually deploys.
 
 ## Current state
 
@@ -53,7 +116,7 @@ in `doc/ARCHITECTURE.md`, each claim marked verified, inferred or open and
 traced to a file in `racks/`.
 
 Built, and gated by loading in Live. The last gate passed was the whole
-chain end to end: a rack declared in `examples/playgrnd.py`, compiled with
+chain end to end: a rack declared in `examples/patchbayground.py`, compiled with
 `patchbay build`, dropped on a MIDI track, with one grammar driving two
 different synthesis engines.
 
@@ -63,25 +126,52 @@ different synthesis engines.
 - macro mapping read and write, including ranges Live's own UI cannot set
 - chain and drum-pad cloning
 - the declarative DSL, and a compiler for specs
+- macro variations
 
-**Not built: macro variations**, which `doc/TEMPLATE_SPEC.md` argues is
-the highest-value module here - ~692 sounds across 18 engines are
-variations, not chains. That is the next thing.
+The variation gate passed too: `build/PD1.adg` carries 96 sounds over four
+grammar slots, one of them the engine choice, and recalling one arrives at
+the same musical idea through whichever engine it selects.
 
-`python tests/test_patchbay.py` runs 16 tests asserting the library still
-agrees with every recorded finding.
+Variations are the module `doc/PATCHBAYGROUND.md` argues matters most, since
+~692 sounds across 18 engines are variations rather than chains. A variation
+is a vector over grammar slots in macro space, so it renders through every
+engine without being written per engine, and it may select its own engine:
+
+```python
+rack.variations(Variation("dark", engine=rack.engine_macro("FM"),
+                          cutoff=30, decay=110))
+```
+
+`uv run pytest tests/ -q` runs 28 tests asserting the library still
+agrees with every recorded finding. One of them clears the variations Live
+wrote in `racks/s8_c.adg`, writes them back through `patchbay`, and requires
+the diff to be empty.
+
+Next: nested racks, which DR1 needs and `doc/SPIKES.md` Q1b warns about.
 
 ## Install
 
+Managed with [uv](https://docs.astral.sh/uv/).
+
 ```
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS / Linux
-pip install -e .
+uv sync                         # creates .venv, installs patchbay editable
 git submodule update --init     # ableton-mcp
 ```
 
-`-e` matters: specs and findings are both still moving.
+Editable matters, and `uv sync` does it by default: specs and findings are
+both still moving.
+
+Then either activate the environment, or prefix commands with `uv run`:
+
+```
+uv run patchbay build examples/patchbayground.py -o build/
+uv run pytest tests/ -q
+```
+
+`uv run` works from any directory with `--project`, which matters for the
+probe scripts in `build/`. Nothing needs a global install, and there is no
+`pip install -e .` step to get stale - the failure mode that prompted this
+was an editable install still pointing at the folder's old name.
 
 ## Commands
 
@@ -90,6 +180,7 @@ git submodule update --init     # ableton-mcp
 | `patchbay build SPEC -o DIR` | compile a spec into rack presets |
 | `patchbay diff A B` | structural diff - the discovery engine |
 | `patchbay mappings SRC` | list macro mappings |
+| `patchbay variations SRC` | list macro variations |
 | `patchbay clone SRC DEST -n N` | duplicate a chain |
 | `patchbay check SRC` | would Live accept this file? |
 | `patchbay roundtrip SRC` | prove load-then-save is lossless |
@@ -106,7 +197,7 @@ gives each copy its own macro block rather than ganging them together.
 ```
 patchbay/    the library. Knows XML, ids, macros, chains, FileRefs.
              Knows nothing about kick drums. Keep it that way.
-examples/    specs. playgrnd.py is the template this project exists for.
+examples/    specs. patchbayground.py is the template this project exists for.
 doc/         how the format works, and how we found out.
 donors/      real device instances harvested from Live, to copy from.
 racks/       spike evidence. Every verified claim traces to one of these.
@@ -124,7 +215,7 @@ ableton-mcp/ submodule: the Live-side half.
 | **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
 | **`doc/SPIKES.md`** | discovery procedure, progress, open questions | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
-| **`doc/TEMPLATE_SPEC.md`** | the musical target, and the grammar | for what any of this is for |
+| **`doc/PATCHBAYGROUND.md`** | the musical target, the grammar, and what inspired it | for what any of this is for |
 | `doc/MCP.md` | what Live's API can and cannot do | before touching a running Live |
 | `doc/KICKOFF.md` | the original plan, and how it changed | for sequencing |
 | `CLAUDE.md` | working method and landmines | first, if you are an agent |
