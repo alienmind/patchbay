@@ -686,6 +686,46 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
     assert all(Path(p).is_file() for p in paths), "no chain points at nothing"
 
 
+# --- T6a: extraction ------------------------------------------------------
+
+def _structure(root):
+    """Chains and macro mappings: what a spec determines, and no more."""
+    pre = find.preset(root)
+    chains = [((b.find("Name").get("Value") if b.find("Name") is not None else ""),
+               find.devices(b)[0].tag if find.devices(b) else None)
+              for b in find.branches(pre)]
+    maps = sorted((m["macro"], m["target"])
+                  for m in mappings.find(root) if m["macro"])
+    return chains, maps
+
+
+def test_extract_round_trips_structure(tmp_path=None):
+    """Extract a rack, rebuild from the emitted source, compare.
+
+    Structure, NOT bytes. Rebuilding a spec fills devices from the donor
+    library, so parameter values come from the donor rather than the
+    original. A full `patchbay diff` can never be empty here, and demanding
+    one would be demanding the wrong thing.
+    """
+    from patchbay import extract
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    for rack in patchbayground.RACKS:
+        original = rack.build()
+        out = Path(tmp_path or "build") / f"{rack.name}.extract.adg"
+        out.parent.mkdir(exist_ok=True)
+        io.save(original, out)
+
+        ns = {}
+        exec(compile(extract.source(out), str(out), "exec"), ns)
+        rebuilt = ns["RACKS"][0].build()
+
+        a, b = _structure(io.load(out)), _structure(rebuilt)
+        assert a[0] == b[0], f"{rack.name}: chains differ"
+        assert a[1] == b[1], f"{rack.name}: mappings differ"
+
+
 # --- house style ----------------------------------------------------------
 
 EM_DASH = chr(0x2014)   # named by codepoint so this file does not trip its own check

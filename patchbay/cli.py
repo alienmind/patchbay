@@ -78,13 +78,19 @@ def _main():
     ck = sub.add_parser("check", help="would Live accept this file?")
     ck.add_argument("src")
 
+    ex = sub.add_parser("extract", help="emit DSL source for a saved rack")
+    ex.add_argument("src")
+
     i = sub.add_parser("ids", help="S6: census of id fields and their scope")
     i.add_argument("src")
     i.add_argument("--fields", help=f"comma separated, default {','.join(ID_FIELDS)}")
 
     args = p.parse_args()
 
-    if args.cmd == "unpack":
+    if args.cmd == "extract":
+        from . import extract
+        extract.report(args.src)
+    elif args.cmd == "unpack":
         print(io.unpack(args.src, args.out))
     elif args.cmd == "repack":
         print(io.repack(args.src, args.dest))
