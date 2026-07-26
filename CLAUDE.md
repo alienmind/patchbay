@@ -132,6 +132,29 @@ re-derive it.
 - **The UI says Variations, the XML says Snapshots.** Grepping the UI word
   finds nothing.
 
+## NEVER COMMIT SAMPLES
+
+Nothing under `samples/` is staged, committed or pushed, except
+`samples/README.md`. Not audio. Not a licence file. Not a manifest, a CSV
+or an index that merely LISTS the filenames.
+
+Sample content is licensed and a public repo is redistribution. This is not
+a tidiness rule.
+
+`.gitignore` pins it with `samples/*` plus `!samples/README.md`, so
+`git add -A` cannot sweep them in. Do not add an exception to that pair,
+and do not `git add -f` a path under `samples/`.
+
+The same care applies to what tracked files SAY. `samples/README.md`
+describes the tree in counts and folder names; it does not enumerate files
+and it does not name a source or a vendor. A filename list and a pack name
+are both content that folder exists to keep out of the repo.
+
+Before staging anything from a folder that arrived from outside this
+project, check what is in it. `git add -A` over a vendor directory is how
+a licence file or a file listing gets published, and it is far cheaper to
+notice first than to rewrite pushed history after.
+
 ## Scratch work goes in `build/`
 
 Anything exploratory - a probe file, an unpacked `.xml`, a deliberately

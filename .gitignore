@@ -2,8 +2,10 @@ __pycache__/
 *.xml
 
 build/
-samples/**/*.wav
-samples/**/*.aif
+# Samples are NEVER committed. Not the audio, not a licence, not a
+# manifest listing their names. Only this folder's README is tracked.
+samples/*
+!samples/README.md
 
 # donors/ and racks/ are assets, tracked on purpose. Generated round trip
 # output is not.
