@@ -1,3 +1,4 @@
-from . import io, diff, ids, mappings, roundtrip
+from . import io, diff, find, params, clone, ids, mappings, roundtrip
 
-__all__ = ["io", "diff", "ids", "mappings", "roundtrip"]
+__all__ = ["io", "diff", "find", "params", "clone", "ids", "mappings",
+           "roundtrip"]

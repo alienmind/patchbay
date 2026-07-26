@@ -1,6 +1,6 @@
 import argparse
 import sys
-from . import io, diff, ids, mappings, roundtrip
+from . import io, diff, clone, find, ids, mappings, roundtrip
 from .diff import ID_FIELDS
 
 
@@ -51,6 +51,19 @@ def _main():
     m = sub.add_parser("mappings", help="list macro mappings (S3)")
     m.add_argument("src")
 
+    cl = sub.add_parser("clone", help="duplicate a chain N times (Phase 2)")
+    cl.add_argument("src")
+    cl.add_argument("dest")
+    cl.add_argument("-c", "--chain", type=int, default=0,
+                    help="index of the chain to duplicate (default 0)")
+    cl.add_argument("-n", "--count", type=int, default=1,
+                    help="how many copies (default 1)")
+    cl.add_argument("--pad", action="store_true",
+                    help="drum pad: give each copy the next free ReceivingNote")
+
+    ck = sub.add_parser("check", help="would Live accept this file?")
+    ck.add_argument("src")
+
     i = sub.add_parser("ids", help="S6: census of id fields and their scope")
     i.add_argument("src")
     i.add_argument("--fields", help=f"comma separated, default {','.join(ID_FIELDS)}")
@@ -69,6 +82,27 @@ def _main():
         raise SystemExit(0 if ok else 1)
     elif args.cmd == "mappings":
         mappings.report(args.src)
+    elif args.cmd == "clone":
+        root = io.load(args.src)
+        preset = find.preset(root)
+        chains = find.branches(preset)
+        if not 0 <= args.chain < len(chains):
+            raise SystemExit(
+                f"chain {args.chain} out of range; file has {len(chains)}")
+        target = chains[args.chain]
+        made = (clone.clone_pad(preset, target, args.count) if args.pad
+                else clone.clone_branch(target, args.count))
+        clone.assert_loadable(root)
+        io.save(root, args.dest)
+        print(f"cloned <{target.tag}> x{args.count} -> {len(chains) + len(made)} chains")
+        for m in made:
+            zs = m.find("ZoneSettings")
+            note = zs.find("ReceivingNote").get("Value") if zs is not None else None
+            print(f"  new Id={m.get('Id')}" + (f"  ReceivingNote={note}" if note else ""))
+        print(f"wrote {args.dest}")
+    elif args.cmd == "check":
+        bad = ids.report(args.src)
+        raise SystemExit(1 if bad else 0)
     elif args.cmd == "ids":
         fields = tuple(args.fields.split(",")) if args.fields else ID_FIELDS
         ids.report(args.src, fields)

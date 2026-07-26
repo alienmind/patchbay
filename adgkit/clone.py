@@ -1,0 +1,129 @@
+"""Duplicate chains, with the one fixup Live actually requires.
+
+S6 settled what cloning costs. An Id must be unique among its siblings and
+nothing else about it matters — not contiguity, not matching the index,
+not file-wide uniqueness. Give two sibling branches the same Id and Live
+rejects the entire preset with a dialog.
+
+Everything else in a branch copies verbatim:
+
+  Macro mappings are KeyMidi elements inside their target parameters and
+  are addressed by containment, so a copied mapping refers to the copy's
+  own rack automatically. There is no reference to remap.
+
+  Chain zones, sends, device parameters and sample references are all
+  plain values.
+
+So this module is deliberately small. The landmine CLAUDE.md warned about
+turned out to be a single line of work; the risk was believing otherwise
+and building an id-remapping engine nothing needed.
+"""
+
+import copy
+
+from . import find
+from .ids import collisions, next_free_id
+
+
+def clone_branch(branch, count=1, receiving_notes=None):
+    """Duplicate a chain in place, `count` times.
+
+    Copies are inserted directly after the original, each with an Id free
+    among its siblings.
+
+    receiving_notes: for drum rack pads, the MIDI note each copy should
+    answer to. Without it every copy keeps the original's ReceivingNote and
+    they all trigger together — legal, loadable, and almost never what you
+    want, so passing it is strongly encouraged for DrumBranchPreset.
+
+    Returns the list of new branch elements.
+    """
+    container = branch.getparent()
+    if container is None:
+        raise ValueError("branch has no parent; pass an element still in a tree")
+
+    if receiving_notes is not None and len(receiving_notes) != count:
+        raise ValueError(
+            f"receiving_notes has {len(receiving_notes)} entries for {count} copies")
+
+    made = []
+    anchor = branch
+    for i in range(count):
+        dup = copy.deepcopy(branch)
+        dup.set("Id", next_free_id(container, branch.tag))
+        anchor.addnext(dup)
+        anchor = dup
+
+        if receiving_notes is not None:
+            set_receiving_note(dup, receiving_notes[i])
+
+        made.append(dup)
+    return made
+
+
+def set_receiving_note(branch, note):
+    """Set which MIDI note a drum pad answers to.
+
+    ReceivingNote is the pad's grid position. SendingNote stays at 60 so
+    the chain's instrument still plays at root pitch — see ARCHITECTURE.md
+    section 12.
+    """
+    zs = branch.find("ZoneSettings")
+    if zs is None:
+        raise ValueError(f"<{branch.tag}> has no ZoneSettings; not a drum pad")
+    zs.find("ReceivingNote").set("Value", str(note))
+    return branch
+
+
+def free_receiving_notes(preset_el, count, start=36):
+    """`count` MIDI notes not already claimed by a pad in this rack.
+
+    36 is C1, where Live's drum grid starts.
+    """
+    used = set()
+    for b in find.branches(preset_el):
+        zs = b.find("ZoneSettings")
+        if zs is not None:
+            rn = zs.find("ReceivingNote")
+            if rn is not None:
+                used.add(rn.get("Value"))
+    out, n = [], start
+    while len(out) < count and n < 128:
+        if str(n) not in used:
+            out.append(n)
+        n += 1
+    if len(out) < count:
+        raise ValueError(f"only {len(out)} free notes below 128, needed {count}")
+    return out
+
+
+def clone_pad(preset_el, branch, count=1):
+    """Duplicate a drum pad, giving each copy the next free note."""
+    return clone_branch(branch, count,
+                        receiving_notes=free_receiving_notes(preset_el, count))
+
+
+def check(root):
+    """Sibling id collisions, the one thing Live rejects outright.
+
+    Call before writing. Returns the collision list; empty means Live will
+    accept the file, verified against its behaviour on three test files.
+    """
+    return collisions(root)
+
+
+def assert_loadable(root):
+    """Raise if the tree would be refused by Live.
+
+    Fail loudly: a corrupt .adg that Live silently half-loads is worse
+    than one it rejects, and here we can know in advance.
+    """
+    bad = check(root)
+    if bad:
+        lines = "\n".join(
+            f"  {count}x <{tag} Id=\"{idv}\"> under {where}"
+            for where, tag, idv, count in bad)
+        raise ValueError(
+            f"{len(bad)} sibling id collision(s); Live would refuse this "
+            f"preset:\n{lines}")
+    return root
