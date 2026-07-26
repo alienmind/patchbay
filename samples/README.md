@@ -45,12 +45,12 @@ load.
 Licence terms that arrive with a pack are kept in this folder, untracked,
 because the directory they arrived in does not survive sorting.
 
-## Two calls worth checking by ear
+## Adding to it
 
-**`rim/` holds a single file.** There is one rimshot in the collection. A
-RIM pad either gets that one sample or borrows from `perc/`.
+Drop files into the folder for their sound, then normalise the names:
+sorted case insensitively, numbered from the first free index, and appended
+to the move log. Existing numbers do not shift, so a path already written
+into a spec keeps pointing at the same audio.
 
-**Twelve files whose names carried both `SD` and `CLP` were read as
-snares.** `SD` is snare drum; the second token is the ambiguity, since they
-may be clap layers. They are the last twelve in `snare/`. Move them to
-`clap/` if they sound wrong.
+Every sound has enough files for a pad to select across. The one that did
+not, `rim/`, has since been filled.
