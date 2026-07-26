@@ -24,8 +24,7 @@ and tens of thousands of parameter values, entered one at a time by mouse.
 
 ## Goal
 
-A hyper-mapped Live template for Push 3, run tethered to a computer so VSTs
-are available. Darkwave and minimal techno. The design goal is that the
+A hyper-mapped Live template for Push 3. The design goal is that the
 mouse is never needed during a jam: every meaningful control sits on a
 macro, reachable from a Push encoder.
 
@@ -41,8 +40,6 @@ macro, reachable from a Push encoder.
 | VA1 | MIDI | Various, nests all five instruments above |
 | VA2 | MIDI | Various, second instance |
 | PM1 | **Audio** | Pre master |
-
-Tempo 128.
 
 Two VA tracks rather than one, because the whole point of a nesting rack is
 that you want a second one the moment you have used the first.
@@ -109,8 +106,8 @@ macros, it BINDS its own parameters to these slots:
 
 ```python
 with rack.engine("FM", "Operator") as e:
-    e.bind(cutoff=("Filter/Frequency", 200, 8000),
-           decay="Filter/Envelope/DecayTime")
+    e.bind(filter=("Filter/Frequency", 30, 18500),
+           release="Operator.0/Envelope/ReleaseTime")
 ```
 
 Ranges are optional and scope what the macro reaches. Live 12.4.3 has no UI
@@ -263,11 +260,24 @@ is for:
 - 96 variations on PD1 over engine, cutoff, decay and resonance. All 96
   recall in Live.
 
-**Known gap between this document and the code:** the file still declares a
-13 slot grammar with `Space` on the instrument rack. The eight slot
-grammar above, with sends moved off the instrument and Volume added, is the
-decision; the code has not been reworked to match it yet. Anything
-generated before that rework carries the old shape.
+The eight slot grammar above IS what the code declares. Slot 2, `Sound`,
+binds nothing yet, because neither rack has sound chains to select between.
+A grammar slot that nothing drives writes no mapping, which is the intended
+behaviour rather than a gap.
+
+**Both racks are gated in Live 12.4.3 under this grammar.** PD1 sweeps
+engines, filter, release and volume, and its variations recall and select
+their own engine. VA1 switches sub-racks with macro 1 and chains the rest
+into whichever is selected.
+
+**A slot is only as consistent as its ranges.** Both engines bound slot 8
+to their own volume parameter, which satisfies the sound family rule and
+was still wrong in the room: Operator's volume is linear amplitude
+bottoming at -70 dB, Simpler's is decibels bottoming at -36. One knob, two
+unit systems, and macro-zero silenced one engine while the other kept
+playing. Binding the right parameter on every engine is necessary and not
+sufficient; the RANGES are what make one knob feel like one knob. See Q14
+in `SCHEMA.md`.
 
 **Not yet declarable, and why:**
 
@@ -293,8 +303,10 @@ rather than by accident:
 - **Per engine parameter ranges.** Every binding currently reaches a
   parameter's full range. Scoped ranges are what make one knob feel the
   same across engines that disagree about units.
-- **The slot 6 wildcard, per rack.** It is named `Character` and left open
-  on purpose, but no rack has yet argued for what it should be.
+- **The slot 6 wildcard, per rack.** PD1 spends `Character` on resonance,
+  because Operator and Simpler both have one and slot 3 is cutoff alone.
+  That is a default, not a decision: Meld's L-B-H-N morph is the better
+  argument for what the slot is FOR, and no rack uses it yet.
 - **A second effect slot on the strip.** AFXS1 exists in the layout and has
   no contents.
 
