@@ -108,17 +108,10 @@ it, and do that programmatically rather than by hand. That makes
 integration tests possible against the real application, and it is the
 only way patchbay ever confirms a device actually deploys.
 
-## Current state
+## What it does
 
-Phase 0 discovery is **complete**: 12 spikes answered, 1 retired as
-unnecessary, both kill criteria passed. What the format does is recorded
-in `doc/ARCHITECTURE.md`, each claim marked verified, inferred or open and
-traced to a file in `racks/`.
-
-Built, and gated by loading in Live. The last gate passed was the whole
-chain end to end: a rack declared in `examples/patchbayground.py`, compiled with
-`patchbay build`, dropped on a MIDI track, with one grammar driving two
-different synthesis engines.
+Everything here is built, and every item was gated by loading the output
+in Live 12.4.3.
 
 - read, write, lossless round trip
 - structural diff - the discovery engine
@@ -128,26 +121,25 @@ different synthesis engines.
 - the declarative DSL, and a compiler for specs
 - macro variations
 
-The variation gate passed too: `build/PD1.adg` carries 96 sounds over four
-grammar slots, one of them the engine choice, and recalling one arrives at
-the same musical idea through whichever engine it selects.
-
-Variations are the module `doc/PATCHBAYGROUND.md` argues matters most, since
-~692 sounds across 18 engines are variations rather than chains. A variation
-is a vector over grammar slots in macro space, so it renders through every
-engine without being written per engine, and it may select its own engine:
+A variation is a vector over grammar slots in macro space, so it renders
+through every engine without being written per engine, and it may select
+its own engine:
 
 ```python
 rack.variations(Variation("dark", engine=rack.engine_macro("FM"),
                           cutoff=30, decay=110))
 ```
 
+That module carries the template, since ~692 sounds across 18 engines are
+variations rather than chains.
+
 `uv run pytest tests/ -q` runs 28 tests asserting the library still
 agrees with every recorded finding. One of them clears the variations Live
 wrote in `racks/s8_c.adg`, writes them back through `patchbay`, and requires
 the diff to be empty.
 
-Next: nested racks, which DR1 needs and `doc/SPIKES.md` Q1b warns about.
+What is in flight and what is next lives in
+[`doc/TODO.md`](doc/TODO.md), the live backlog.
 
 ## Install
 
@@ -211,33 +203,26 @@ ableton-mcp/ submodule: the Live-side half.
 
 | file | what it is | read it when |
 |---|---|---|
+| **`doc/TODO.md`** | the live backlog: in flight, next, open spikes | before starting anything |
 | **`doc/ARCHITECTURE.md`** | how the `.adg` format works - the consolidated model | before writing code that touches XML |
 | **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
-| **`doc/SPIKES.md`** | discovery procedure, progress, open questions | before investigating anything |
+| **`doc/SPIKES.md`** | discovery procedure and the spikes that answered it | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
 | **`doc/PATCHBAYGROUND.md`** | the musical target, the grammar, and what inspired it | for what any of this is for |
 | `doc/MCP.md` | what Live's API can and cannot do | before touching a running Live |
+| `doc/THE_BASEMENT.md` | ideas that failed, and what killed them | before reviving a good-sounding plan |
 | `doc/KICKOFF.md` | the original plan, and how it changed | for sequencing |
 | `CLAUDE.md` | working method and landmines | first, if you are an agent |
 
 `doc/ARCHITECTURE.md` is the model, `doc/SCHEMA.md` is the evidence. If
 they disagree, SCHEMA wins, because it cites files.
 
-## Method
+`doc/TODO.md` is the only file that says what is unfinished. When a task
+lands it leaves that file, into README, ARCHITECTURE or THE_BASEMENT.
 
-Discovery is differential, never schema reading:
+## Live version
 
-1. In Live, save a rack as `a.adg`
-2. Change exactly **one** thing
-3. Save as `b.adg`
-4. `patchbay diff a.adg b.adg`
-5. Record the finding in `doc/SCHEMA.md`
-
-Two rules learned the hard way, both in `doc/SPIKES.md`. Load-test by
-**dragging into a running Live**, never by double-clicking - a second
-instance hangs in a way indistinguishable from a rejected file, and that
-cost one wrong conclusion. And the one-change rule applies to constructed
-test files as much as to saves from Live.
-
-The schema is version specific. Findings here are Live **12.4.3**; watch
-`SchemaChangeCount` on the root element after an update.
+The file format is version specific. Everything here was established
+against Live **12.4.3**, and a major Live update may need the findings
+rechecked. How that checking is done is `CLAUDE.md` and `doc/SPIKES.md`,
+which are written for whoever, or whatever, does the work.

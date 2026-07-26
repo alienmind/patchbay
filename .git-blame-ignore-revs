@@ -1,0 +1,5 @@
+# Commits that touched every line without changing meaning.
+# git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# chore: normalise the repo to LF endings
+9bd95487f75f4918ee38493bef8e1ed8384014fd

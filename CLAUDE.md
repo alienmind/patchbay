@@ -1,9 +1,38 @@
 # CLAUDE.md - working rules for agents in this repo
 
 This repo builds Ableton Live racks from Python, and Live Sets through the
-`ableton-mcp` submodule. Start with `README.md`, then `doc/ARCHITECTURE.md`
-for how the file format works and `doc/SPIKES.md` for what is still open.
-This file is only the house rules, the things not derivable from the code.
+`ableton-mcp` submodule. Start with `doc/TODO.md` for what to work on, then
+`doc/ARCHITECTURE.md` for how the file format works. This file is only the
+house rules, the things not derivable from the code.
+
+## The backlog is `doc/TODO.md`
+
+It is the ONLY file that says what is unfinished. Work it, do not work
+around it.
+
+1. **Start there.** Take a task, move it to In progress, and keep its
+   status current in that file as it moves. A finding that arrives
+   mid-task is written down when it arrives, not at the end.
+2. **When it lands, DELETE it from `TODO.md`** and materialise what was
+   learned in its permanent home:
+   - a capability a user would want: `README.md`
+   - how the format works: `doc/ARCHITECTURE.md`, evidence in
+     `doc/SCHEMA.md`
+   - a shape decision about the DSL: `doc/DSL.md`
+   - an idea that did not work, an approach abandoned, a theory
+     disproved: `doc/THE_BASEMENT.md`
+3. **Nothing is archived in place.** No completed entries accumulate in
+   `TODO.md`, no struck-through text, no "DONE" markers. A task leaves
+   once, in one direction. `KICKOFF.md` is what that looks like when it is
+   not done, and it is not a model to copy.
+
+Bury generously. An approach that failed is worth more written down than
+deleted, because the next reader will otherwise find it attractive again.
+`THE_BASEMENT.md` entries say what was tried, what killed it, and what
+replaced it.
+
+`README.md` is for a person deciding whether to use this. Working
+procedure, backlog and status are NOT in it.
 
 ## The method
 
@@ -115,6 +144,18 @@ one destroys a finding.
 
 A probe that answered its question is deleted once the answer is written
 down. The finding has value; the scaffolding that produced it is noise.
+
+## This is an LF repo
+
+Every tracked text file ends its lines with `\n`, on Windows too.
+`.gitattributes` pins it and `tests/test_patchbay.py` fails on a stray
+`\r`, so do not "fix" a file by letting an editor write CRLF back.
+
+Do not confuse this with the format finding: **Live** writes CRLF inside an
+`.adg`, and that stays true. Ableton's files are gzip, marked `binary`, and
+git never touches them. A checked-in unpacked `.xml` is marked `-text` for
+the same reason - it must stay byte for byte as Live wrote it, or diffing
+it against a Live-saved file stops meaning anything.
 
 ## Prose
 

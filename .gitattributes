@@ -1,0 +1,23 @@
+# LF in the repo and LF in the working tree, on every platform. Without
+# this a Windows checkout depends on whoever set core.autocrlf, and the
+# repo grew CRLF once already.
+* text=auto eol=lf
+
+# Ableton's files are gzip. Never let git inspect or convert them: a single
+# byte rewritten inside the deflate stream destroys the file, and racks/ is
+# the evidence behind every verified claim in doc/ARCHITECTURE.md.
+*.adg binary
+*.adv binary
+*.als binary
+*.alp binary
+
+# Audio.
+*.wav binary
+*.aif binary
+*.aiff binary
+*.flac binary
+
+# Unpacked presets are XML written by Live, which uses CRLF. When one is
+# checked in deliberately, keep it byte for byte as Live wrote it, so a
+# diff against a Live-saved file stays meaningful.
+*.xml -text

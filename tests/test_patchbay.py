@@ -460,6 +460,41 @@ def test_no_em_dashes():
         f"{offenders[:5]}. Use a plain hyphen.")
 
 
+def test_no_carriage_returns_in_tracked_text():
+    """LF only. A rule nobody checks is a rule that decays, same as above.
+
+    Ableton's own files are exempt and must stay exempt: an `.adg` is gzip,
+    and `.xml` is Live's own CRLF output kept byte for byte so a diff
+    against a Live-saved file still means something. `.gitattributes`
+    encodes the same split for git.
+    """
+    import subprocess
+
+    root = Path(__file__).resolve().parent.parent
+    binary = (".adg", ".adv", ".als", ".alp", ".wav", ".aif", ".aiff",
+              ".flac", ".xml")
+    listed = subprocess.run(["git", "ls-files"], cwd=root,
+                            capture_output=True, text=True)
+    if listed.returncode != 0:
+        return                                  # not a checkout, nothing to check
+
+    offenders = []
+    for name in listed.stdout.split():
+        if name.endswith(binary):
+            continue
+        f = root / name
+        if not f.is_file():
+            continue
+        data = f.read_bytes()
+        if b"\x00" in data[:8000]:              # a binary we have not listed
+            continue
+        if b"\r" in data:
+            offenders.append(name)
+    assert not offenders, (
+        f"carriage returns in {len(offenders)} tracked text file(s): "
+        f"{offenders[:5]}. This is an LF repo; see .gitattributes.")
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):
