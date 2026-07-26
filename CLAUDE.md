@@ -116,6 +116,23 @@ one destroys a finding.
 A probe that answered its question is deleted once the answer is written
 down. The finding has value; the scaffolding that produced it is noise.
 
+## Prose
+
+Applies to every markdown file, docstring and comment in this repo.
+
+1. **NO EM-DASHES.** Neither U+2014 nor U+2013. Use a plain hyphen, a
+   comma, or a full stop. `tests/test_patchbay.py` fails if either appears
+   in a tracked `.md` or `.py` file, so this is enforced, not requested.
+2. **State, do not argue.** "Ids must be unique among siblings", not "it
+   turns out that, interestingly, ids need to be unique among siblings".
+3. **No filler.** Cut "essentially", "basically", "it's worth noting
+   that", "in order to", "leverage", "robust", "seamless".
+4. **No restating what the code says.** A docstring explains WHY, or the
+   constraint that is not visible at the call site. If it paraphrases the
+   function name, delete it.
+5. **Numbers and file names, not adjectives.** "560 KB, 18,148 facts" is
+   worth writing. "A large complex rack" is not.
+
 ## Commit messages
 
 **Commit messages are not for literature. For that we have the markdown.**

@@ -241,6 +241,35 @@ def test_params_survives_a_gutted_device():
     assert find.param(sat, "PreDrive") is None, "absent is not an error"
 
 
+# --- house style ----------------------------------------------------------
+
+EM_DASH = chr(0x2014)   # named by codepoint so this file does not trip its own check
+EN_DASH = chr(0x2013)
+
+
+def test_no_em_dashes():
+    """CLAUDE.md forbids em-dashes. Enforce it rather than asking.
+
+    A rule nobody checks is a rule that decays. This one decayed within a
+    session of being written, which is why it is a test.
+    """
+    root = Path(__file__).resolve().parent.parent
+    skip = {".git", "ableton-mcp", "build", ".venv", "__pycache__",
+            "patchbay.egg-info"}
+    offenders = []
+    for pattern in ("*.md", "*.py"):
+        for f in root.rglob(pattern):
+            if skip & set(f.parts):
+                continue
+            text = f.read_text(encoding="utf-8", errors="replace")
+            for i, line in enumerate(text.splitlines(), 1):
+                if EM_DASH in line or EN_DASH in line:
+                    offenders.append(f"{f.relative_to(root)}:{i}")
+    assert not offenders, (
+        f"em-dash or en-dash in {len(offenders)} place(s): "
+        f"{offenders[:5]}. Use a plain hyphen.")
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):
