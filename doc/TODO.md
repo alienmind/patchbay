@@ -31,7 +31,88 @@ BS1, LD1 and PD1 proper are blocked on being written, not on evidence.
 
 ## In progress
 
-Nothing. Pick from Next.
+**Awaiting a human in Live.** Everything below was written in one headless
+session on branch `headless/overnight`. It compiles, 49 tests pass, and
+NONE of it has been loaded into Live. Tooling verification proves a file is
+well formed; it has never once proved a rack sounds right, and this session
+produced two silent-wrong bugs that only ears caught.
+
+Work the checks in the order given: the loads come first, because if a file
+is refused nothing after it matters.
+
+### A. Do the new racks load and play
+
+| # | File | Do this | Should happen |
+|---|---|---|---|
+| A1 | `build/PD1W.adg` | Drag onto a MIDI track, play | Wavetable pad sounds |
+| A2 | `build/PD1W.adg` | Macro 1 full left, full right | Sweeps Wave to Drift |
+| A3 | `build/BS1.adg` | Drag on, sweep Macro 1 | Three engines: Wave, Drift, Meld |
+| A4 | `build/LD1.adg` | Drag on, sweep Macro 1 | Two engines: FM, Meld |
+| A5 | `build/DR1.adg` | Drag onto a MIDI track | 8 pads, none red or offline |
+| A6 | `build/DR1.adg` | Play pads 36,37,38,39,41,42,43,46 | Kick, rim, snare, clap, tom, hat, perc, ohat |
+
+### B. Does the grammar hold on the new racks
+
+Same knob, same meaning, on every engine. Q14 is what it looks like when
+this fails: a slot bound correctly everywhere that still did two different
+things.
+
+| # | Rack | Do this | Should happen |
+|---|---|---|---|
+| B1 | BS1 | Macro 3 across all three engines | Cutoff moves, comparable range |
+| B2 | BS1 | Macro 7 across all three engines | Release length comparable |
+| B3 | BS1 | Macro 8 full left, then right, each engine | Silent at 0, unity at 127, no clipping |
+| B4 | BS1 | Macro 4 on Drift | NOTHING. Drift exposes no drive |
+| B5 | BS1 | Macro 5 on Wave, then Meld | NOTHING on either. Only Drift has LFO depth |
+| B6 | BS1/LD1 | Macro 6 on Meld | Filter Q moves |
+
+### C. Two guesses I could not check without you
+
+Both are inferences, marked as such in the source. Either could be wrong.
+
+| # | Check | How | If wrong |
+|---|---|---|---|
+| C1 | Drift's amp envelope is `Envelope1` | BS1, select Drift, hold a note, turn Macro 7. Does the TAIL change? | It is `Envelope2`; say so and I will swap it |
+| C2 | Meld Engine A only | BS1, select Meld, turn Macro 3. Does the whole sound filter, or half? | Needs both A and B bound to one macro |
+
+### D. DR1 in depth
+
+| # | Do this | Should happen |
+|---|---------|---------------|
+| D1 | Kit Macro 1 (Sound), slowly, while playing a pad | Sample changes on EVERY pad at once |
+| D2 | Dive into KICK on Push, turn its Sound knob | Only the kick's sample changes |
+| D3 | Kit Macro 3 (Filter) | Cutoff on all pads |
+| D4 | Kit Macros 5, 6, 7 (Send A, Send B, Send Vol) | NOTHING. Sends are not wired: needs Q6 |
+
+### E. Spikes, each a one change diff
+
+Save as the exact filename. One change only, nothing else touched.
+
+| # | Spike | Do this | Save as |
+|---|---|---|---|
+| E1 | Q2 aftertouch | Any rack, map aftertouch to ONE parameter | `racks/q2_a.adg`, and the same rack unmapped as `racks/q2_b.adg` |
+| E2 | Q3 key zone | Instrument rack, 2 chains, drag a KEY zone | `racks/q3_key_a.adg` / `_b.adg` |
+| E3 | Q3 velocity zone | Same rack, drag a VELOCITY zone | `racks/q3_vel_a.adg` / `_b.adg` |
+| E4 | Q5 tail | Load `build/probe_q5_unmapped.adg`, save it straight back out | `racks/q5_b.adg` |
+| E5 | S10 tail | Load `build/PD1.adg`, right-click Macro 3, read what the range UI offers | just tell me what you see |
+
+### F. Failure modes, where the answer may be "Live refused it"
+
+A refusal is a RESULT here, not a problem. Note exactly what Live does.
+
+| # | File | Question | What to report |
+|---|---|---|---|
+| F1 | `build/Q7_bad_zone.adg` | Chain 2's zone is inverted: Min 120, Max 20, crossfades outside both | Does it load? Repaired, refused, or loaded broken? |
+
+### G. Unverified code, needs Live to test at all
+
+| # | What | Why it is unverified |
+|---|---|---|
+| G1 | `mcp/remote_script_additions.py` | Four handlers for audio tracks, return tracks and output routing. Written from the Object Model names in `MCP.md`, never executed. Routing matches by display name, which is the fragile part |
+
+Applying G1 is by hand: the file says where each block goes. It is
+deliberately NOT an edit to the `ableton-mcp` submodule, because that would
+move the parent's pointer to a commit no remote has.
 
 ## Next
 
