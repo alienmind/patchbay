@@ -7,6 +7,9 @@ dependencies = ["lxml"]
 [project.scripts]
 patchbay = "patchbay.cli:main"
 
+[dependency-groups]
+dev = ["pytest"]
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
