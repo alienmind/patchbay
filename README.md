@@ -9,7 +9,7 @@ instead.
 ## Current state
 
 **Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
-viable.** Next action is spike **S11** in `SPIKES.md`.
+viable.** Next action is Phase 1–2: `adgkit` core and `clone.py`.
 
 No generator code exists yet. `adgkit/` currently holds discovery tooling
 only: read, write, diff, round trip, id census, mapping census.
@@ -37,6 +37,7 @@ metadata on load, so rewriting two path fields per sample is enough.
 | **`SCHEMA.md`** | lab notebook: raw findings per spike, citing files | when you doubt a claim in ARCHITECTURE |
 | `CLAUDE.md` | working method and landmines | for the discovery discipline |
 | `TEMPLATE_SPEC.md` | the musical target this tooling builds | for the specific layer |
+| **`MCP.md`** | what Live's API can and cannot do, and how `adgkit` and `ableton-mcp` divide the work | before building anything that touches a running Live |
 | `KICKOFF.md` | the plan, phases and fallbacks | for sequencing |
 
 `ARCHITECTURE.md` is the model, `SCHEMA.md` is the evidence. If they

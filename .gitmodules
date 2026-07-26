@@ -1,0 +1,3 @@
+[submodule "ableton-mcp"]
+	path = ableton-mcp
+	url = https://github.com/alienmind/ableton-mcp

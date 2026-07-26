@@ -126,7 +126,12 @@ drum rack are represented, and how per chain send levels are stored.
 toggle exclude from randomisation, change the visible macro count from 8 to
 16. One diff each.
 
-**S11. `.als` track structure.** Separate spike, do it after S1 to S10.
+~~**S11. `.als` track structure.**~~ **DROPPED — see `MCP.md`.** Live's API
+does expose track creation and output routing; the `ableton-mcp` submodule
+just had not wired them up. Extending the remote script is smaller work
+than generating `.als` and survives Live updates. Original text follows.
+
+**S11.** Separate spike, do it after S1 to S10.
 In a Live Set, record how track output routing (Audio To) is stored, how a
 compressor's sidechain source references another track, and how return
 tracks differ from regular tracks. This unlocks generating the whole set
@@ -171,10 +176,16 @@ Generate variation sets. Must respect the sound family constraint from
 every engine in the rack, not independent randomisation per engine. Depends
 on S8, S10.
 
-**Phase 6. Live Set generation.**
-Emit the whole `.als`: eight tracks with correct names and types, PM1 as an
-audio track receiving the other seven, eight return tracks, sidechain
-routing from DR1, tempo, and the racks placed on their tracks. Depends on S11.
+**Phase 6. Live Set assembly — REVISED, see `MCP.md`.**
+~~Emit the whole `.als`.~~ Instead: extend the `ableton-mcp` remote script
+with `create_audio_track`, `create_return_track` and an output-routing
+setter, then drive it to build the eight tracks, returns, routing, tempo
+and starter clips, loading each generated rack by browser URI.
+
+All of that is already in the Live Object Model — verified against Live
+12.4.3's `_MxDCore/LomTypes.pyc` — so no Set XML needs reverse
+engineering. **Sidechain source is the exception**: absent from the LOM,
+so it stays manual.
 
 **Phase 7. Full build.**
 `build.py` produces a loadable template from `specs/` plus `donors/` plus
@@ -238,9 +249,9 @@ It cannot verify that macros are mapped correctly. That still needs a person.
 
 - ~~**S3 or S6 fail.**~~ **Not triggered.** S3 passed; mappings are
   addressable and cheaply so. This fallback is retired.
-- **S11 turns out to be nasty.** Skip Phase 6. Generate racks only, assemble
-  the set by hand once, save it as the default Live Set. This costs one
-  afternoon, not a project.
+- ~~**S11 turns out to be nasty.**~~ **Resolved better than the fallback.**
+  Set structure never needs reverse engineering: tracks and routing are
+  scriptable through the Live API. See `MCP.md`.
 - **Live version drift.** The schema is version specific. Record the exact
   Live version in `SCHEMA.md` and in every donor's documentation. Expect to
   redo spikes after a major update.

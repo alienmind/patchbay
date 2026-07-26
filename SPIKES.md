@@ -24,7 +24,7 @@ then `SCHEMA.md` for the raw evidence.
 | S8 | macro variations | **DONE** | `MacroSnapshot` list; absolute 0..127 macro values; 16 slots + `MacroHasValue.N` |
 | S9 | drum rack specifics | **DONE** | `ZoneSettings/ReceivingNote`; returns in `ReturnBranchPresets`; sends are linear amplitude |
 | S10 | macro metadata | **DONE** | one field per menu item; ranges are `MidiControllerRange` on the target |
-| S11 | `.als` track structure | **NEXT — last one** | |
+| S11 | `.als` track structure | **DROPPED** | Live's API does routing and track creation — see `MCP.md` |
 | S12 | minimal device viability | **DONE** | devices load with ALL parameters deleted; donors are for fidelity, not loadability |
 
 Both kill criteria (S1, S3) are **passed**. The project is viable.
@@ -379,6 +379,22 @@ track; compare a return track against a regular track.
 **Record:** how routing targets are named — by id, by name, by index.
 This decides whether Phase 6 is viable or gets skipped per KICKOFF's
 fallback.
+
+**Dropped, and the reason is better than the fallback.** Live's API *does*
+expose `create_audio_track`, `create_return_track`, `output_routing_type`
+and `output_routing_channel` — verified against Live 12.4.3's own
+`_MxDCore/LomTypes.pyc`. The `ableton-mcp` submodule simply has not wired
+them up.
+
+So there is no reason to reverse-engineer Set structure: adding a few
+command handlers to the remote script is smaller work and survives Live
+updates, which `.als` generation would not. See `MCP.md`.
+
+Sidechain source is the one exception — absent from the LOM — and stays
+manual.
+
+Both kill criteria passed, and all remaining spikes are answered or
+retired. **Phase 0 is complete.**
 
 ## ~~S12. Minimal device viability~~ — DONE
 
