@@ -582,7 +582,85 @@ interaction with mappings — append elements with sequential `Id`s.
 **[?]** Whether an *unmapped* macro can carry `MacroHasValue = true` is
 untested; only mapped macros were flagged in the sample.
 
-## 12. Practical rules for generators
+## 12. Drum racks, returns and sends
+
+### Pads map to notes
+
+**[V]** `DrumBranchPreset/ZoneSettings`:
+
+| field | meaning |
+|---|---|
+| `ReceivingNote` | the MIDI note that triggers this pad — its grid position |
+| `SendingNote` | the note handed to the chain's instrument, `60` (C3) on every pad |
+| `ChokeGroup` | `0` for none |
+
+Moving a pad in the grid changes `ReceivingNote` and nothing else.
+`SendingNote` staying at 60 is why a pad's sampler plays at root pitch
+wherever the pad sits.
+
+### Return chains
+
+**[V]** Returns live in `ReturnBranchPresets`, a sibling of `BranchPresets`
+under `GroupDevicePreset`:
+
+```
+GroupDevicePreset
+├─ Device/DrumGroupDevice                            the rack itself
+├─ BranchPresets/DrumBranchPreset[i]                 the pads
+└─ ReturnBranchPresets/AudioEffectBranchPreset[i]    the returns
+```
+
+**[V]** A return branch is an `AudioEffectBranchPreset` whatever the parent
+rack type — it is an audio chain by nature.
+
+**[V]** As in §3, the device node's `ReturnBranches` is empty in presets,
+just like `Branches`. The `Presets`-suffixed containers are the real ones.
+
+### Sends
+
+**[V]** Every chain's mixer holds a `SendInfos` list with one
+`AudioBranchSendInfo` per return, at
+`MixerPreset/AbletonDevicePreset/Device/AudioBranchMixerDevice/SendInfos`:
+
+```xml
+<AudioBranchSendInfo Id="0">
+  <Send>
+    <Manual Value="0.3388441503" />
+    <MidiControllerRange><Min Value="0.0003162277571" /><Max Value="1" /></MidiControllerRange>
+  </Send>
+  <EnabledByUser Value="true" />
+  <Index Value="0" />
+</AudioBranchSendInfo>
+```
+
+**[V]** `Index` names the return **positionally**, matching order in
+`ReturnBranchPresets`. No ids involved — consistent with §5.
+
+**[V]** Adding a return seeds a send entry on **every** existing chain at
+once. A generator adding a return must add the matching `AudioBranchSendInfo`
+to every chain, or the rack will be inconsistent.
+
+**[V]** Send level is **linear amplitude**: `Min` is `0.0003162277571`
+(10^(-70/20), -70 dB, the silent floor) and `Max` is `1` (0 dB).
+
+This is a **third scale** in the format. Keep them straight:
+
+| thing | scale |
+|---|---|
+| macros and variations | `0..127`, continuous (§5, §11) |
+| chain zones | `0..127` integer positions (§7) |
+| device parameters | native units, per-parameter range (§4) |
+| sends | linear amplitude `0.000316..1` (§12) |
+
+**[?]** Whether the send knob is linear in amplitude or in dB is untested.
+
+### View state worth knowing
+
+**[V]** `AreSendsVisible` on the rack device gates the send column in the
+chain list, and defaults to `false`. Per-pad sends are invisible in Live
+until it is on, which is a UI trap rather than a format one.
+
+## 13. Practical rules for generators
 
 Derived from the above; these are the invariants `adgkit` must respect.
 
@@ -611,8 +689,11 @@ Derived from the above; these are the invariants `adgkit` must respect.
     indistinguishable from a rejected file. §10.
 12. **Variations are written in macro space, 0..127**, with all 16 slots
     present and `MacroHasValue.N` carrying participation. §11.
+13. **A pad's grid position is `ReceivingNote`**; leave `SendingNote` at 60. §12.
+14. **Adding a return chain means adding an `AudioBranchSendInfo` to every
+    chain**, and send levels are linear amplitude, not dB. §12.
 
-## 13. Open questions
+## 14. Open questions
 
 Ordered by how much they gate the build.
 
@@ -630,7 +711,7 @@ Ordered by how much they gate the build.
 | **[?]** | `.als` track routing, sidechain source, return tracks. | S11 | Phase 6 |
 | **[?]** | Does element order within a parameter matter? `KeyMidi` is written between `LomId` and `Manual`. | — | writer safety |
 
-## 14. Evidence
+## 15. Evidence
 
 Every **[V]** claim above traces to these files, all in `racks/`.
 
@@ -645,6 +726,7 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 | `s5_fade_aa.adg` / `s5_fade_bb.adg` | same rack, left fade handle dragged inward | fades grow inward; the ordering invariant |
 | `s7_a.adg` / `s7_b.adg` | Instrument Rack + Simpler, one sample swapped | the 20 facts a swap moves; two FileRefs |
 | `s8_a/b/c.adg` | same rack with 0, 1 and 2 macro variations | the `MacroSnapshot` structure |
+| `s9_a/b/c/d.adg` | drum rack: 2 pads, then a return, then a send raised, then a pad moved | `ZoneSettings`, `ReturnBranchPresets`, `SendInfos` |
 | `build/s7_test_A..F.adg` | six deliberately inconsistent retargets, all loaded in Live | the cache-key model |
 
 Reproduce with:
@@ -658,5 +740,6 @@ adgkit diff racks/s3_b.adg racks/s3b.adg
 adgkit diff racks/s5_a.adg racks/s5_b.adg
 adgkit diff racks/s5_fade_aa.adg racks/s5_fade_bb.adg
 adgkit diff racks/s8_b.adg racks/s8_c.adg
+adgkit diff racks/s9_c.adg racks/s9_d.adg
 adgkit ids racks/s1_source.adg
 ```

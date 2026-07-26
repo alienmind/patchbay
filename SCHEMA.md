@@ -687,8 +687,106 @@ rack's list, with values chosen per engine.
 
 ## S9. Drum rack specifics
 
+## S9. Drum rack specifics — ANSWERED
 
-TBD - pad to note mapping, internal returns, per-chain send levels.
+`racks/s9_a.adg` (2 pads) -> `s9_b` (return chain added) -> `s9_c` (one
+send raised) -> `s9_d` (one pad moved to another slot).
+
+### Pad to note
+
+`DrumBranchPreset/ZoneSettings`:
+
+```xml
+<ZoneSettings>
+  <ReceivingNote Value="92" />
+  <SendingNote Value="60" />
+  <ChokeGroup Value="0" />
+</ZoneSettings>
+```
+
+**[V]** Moving a pad to a different grid slot changes **exactly one fact**,
+`ReceivingNote` (`91 -> 90`). `SendingNote` stayed at `60`.
+
+- `ReceivingNote` — the MIDI note that triggers this pad. This is the pad's
+  grid position.
+- `SendingNote` — the note handed to the chain's instrument, `60` (C3) on
+  every pad. That is why each pad's sampler plays at its root pitch
+  wherever it sits.
+- `ChokeGroup` — `0` for none.
+
+### Return chains live in a sibling of BranchPresets
+
+**[V]** The preset-format container is `ReturnBranchPresets`, a direct
+child of `GroupDevicePreset`:
+
+```
+GroupDevicePreset
+├─ Device/DrumGroupDevice          the rack itself
+├─ BranchPresets/DrumBranchPreset[i]        the pads
+└─ ReturnBranchPresets/AudioEffectBranchPreset[i]   the returns
+```
+
+**[V]** A return branch is an **`AudioEffectBranchPreset`** — the same tag
+an audio effect rack uses for its chains — regardless of the parent being a
+drum rack. It has the same children as any branch: `Name`, `DevicePresets`,
+`MixerPreset`, `BranchSelectorRange`, colours.
+
+**[V]** Do not confuse this with `ReturnBranches` on the *device* node,
+which is empty in presets exactly like `Branches`. Same trap as §3.
+
+### Sends
+
+**[V]** Each chain's mixer carries a `SendInfos` list, one entry per return:
+
+```xml
+<SendInfos>
+  <AudioBranchSendInfo Id="0">
+    <Send>
+      <Manual Value="0.3388441503" />
+      <MidiControllerRange>
+        <Min Value="0.0003162277571" />
+        <Max Value="1" />
+      </MidiControllerRange>
+    </Send>
+    <EnabledByUser Value="true" />
+    <Index Value="0" />
+  </AudioBranchSendInfo>
+</SendInfos>
+```
+
+At `MixerPreset/AbletonDevicePreset/Device/AudioBranchMixerDevice/SendInfos`.
+
+**[V]** `Index` selects the return **positionally** — `0` is the first
+entry in `ReturnBranchPresets`. No id reference.
+
+**[V]** Adding a return chain seeds an `AudioBranchSendInfo` on **every**
+existing chain at once, all at the floor value. So send count per chain
+tracks return count, and a generator adding a return must add the matching
+send entry to every chain.
+
+**[V]** Send level is **linear amplitude**, not dB and not 0..127 — a third
+scale, distinct from macros (§5) and zones (§7):
+
+| | value | meaning |
+|---|---|---|
+| `Min` | `0.0003162277571` | `10^(-70/20)`, i.e. -70 dB, Live's silent floor |
+| `Max` | `1` | 0 dB |
+| observed | `0.3388441503` | about -9.4 dB |
+
+**[?]** The knob taper is not pinned down: the observed value came from an
+arbitrary knob position, so whether the control is linear in amplitude or
+in dB is unknown. Only matters if a spec ever states send levels as
+percentages of knob travel rather than as dB or amplitude.
+
+### Incidental
+
+**[V]** `AreSendsVisible` on the rack device gates the send column in the
+chain list. It is `false` by default, which makes per-pad sends invisible
+in the UI until toggled — this cost real time during the spike.
+
+**[V]** Adding a return flipped pad 0's mixer
+`RoutingHelper/Routable/UpperDisplayString` from `No Output` to
+`Sends Only`. Recorded as an observation; routing is S11's subject.
 
 ## S10. Macro metadata
 

@@ -22,8 +22,8 @@ then `SCHEMA.md` for the raw evidence.
 | S6 | id allocation and scope | todo — **downgraded** | no longer gates macro mappings, see ARCHITECTURE §5 |
 | S7 | FileRef anatomy | **DONE** | two FileRefs; 20 facts move but only the 2 paths are required; metadata is advisory |
 | S8 | macro variations | **DONE** | `MacroSnapshot` list; absolute 0..127 macro values; 16 slots + `MacroHasValue.N` |
-| S9 | drum rack specifics | **NEXT** | |
-| S10 | macro metadata | todo — **now also owns** `MacroDefaults` trigger | |
+| S9 | drum rack specifics | **DONE** | `ZoneSettings/ReceivingNote`; returns in `ReturnBranchPresets`; sends are linear amplitude |
+| S10 | macro metadata | **NEXT** — also owns the `MacroDefaults` trigger | |
 | S11 | `.als` track structure | todo | |
 | S12 | minimal device viability | todo | |
 
@@ -312,7 +312,7 @@ Note: the macro values chosen when clicking New do not need to be
 memorable. A snapshot can be checked against the same file's live
 `MacroControls.N/Manual`, which is what proved the scale.
 
-## S9. Drum rack specifics
+## ~~S9. Drum rack specifics~~ — DONE
 
 **Live:** save a drum rack as `racks/s9_drum.adg` and an instrument rack
 as `racks/s9_instrument.adg`.
@@ -322,6 +322,23 @@ diff, read it for structure not detail.
 
 **Record:** how a pad maps to its receiving note, how return chains inside
 the drum rack are represented, how per-chain send levels are stored.
+
+**Done differently, and better:** rather than one huge drum-vs-instrument
+diff, this was four saves with one change each — 2 pads, add a return, raise
+a send, move a pad. See `ARCHITECTURE.md` §12.
+
+Two UI traps that cost time, worth knowing before repeating this:
+
+- **`AreSendsVisible` defaults to `false`.** Per-pad send knobs are simply
+  not in the chain list until that column is toggled on. There is nothing
+  to drag until then.
+- **"Create Chain" is not "Create Return Chain".** The former adds another
+  pad. The return pane has to be visible
+  (`IsReturnBranchesListVisible`), and the right-click must happen inside
+  *that* pane.
+
+Adding a device brings its whole parameter blob into the diff — the Reverb
+on the return chain was ~800 facts. Use `-n` to cap it.
 
 ## S10. Macro metadata
 

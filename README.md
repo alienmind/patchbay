@@ -9,7 +9,7 @@ instead.
 ## Current state
 
 **Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
-viable.** Next action is spike **S9** in `SPIKES.md`.
+viable.** Next action is spike **S10** in `SPIKES.md`.
 
 No generator code exists yet. `adgkit/` currently holds discovery tooling
 only: read, write, diff, round trip, id census, mapping census.
@@ -47,7 +47,7 @@ disagree, `SCHEMA.md` wins, because it cites files in `racks/`.
 Read `SPIKES.md`'s progress table, then `ARCHITECTURE.md`. Between them
 they carry the full state — nothing important lives only in a chat
 transcript. Every **[V]** claim in `ARCHITECTURE.md` is reproducible from
-the files in `racks/` with the commands listed in its §14.
+the files in `racks/` with the commands listed in its §15.
 
 ## Requirements
 
@@ -116,6 +116,8 @@ this means an unedited save diffs as `identical`.
   drown the diff
 - `--all` hides nothing, including per-save churn
 - `--grep TEXT` keeps only facts whose path contains TEXT
+- `-n N` / `--limit N` caps lines per section; counts stay exact. Adding one
+  device drags its whole parameter blob in — a Reverb is ~800 facts
 
 Output has three sections: `CHANGED` (a fact whose value moved), `REMOVED`
 (present in A only), `ADDED` (present in B only). A node appearing with no
