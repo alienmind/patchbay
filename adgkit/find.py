@@ -110,24 +110,66 @@ def walk_racks(preset_el):
         yield from walk_racks(child)
 
 
-def param(device, name):
-    """A named parameter element on a device. None if absent.
+def param(device, path):
+    """A parameter on a device, by name or by slash-separated path.
 
-    Absent is a real possibility rather than an error: a device loads with
-    parameters missing and Live defaults them (ARCHITECTURE.md section 8).
+    Simple devices keep parameters as direct children — Saturator's Drive
+    is `PreDrive`. Larger ones nest them: Simpler has 109 parameters and
+    Operator 217, at paths like `Operator.0/Envelope/DecayTime`. Both
+    address the same way here.
+
+    Returns None when absent, which is a real state rather than an error:
+    a device loads with parameters missing and Live defaults them
+    (ARCHITECTURE.md section 8).
     """
-    found = device.find(name)
+    found = device.find(path)
     if found is not None and found.find("Manual") is not None:
         return found
     return None
 
 
 def params(device):
-    """Every parameter element on a device, in document order."""
+    """Direct parameter children only, in document order."""
     return [c for c in device
             if isinstance(c.tag, str)
             and c.tag not in NON_PARAMS
             and c.find("Manual") is not None]
+
+
+def param_path(el, device):
+    """The slash path from a device down to one of its parameters."""
+    parts = []
+    while el is not None and el is not device:
+        parts.append(el.tag)
+        el = el.getparent()
+    return "/".join(reversed(parts))
+
+
+def all_params(device):
+    """Every parameter at any depth, as {path: element}.
+
+    This is what makes a device's real vocabulary visible. Use it to build
+    a binding rather than guessing element names — Saturator's Drive knob
+    is `PreDrive` and its Output is `PostDrive`, and no amount of reasoning
+    gets you there.
+    """
+    out = {}
+    for el in device.iter():
+        if el is device or not isinstance(el.tag, str):
+            continue
+        if el.find("Manual") is not None:
+            out[param_path(el, device)] = el
+    return out
+
+
+def search_params(device, *words):
+    """Parameter paths containing all the given words, case insensitive.
+
+    For finding what a device actually calls the thing you mean.
+    """
+    words = [w.lower() for w in words]
+    return sorted(p for p in all_params(device)
+                  if all(w in p.lower() for w in words))
 
 
 def macro(rack_dev, n):
