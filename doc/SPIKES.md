@@ -1,36 +1,93 @@
-# Phase 0 spike protocol
+# Spikes
 
-The tooling half is done. This is the manual half: what to do in Live,
-what to name the file, which command to run, what to write down.
+How this project learns anything about the file format, and what is still
+unknown.
 
-Findings go in `SCHEMA.md`, not here. This file is the recipe.
+Findings go in `SCHEMA.md`. The consolidated model is `ARCHITECTURE.md`.
+This file is the procedure and the open list.
 
-## Progress
+## Phase 0 is closed
 
-Updated after every spike. This table is the resume point: a fresh agent
-should read it first, then `ARCHITECTURE.md` for the model built so far,
-then `SCHEMA.md` for the raw evidence.
+Twelve spikes answered, one retired. Both kill criteria passed. Every
+verified claim in `ARCHITECTURE.md` traces to a file in `racks/`.
 
-| | spike | status | finding |
-|---|---|---|---|
-| S1 | round trip fidelity | **DONE — pass** | lossless; Live tolerates lxml's serialiser |
-| S2 | noise floor | **DONE — pass** | floor is zero after filtering; ids do NOT churn |
-| S3 | macro mapping | **DONE** | `KeyMidi` on target parameter, virtual MIDI CC ch16 |
-| S3b | macro index confirm | **DONE — confirmed** | CC = zero-based macro index; also gives the transfer function |
-| S4 | macro to macro | **DONE — free** | identical structure; observed 3 levels in `s1_source.adg` |
-| S5 | chain select zones | **DONE** (key/vel zones still todo) | `BranchSelectorRange` on the chain; fades grow inward; `Min<=XfMin<=XfMax<=Max` |
-| S6 | id allocation and scope | **DONE** | ids must be unique among siblings; nothing else matters; nothing references them |
-| S7 | FileRef anatomy | **DONE** | two FileRefs; 20 facts move but only the 2 paths are required; metadata is advisory |
-| S8 | macro variations | **DONE** | `MacroSnapshot` list; absolute 0..127 macro values; 16 slots + `MacroHasValue.N` |
-| S9 | drum rack specifics | **DONE** | `ZoneSettings/ReceivingNote`; returns in `ReturnBranchPresets`; sends are linear amplitude |
-| S10 | macro metadata | **DONE** | one field per menu item; ranges are `MidiControllerRange` on the target |
-| S11 | `.als` track structure | **DROPPED** | Live's API does routing and track creation — see `MCP.md` |
-| S12 | minimal device viability | **DONE** | devices load with ALL parameters deleted; donors are for fidelity, not loadability |
+| | spike | result |
+|---|---|---|
+| S1 | round trip fidelity | lossless; Live tolerates lxml's serialiser |
+| S2 | noise floor | zero after filtering; ids do NOT churn |
+| S3 | macro mapping | `KeyMidi` in the target, virtual MIDI CC channel 16 |
+| S3b | macro index | CC number is the zero-based macro index |
+| S4 | macro to macro | identical structure, three levels verified |
+| S5 | chain zones | `BranchSelectorRange`, bounds, fades grow inward |
+| S6 | id allocation | unique among SIBLINGS, nothing else matters |
+| S7 | FileRef | two per sample; only the paths are required |
+| S8 | macro variations | `MacroSnapshot` list, absolute 0..127 |
+| S9 | drum racks | `ReceivingNote`, `ReturnBranchPresets`, `SendInfos` |
+| S10 | macro metadata | one field per menu item; ranges are `MidiControllerRange` |
+| S12 | minimal devices | load with ALL parameters deleted |
+| S11 | `.als` structure | RETIRED. Live's API does tracks and routing, see `MCP.md` |
 
-Both kill criteria (S1, S3) are **passed**. The project is viable.
+## Open questions
 
-Evidence lives in `racks/`. Do not delete those files — they are the
-proof behind every claim in `ARCHITECTURE.md`.
+Ordered by what they block. None is a kill criterion; the project works
+without any of them.
+
+**Q1. Rack inside a chain.** DR1 needs three levels of nesting and the
+structure is known, but the DSL cannot yet write a `GroupDevicePreset`
+into another rack's `DevicePresets`. This is a build task with a spike
+attached: confirm a generated nested rack loads and that macro-to-macro
+mappings survive being written rather than saved by Live.
+*Blocks: DR1, VA1, VA2.*
+
+**Q2. Aftertouch.** `TEMPLATE_SPEC.md` wants aftertouch mapped to filter
+and pitch on every sound, excluding drum pads. Nothing is known about how
+that is stored. It is probably a sibling of the `KeyMidi` mechanism, since
+that already encodes MIDI, but that is a guess.
+Diff a rack before and after mapping aftertouch to one parameter.
+*Blocks: the macro grammar being complete.*
+
+**Q3. Key and velocity zones.** S5 settled chain-select zones. Key and
+velocity zones are Instrument Rack only and are PRESUMED siblings of
+`BranchSelectorRange`. Do not assume it in code until diffed.
+Save an instrument rack with two chains, drag a key zone, then a velocity
+zone, one save each.
+*Blocks: multi-sampled racks.*
+
+**Q4. Variation limits and naming.** How many `MacroSnapshot` entries will
+Live accept, and does it truncate or reject beyond that? ~692 sounds
+across 18 engines means tens of variations per rack, and nothing yet says
+where the ceiling is.
+Generate 8, 64 and 256 variations and load each.
+*Blocks: knowing whether the variation grid needs chunking.*
+
+**Q5. Unmapped macros in a variation.** Can `MacroHasValue.N` be true for
+a macro that has no mapping? Only mapped macros were flagged in the sample.
+Minor, but it decides whether a generator writes participation per macro
+or per binding.
+
+**Q6. Drum rack return selectors.** `TEMPLATE_SPEC.md` wants each DR1
+return chain to hold a selector across several reverbs and delays, so a
+macro swaps the EFFECT rather than the send level. The pieces are known
+separately; the combination is untested.
+
+**Q7. Zone ordering violations.** `Min <= XfMin <= XfMax <= Max` is the
+invariant. Untested whether Live repairs or rejects a file that breaks it.
+Worth knowing before a generator can produce one by arithmetic error.
+
+**Q8. Send taper.** Sends are linear amplitude from 0.000316 to 1, but
+whether the knob is linear in amplitude or in dB is unknown. Only matters
+if a spec ever states send levels as knob percentages.
+
+## Retired
+
+**Sidechain source.** Absent from the Live Object Model AND not yet found
+in the file format. `TEMPLATE_SPEC.md` needs it for DR1. It stays manual,
+which `KICKOFF.md` prices at one afternoon. Revisit only if that proves
+annoying in practice.
+
+**`OriginalCrc` algorithm.** 16-bit, and zlib plus ten CRC-16 variants
+over four chunk choices all missed. Closed as irrelevant: nothing reads it
+on load.
 
 ## Ground rules
 

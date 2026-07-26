@@ -12,9 +12,3 @@ samples/**/*.aif
 # packaging
 *.egg-info/
 .venv/
-
-# Ableton Project scaffolding around a saved Set. The .als itself is kept.
-sets/**/Backup/
-sets/**/Ableton Project Info/
-sets/**/Samples/
-*.als.asd

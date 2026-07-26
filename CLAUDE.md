@@ -1,106 +1,140 @@
-# patchbay
+# CLAUDE.md - working rules for agents in this repo
 
-Generate and manipulate Ableton Live rack presets (`.adg`) programmatically,
-so that building a large hyper-mapped Push template does not require
-thousands of manual macro mappings.
+This repo builds Ableton Live racks from Python, and Live Sets through the
+`ableton-mcp` submodule. Start with `README.md`, then `doc/ARCHITECTURE.md`
+for how the file format works and `doc/SPIKES.md` for what is still open.
+This file is only the house rules, the things not derivable from the code.
 
-## Why this exists
+## The method
 
-Ableton's Live API (remote scripts, Max for Live) cannot group devices into
-a rack, create a macro mapping, or set a chain zone. Those operations are
-not exposed. So automation has to happen at the file level instead.
+Nothing here is learned by reading Ableton's schema. It is learned by
+changing ONE thing in Live and diffing:
 
-`.adg` files are gzipped XML. Everything we need is text in there.
-
-## Scope
-
-- **In scope:** `.adg` rack presets. Small, self contained, and dropping one
-  into the User Library makes it appear in Live's browser immediately.
-- **Out of scope:** `.als` Live Sets. Bigger, riskier, and unnecessary.
-  Build racks, load them by hand or via AbletonMCP.
-
-## Method: differential diffing, not schema reading
-
-Do not try to understand the schema by reading it. The discovery loop is:
-
-1. In Live, save a rack as `a.adg`
-2. Change exactly ONE thing (move one macro, remap one parameter, shift one
-   chain zone)
+1. Save a rack as `a.adg`
+2. Change exactly one thing
 3. Save as `b.adg`
 4. `patchbay diff a.adg b.adg`
+5. Write the finding in `doc/SCHEMA.md`, citing both files
 
-The diff names the node. Record the finding in `SCHEMA.md`. Every feature
-in this project should be preceded by a diff that proves where the data lives.
+The one-change rule applies to files you CONSTRUCT too. A test file with
+two edits in it produced one wrong conclusion in this repo already.
 
-## Landmines
+Every feature is preceded by a diff that proves where the data lives. No
+feature rests on a guess about the format.
 
-These will bite. In rough order of how much time they will cost:
+## Asking for a test in Live
 
-1. ~~**Id collisions on clone.** Macro mappings are stored as ID references
-   between a macro and its target parameter.~~ **DISPROVED by spike S3.**
-   Macro mappings carry no ids at all: a mapping is a `KeyMidi` element
-   *inside* the target parameter, and the target is named by containment.
-   Copying a chain copies its mappings correctly, with no remapping.
-   See `ARCHITECTURE.md` §5.
+No unit test proves Live will load a file. A change lands as a file to be
+dragged in by hand. Make that request SCHEMATIC:
 
-   Id hygiene may still matter for other cross-references — S6 is still
-   open — but not for macros, which was the expensive case.
+1. Name the EXACT file - `build/PD1.adg`, not "the output".
+2. A table and little else: check number, what to do, what should happen.
+3. One line on what is expected to still be broken at this stop.
+4. Ask for the result by check NUMBER.
 
-2. **FileRef is more than a path.** Sample references carry relative path
-   type, search hints and other fields alongside the path. Rewrite only the
-   path and samples come back offline. Diff a rack before and after swapping
-   one sample to see the full set of fields that move.
+Do NOT re-explain how racks work, or what a macro is. That is known.
 
-3. **Round trip fidelity.** Before writing any generator, prove that
-   `load` then `save` with zero changes produces a file Live still opens.
-   If the no-op round trip breaks, nothing built on top will work.
+> Load **`build/PD1.adg`**.
+>
+> | # | Do this | Should happen |
+> |---|---------|---------------|
+> | 1 | Turn Macro 1 full left, then full right | Engine sweeps FM to Sample |
+> | 2 | Turn Macro 2 | Cutoff moves on whichever engine is selected |
+>
+> Expected still broken: macros 5-13 are unbound.
 
-## Where the knowledge lives
+**DRAG IT IN. Never double-click an `.adg`.** Double-clicking starts a
+SECOND Live instance, which hangs for a few seconds and loads nothing.
+That is indistinguishable from Live rejecting the file, and it already
+caused a retracted finding. When a load fails, check
+`%APPDATA%/Ableton/Live <version>/Preferences/Log.txt` for `CommandLine`
+and `Another instance` before concluding anything.
 
-`ARCHITECTURE.md` is the consolidated model of how the format works, with
-every claim marked verified or inferred. Read it before writing code that
-touches XML. `SCHEMA.md` is the evidence behind it, `SPIKES.md` carries
-the progress table and the procedure.
+## Hard rules
 
-## Build order
+1. **NEVER INVENT A PARAMETER NAME.** Ableton's element names are not the
+   GUI labels and are not guessable. Saturator's Drive knob is `PreDrive`,
+   its Output is `PostDrive`. Simpler's filter cutoff is
+   `Filter/Slot/Value/SimplerFilter/Freq`. Operator has 217 parameters.
+   Use `library.Device.search("filter", "freq")` and read what comes back.
+   A wrong name does not error, it produces a rack with a missing mapping.
+2. **An `Id` must be unique among its SIBLINGS.** Nothing else about it
+   matters: not contiguity, not matching the index, not file-wide
+   uniqueness. Give two sibling branches the same `Id` and Live refuses
+   the ENTIRE preset. `clone.assert_loadable()` catches it before writing;
+   do not route around it.
+3. **Never byte-compare two `.adg` files.** Two semantically identical
+   files differ by about 4 percent, because Live writes CRLF and `<X />`
+   and lxml does not. Use `patchbay diff`, which compares the parsed tree.
+4. **A rack's `Device` and its `BranchPresets` are SIBLINGS.** A parameter
+   controlled by a macro is never a descendant of the rack node owning
+   that macro. Walking up to the nearest `*GroupDevice` to find the owning
+   rack is wrong and has already shipped as a bug once. Walk to the
+   nearest `BranchPresets` and take its parent.
+5. **Three scales, do not mix them.** Device parameters are in native
+   units over their own range. Macros and variations are 0..127
+   continuous. Sends are linear amplitude, 0.000316 to 1. The table is in
+   `doc/ARCHITECTURE.md` section 12.
+6. **No musical vocabulary inside `patchbay/`.** If you are writing the
+   word "kick" or "darkwave" in the library, it belongs in `examples/`.
+   The library knows XML, ids, macros, chains and FileRefs. It does not
+   know what they are for.
 
-1. ~~`io.py` + `diff.py` (done) and round-trip test~~ **done** — round trip
-   verified lossless against a 560 KB rack, S1
-2. `SCHEMA.md` populated by diffing: ~~macro mapping node~~ **done, S3**,
-   chain zone node, FileRef node, macro variation node
-3. `clone.py` — duplicate a chain N times with correct Id remapping
-4. `samples.py` — retarget FileRef paths from a manifest
-5. `variations.py` — generate Macro Variations by permuting macro values.
-   This is the highest value module: it is what turns a few engines into
-   hundreds of "sounds" and is completely impractical by hand.
+## Facts that look like bugs
 
-## Testing
+The terse rules are above. The spike that PROVED each one, with the files
+it used, is `doc/SCHEMA.md`. The consolidated model is
+`doc/ARCHITECTURE.md`. When one of these bites, read the evidence, do not
+re-derive it.
 
-There is no unit test that proves Live will load a file. The only real test
-is dragging it in. Keep a `racks/` folder of known-good inputs and after
-every generator change, load the output in Live and confirm the macros
-still move the right parameters.
+- **A macro mapping carries no id.** It is a `KeyMidi` element INSIDE the
+  target parameter, encoding a virtual MIDI CC on channel 16 where the CC
+  number is the macro index. The target is named by containment. So a
+  cloned chain keeps working with no remapping, and deleting a parameter
+  deletes its mapping.
+- **A device loads with every parameter removed.** Live fills defaults.
+  Donors are for FIDELITY, not loadability: they carry configured values
+  and tell you what a device can be asked to do.
+- **Sample metadata is advisory.** Live re-reads the file on load, so
+  retargeting a sample needs only the two path fields on each of its two
+  FileRefs. `OriginalCrc` is never validated and never needs computing.
+- **`MacroDefaults` lags one save**, as do `PresetRef` and `UserName`.
+  Write `-1` and ignore it.
+- **The UI says Variations, the XML says Snapshots.** Grepping the UI word
+  finds nothing.
 
-Fail loudly. A corrupt `.adg` that Live silently half-loads is worse than
-one it rejects.
+## Scratch work goes in `build/`
 
-## Musical context
+Anything exploratory - a probe file, an unpacked `.xml`, a deliberately
+broken rack you are testing a failure mode with - goes in `build/`, which
+is gitignored.
 
-See `TEMPLATE_SPEC.md` for what this tooling is actually building: the
-eight track layout, the DR1 three level nesting pattern that `clone.py`
-must replicate, the macro grammar, and the sound family constraint that
-`variations.py` must respect.
+`racks/` is NOT scratch. Those files are the evidence behind every
+verified claim in `doc/ARCHITECTURE.md`, and the tests read them. Deleting
+one destroys a finding.
 
-## Session zero checklist
+A probe that answered its question is deleted once the answer is written
+down. The finding has value; the scaffolding that produced it is noise.
 
-Before writing any generator, in this order:
+## Commit messages
 
-1. Save the same rack from Live twice with no changes between saves.
-   `patchbay diff a.adg b.adg`. This shows the noise floor and tells you
-   whether the Id filter is catching everything it should.
-2. Round trip a real rack: `io.load` then `io.save`, no changes, then drag
-   the output into Live. If it does not open, stop and fix this first.
-3. Change exactly one macro mapping in Live, save, diff, record the finding
-   in `SCHEMA.md`.
+**Commit messages are not for literature. For that we have the markdown.**
 
-Do not start `clone.py` until all three pass.
+ONE LINE. `type: what changed`, stated plainly. No body.
+
+    feat: compile specs into rack presets
+    fix: index children of homogeneous plural containers
+    docs: record the id uniqueness rule
+    test: spike evidence for drum rack sends
+
+The subject STATES, it does not argue. Everything you were about to put in
+a body already has a home: the constraint goes in a comment at that line,
+the evidence in `doc/SCHEMA.md`, the model in `doc/ARCHITECTURE.md`, the
+remaining work in `doc/SPIKES.md`.
+
+## Fail loudly
+
+A corrupt `.adg` that Live silently half-loads is worse than one it
+rejects. Where we can know in advance, we refuse to write the file.
+`clone.assert_loadable()` is the pattern: raise with the offending
+container named, do not warn and continue.

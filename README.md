@@ -2,74 +2,71 @@
 
 Build Ableton Live racks and Sets from code.
 
-A patchbay routes signals between things; this one routes macros to
-parameters, chains to zones, and racks onto tracks.
+A patchbay routes signals between things. This one routes macros to
+parameters, chains to zones, and racks onto tracks — so that building a
+large hyper-mapped Push template does not mean thousands of manual macro
+mappings.
 
-Two halves, because Live splits this way and fighting it is wasted effort:
+```python
+PLAYGRND = Grammar("Engine", "Cutoff", "Resonance", "Decay",
+                   "Drive", "Movement", "Space", "Character")
 
-- **Racks are built as files.** Live's API cannot group devices into a
-  rack, create a macro mapping, or set a chain zone — verified against
-  Live's own Object Model, see `MCP.md`. `.adg` files are gzipped XML, so
-  `patchbay` writes them directly.
-- **Sets are built through the API.** Track creation, naming, routing and
-  clips *are* scriptable, so those go through `ableton-mcp` rather than
-  generating `.als`.
+rack = Rack("PD1", PLAYGRND, kind=RackKind.INSTRUMENT)
 
-Racks are declared with a Python DSL: engines bound to a shared macro
-grammar, so the same knob means the same thing in every rack. See
-`DSL.md`.
+with rack.engine("FM", "Operator") as e:
+    e.bind(cutoff=("Filter/Frequency", 200, 8000),
+           decay="Filter/Envelope/DecayTime")
+
+with rack.engine("Sample", "OriginalSimpler") as e:
+    e.bind(cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
+           decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime")
+```
+
+```
+patchbay build examples/playgrnd.py -o build/
+```
+
+Both engines bind the same grammar slots to their own parameters, so one
+knob moves the same musical idea through different synthesis. That is the
+sound family constraint from `doc/TEMPLATE_SPEC.md`, structural rather
+than a matter of discipline.
+
+## Two halves, because Live splits this way
+
+Fighting that split wastes effort, so the tool follows it.
+
+**Racks are built as files.** Live's API cannot group devices into a rack,
+create a macro mapping, or set a chain zone. Verified against Live's own
+Object Model, not assumed — see `doc/MCP.md`. `.adg` files are gzipped
+XML, so patchbay writes them directly.
+
+**Sets are built through the API.** Track creation, naming, routing and
+clips *are* scriptable, so those go through the `ableton-mcp` submodule
+rather than generating `.als`. Sidechain source is missing from both, and
+stays manual.
 
 ## Current state
 
-**Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
-viable.** Next action is Phase 1–2: `patchbay` core and `clone.py`.
+Phase 0 discovery is **complete**: 12 spikes answered, 1 retired as
+unnecessary, both kill criteria passed. What the format does is recorded
+in `doc/ARCHITECTURE.md`, each claim marked verified, inferred or open and
+traced to a file in `racks/`.
 
-**Phases 1 and 2 are done and gated in Live**: node navigation, parameter
-and mapping read/write, and chain cloning. `python tests/test_patchbay.py`
-runs 16 tests asserting the library still agrees with every recorded
-finding.
+Built, and gated by loading in Live:
 
-The headline finding so far: **macro mappings are not id-based.** A
-mapping is a `KeyMidi` element inside the target parameter, encoding a
-virtual MIDI CC on channel 16 where the CC number is the macro index.
-Targets are named by containment, so mappings survive a subtree copy —
-which removes the risk that was expected to dominate Phase 2.
+- read, write, lossless round trip
+- structural diff — the discovery engine
+- node navigation and parameter addressing, including nested paths
+- macro mapping read and write, including ranges Live's own UI cannot set
+- chain and drum-pad cloning
+- the declarative DSL, and a compiler for specs
 
-The macro-to-parameter transfer function is also known: linear over the
-target parameter's own range. That is what Phase 5 needs to generate
-variation grids.
+**Not built: macro variations**, which `doc/TEMPLATE_SPEC.md` argues is
+the highest-value module here — ~692 sounds across 18 engines are
+variations, not chains. That is the next thing.
 
-Sample retargeting turned out cheap too — Live re-reads a sample's
-metadata on load, so rewriting two path fields per sample is enough.
-
-## Documents, in reading order
-
-| file | what it is | read it when |
-|---|---|---|
-| **`README.md`** | this file: state, commands, workflow | first |
-| **`ARCHITECTURE.md`** | how the `.adg` format works — the consolidated technical model, with confidence markers | before writing any code that touches XML |
-| **`SPIKES.md`** | Phase 0 procedure and **progress table**, one section per spike | before running a spike |
-| **`SCHEMA.md`** | lab notebook: raw findings per spike, citing files | when you doubt a claim in ARCHITECTURE |
-| `CLAUDE.md` | working method and landmines | for the discovery discipline |
-| `TEMPLATE_SPEC.md` | the musical target this tooling builds | for the specific layer |
-| **`MCP.md`** | what Live's API can and cannot do, and how `patchbay` and `ableton-mcp` divide the work | before building anything that touches a running Live |
-| `KICKOFF.md` | the plan, phases and fallbacks | for sequencing |
-
-`ARCHITECTURE.md` is the model, `SCHEMA.md` is the evidence. If they
-disagree, `SCHEMA.md` wins, because it cites files in `racks/`.
-
-### Resuming this work
-
-Read `SPIKES.md`'s progress table, then `ARCHITECTURE.md`. Between them
-they carry the full state — nothing important lives only in a chat
-transcript. Every **[V]** claim in `ARCHITECTURE.md` is reproducible from
-the files in `racks/` with the commands listed in its §15.
-
-## Requirements
-
-- Python 3.10+
-- Ableton Live 12 (for producing and verifying files — there is no
-  automated test that proves Live will load a file)
+`python tests/test_patchbay.py` runs 16 tests asserting the library still
+agrees with every recorded finding.
 
 ## Install
 
@@ -78,159 +75,61 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS / Linux
 pip install -e .
+git submodule update --init     # ableton-mcp
 ```
 
-`-e` matters: the spikes involve editing `diff.py` (extending the id noise
-filter), and an editable install picks that up without reinstalling.
-
-That puts an `patchbay` command on PATH. Without installing, every command
-below also works as `python -m patchbay.cli ...` from the repo root.
-
-Verify:
-
-```
-patchbay --help
-```
+`-e` matters: specs and findings are both still moving.
 
 ## Commands
 
-### `patchbay roundtrip SRC [-o OUT]`
+| command | does |
+|---|---|
+| `patchbay build SPEC -o DIR` | compile a spec into rack presets |
+| `patchbay diff A B` | structural diff — the discovery engine |
+| `patchbay mappings SRC` | list macro mappings |
+| `patchbay clone SRC DEST -n N` | duplicate a chain |
+| `patchbay check SRC` | would Live accept this file? |
+| `patchbay roundtrip SRC` | prove load-then-save is lossless |
+| `patchbay ids SRC` | id census and collision report |
+| `patchbay unpack` / `repack` | gzip in and out, for eyeballing XML |
 
-Spike S1. Loads a file and saves it back with zero changes, then reports
-whether the result is byte identical and whether it is structurally
-identical (every element, attribute and text node, ids included).
-
-```
-patchbay roundtrip racks/s1_source.adg
-```
-
-`structurally identical: NO` means the round trip is lossy — stop, nothing
-built on top will work. `YES` with differing bytes is normal (lxml's
-serialiser is not Live's) and is only a pass once Live opens the output.
-
-Exits non-zero on structural failure, so it is usable as a check.
-
-### `patchbay diff A B [--hide-ids] [--all] [--grep TEXT]`
-
-The discovery engine. Structural diff between two files.
-
-```
-patchbay diff racks/s3_a.adg racks/s3_b.adg
-patchbay diff racks/s7_a.adg racks/s7_b.adg --grep FileRef
-```
-
-By default it hides only what S2 proved churns on every save
-(`RoundRobinRandomSeed`, and the `PresetRef` / `LastPresetRef` paths that
-change whenever a spike pair is saved under two names). On a clean pair
-this means an unedited save diffs as `identical`.
-
-**Ids are shown by default.** S2 established that Live preserves
-`Id` / `PointeeId` / `LomId` / `LomIdView` across saves, so they are signal
-— usually *the* signal, since mappings appear to be built from them.
-
-- `--hide-ids` drops them, for when a structural edit renumbers enough to
-  drown the diff
-- `--all` hides nothing, including per-save churn
-- `--grep TEXT` keeps only facts whose path contains TEXT
-- `-n N` / `--limit N` caps lines per section; counts stay exact. Adding one
-  device drags its whole parameter blob in — a Reverb is ~800 facts
-
-Output has three sections: `CHANGED` (a fact whose value moved), `REMOVED`
-(present in A only), `ADDED` (present in B only). A node appearing with no
-value still shows up, so structural additions are visible.
-
-### `patchbay ids SRC [--fields A,B,C]`
-
-Spike S6. Census of id-bearing fields. Per field: occurrence count, value
-range, and whether values are unique across the file (file-scoped — a clone
-must reallocate them) or duplicated (narrower scope — a clone must **not**
-reallocate them, or mappings break).
-
-```
-patchbay ids racks/s6_a.adg
-patchbay ids racks/s6_a.adg --fields Id,PointeeId,ReceivingNote
-```
-
-### `patchbay mappings SRC`
-
-Lists every macro mapping in a preset: which macro drives which parameter,
-in which rack, at which nesting depth.
-
-```
-patchbay mappings racks/s1_source.adg
-```
-
-```
-3 macro mapping(s) in racks/s1_source.adg
-
-  Macro 1  ->  MacroControls.0   [DrumGroupDevice, depth 1]
-  Macro 1  ->  MacroControls.0   [InstrumentGroupDevice, depth 2]
-  Macro 1  ->  ChainSelector     [InstrumentGroupDevice, depth 2]
-```
-
-Works by finding `KeyMidi` elements (see `ARCHITECTURE.md` §5). Flags any
-mapping whose channel is not the macro bus, or whose mode is not absolute.
-
-This is the check to run after every clone in Phase 2: the mapping list
-before and after must match, with the right multiplicity.
-
-### `patchbay clone SRC DEST [-c N] [-n N] [--pad] [--stride N]`
-
-Duplicate a chain. `-c` picks which chain (default 0), `-n` how many
-copies.
-
-```
-patchbay clone racks/s3b.adg build/out.adg -n 3
-patchbay clone racks/s9_b.adg build/out.adg -n 3 --pad
-patchbay clone racks/s3b.adg build/out.adg -n 3 --stride 2
-```
-
-**Ganged by default.** Copies keep the original's macro indices, so every
-copy answers to the same macro and they move together. That is what the
-sound family constraint in `TEMPLATE_SPEC.md` wants.
-
-`--stride N` instead gives each copy its own block of N macros — chain 0
-on macros 1..N, the first copy on N+1..2N, and so on — for when each
-engine needs its own knob. Mappings that would pass macro 16 are left
-where they are and reported, so running out is visible.
-
-`--pad` assigns each copy the next free `ReceivingNote`, for drum racks.
-Without it every copy answers to the original's note and they all trigger
-together.
-
-Refuses to write a file with sibling id collisions, which is the one thing
-Live rejects outright.
-
-### `patchbay check SRC`
-
-Would Live accept this file? Reports sibling id collisions and exits
-non-zero if any exist. Verified against Live's actual behaviour on three
-deliberately broken files.
-
-### `patchbay unpack SRC [-o OUT]` / `patchbay repack SRC DEST`
-
-Gunzip to readable XML and back. Use for eyeballing a node a diff pointed
-at, and for the deliberate-failure tests in S6, S7 and S12 (hand-edit the
-XML, repack, see what Live does).
-
-```
-patchbay unpack racks/s1_source.adg          # -> racks/s1_source.adg.xml
-patchbay repack racks/s1_source.adg.xml build/patched.adg
-```
+`patchbay <command> --help` for options. Two worth knowing: `diff -n N`
+caps output per section, because adding one device drags its whole
+parameter blob in — a Reverb is some 800 facts. And `clone --stride N`
+gives each copy its own macro block rather than ganging them together.
 
 ## Layout
 
 ```
-patchbay/     generic library. Knows XML, ids, macros, chains, FileRefs.
-            Knows nothing about kick drums. Keep it that way.
-specs/      declarative description of the specific template
-donors/     real device instances harvested from Live, to copy from
-racks/      known-good inputs and spike evidence pairs
-samples/    audio
-build/      generated output, gitignored
+patchbay/    the library. Knows XML, ids, macros, chains, FileRefs.
+             Knows nothing about kick drums. Keep it that way.
+examples/    specs. playgrnd.py is the template this project exists for.
+doc/         how the format works, and how we found out.
+donors/      real device instances harvested from Live, to copy from.
+racks/       spike evidence. Every verified claim traces to one of these.
+samples/     audio.
+build/       generated output, gitignored.
+tests/       assertions against the recorded findings.
+ableton-mcp/ submodule: the Live-side half.
 ```
 
-## Workflow
+## Documentation
+
+| file | what it is | read it when |
+|---|---|---|
+| **`doc/ARCHITECTURE.md`** | how the `.adg` format works — the consolidated model | before writing code that touches XML |
+| **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
+| **`doc/SPIKES.md`** | discovery procedure, progress, open questions | before investigating anything |
+| **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
+| **`doc/TEMPLATE_SPEC.md`** | the musical target, and the grammar | for what any of this is for |
+| `doc/MCP.md` | what Live's API can and cannot do | before touching a running Live |
+| `doc/KICKOFF.md` | the original plan, and how it changed | for sequencing |
+| `CLAUDE.md` | working method and landmines | first, if you are an agent |
+
+`doc/ARCHITECTURE.md` is the model, `doc/SCHEMA.md` is the evidence. If
+they disagree, SCHEMA wins, because it cites files.
+
+## Method
 
 Discovery is differential, never schema reading:
 
@@ -238,9 +137,13 @@ Discovery is differential, never schema reading:
 2. Change exactly **one** thing
 3. Save as `b.adg`
 4. `patchbay diff a.adg b.adg`
-5. Record the finding in `SCHEMA.md`
+5. Record the finding in `doc/SCHEMA.md`
 
-Start with `SPIKES.md`, in the order it gives. S1 and S3 are kill criteria.
+Two rules learned the hard way, both in `doc/SPIKES.md`. Load-test by
+**dragging into a running Live**, never by double-clicking — a second
+instance hangs in a way indistinguishable from a rejected file, and that
+cost one wrong conclusion. And the one-change rule applies to constructed
+test files as much as to saves from Live.
 
-The schema is Live-version specific. Record the exact version in
-`SCHEMA.md` and expect to redo spikes after a major Live update.
+The schema is version specific. Findings here are Live **12.4.3**; watch
+`SchemaChangeCount` on the root element after an update.

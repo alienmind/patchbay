@@ -166,15 +166,18 @@ they answer to the *same* macro and therefore move together. That is the
 default and it is what the sound family constraint wants. `--stride` gives
 each copy its own macro block when independent knobs are needed instead.
 
-**Phase 3. Sample retargeting.**
-Rewrite `FileRef` nodes from a manifest. Depends on S7.
+**Phase 3. Sample retargeting.** NOT STARTED, and much smaller than
+budgeted: S7 showed Live re-reads sample metadata on load, so only the two
+path fields on each of a sample's two FileRefs are required.
+Belongs in the DSL as a binding, not a separate module.
 *Gate: eight pads with eight different samples, none offline.*
 
-**Phase 4. Rack composition from spec.**
-Build a rack by assembling donor subtrees according to a declarative spec.
-Depends on S5, S12.
+~~**Phase 4. Rack composition from spec.**~~ **DONE.** This is the DSL.
+A spec declares engines bound to a shared macro grammar; the compiler
+assembles donor subtrees, distributes zones and writes mappings.
+See `DSL.md`.
 
-**Phase 5. Macro variations.**
+**Phase 5. Macro variations.** NOT STARTED. **This is the next thing.**
 Generate variation sets. Must respect the sound family constraint from
 `TEMPLATE_SPEC.md`: variation index N means the same musical idea across
 every engine in the rack, not independent randomisation per engine. Depends
@@ -191,9 +194,10 @@ All of that is already in the Live Object Model — verified against Live
 engineering. **Sidechain source is the exception**: absent from the LOM,
 so it stays manual.
 
-**Phase 7. Full build.**
-`build.py` produces a loadable template from `specs/` plus `donors/` plus
-`samples/` in one command.
+~~**Phase 7. Full build.**~~ **DONE in shape, thin in content.**
+`patchbay build examples/playgrnd.py -o build/` compiles a spec into rack
+presets. The spec declares one rack so far; the machinery is not the
+missing part.
 
 ---
 

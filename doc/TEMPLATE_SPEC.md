@@ -59,17 +59,43 @@ index-aligned across engines, not independently randomised per engine.
 Identical across every instrument rack so muscle memory transfers. This
 consistency is the actual product, more than any individual rack.
 
-1. Engine select (chain selector)
-2. Cutoff
-3. Resonance
-4. Decay / release
-5. Drive
-6. Movement (LFO or mod depth)
-7. Space (reverb send)
-8. Character (per rack wildcard)
+Declared once, in `examples/playgrnd.py`, and passed to every rack:
 
-Racks support up to 16 macros. Push shows 8 per page. Page 2 holds glide,
-detune, delay feedback, width, transient.
+```python
+PLAYGRND = Grammar(
+    "Engine",      # 1  chain selector
+    "Cutoff",      # 2
+    "Resonance",   # 3
+    "Decay",       # 4  decay or release, whichever the engine has
+    "Drive",       # 5
+    "Movement",    # 6  LFO or mod depth
+    "Space",       # 7  reverb send
+    "Character",   # 8  per rack wildcard
+    "Glide",       # 9  page two
+    "Detune",      # 10
+    "Delay",       # 11 delay feedback
+    "Width",       # 12
+    "Transient",   # 13
+)
+```
+
+Racks support 16 macros. Push shows 8 per page, so slots 1-8 are page one
+and 9-13 page two. Slots 14-16 are deliberately unassigned: this document
+does not name them, and inventing slots would be inventing intent.
+
+The grammar is a CONTRACT, not a template. A rack does not "have" these
+macros, it BINDS its own parameters to these slots:
+
+```python
+with rack.engine("FM", "Operator") as e:
+    e.bind(cutoff=("Filter/Frequency", 200, 8000),
+           decay="Filter/Envelope/DecayTime")
+```
+
+Every engine binding the same slot to its own parameter is what makes the
+sound family constraint below structural rather than a matter of
+discipline. Ranges are optional and scope what the macro reaches; Live
+12.4.3 has no UI for them, so they exist only in code.
 
 Every sound also maps aftertouch to filter and pitch. Exception: drum rack
 pads, since Push does not send per pad aftertouch there.
@@ -116,19 +142,42 @@ other tracks route into, carrying the master chain, with silent dummy clips
 holding automation envelopes. Requires Session Automation Recording enabled
 in Record/Warp/Launch preferences.
 
-## Current state in Live
+## Current state
+
+**In Live, by hand:**
 
 - 8 tracks created and named, PM1 recreated as audio
 - One DR1 pad built and mapped end to end, three levels deep, verified
-  working through all three macro hops
-- Nothing else built
+  working through all three macro hops. That rack is `racks/s1_source.adg`
+  and it is the evidence for the whole nesting model.
+
+**In code, `examples/playgrnd.py`:**
+
+- The grammar above, complete
+- PD1 as a two engine slice, Operator and Simpler, compiling and loading
+
+**Not yet declarable, and why:**
+
+| rack | blocked on |
+|---|---|
+| DR1 | rack-inside-chain nesting in the DSL, and per-pad sends |
+| BS1, PD1 proper, LD1 | donors for Wavetable, Drift, Meld |
+| SR1 | sample retargeting bound into the DSL |
+| VA1, VA2 | rack-in-rack composition |
+| PM1 | not a rack; built through `ableton-mcp` |
+
+Variations are absent everywhere, which is the largest gap: this document
+argues they are the highest value artifact in the project.
 
 ## What was tried and rejected
 
 - **AbletonMCP for the build.** Can create tracks, load presets, write
   notes, set names and tempo. Cannot group devices, map macros, or set
-  chain zones, because the Live API does not expose those. Still useful for
-  loading finished `.adg` presets onto tracks and writing starter clips.
+  chain zones, because the Live API does not expose those. Verified against
+  Live's own Object Model in `MCP.md`, not assumed. Still useful for
+  loading finished `.adg` presets onto tracks and writing starter clips,
+  and it CAN do track routing and audio/return track creation, which is why
+  Sets are not generated as `.als`.
 - **Building on ableton-inspector.** Read only, `.als` only, and its schema
   coverage stops well short of devices and racks. Useful only as
   confirmation that these files are gzipped XML and that samples live in
