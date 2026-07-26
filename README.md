@@ -9,7 +9,7 @@ instead.
 ## Current state
 
 **Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
-viable.** Next action is spike **S10** in `SPIKES.md`.
+viable.** Next action is spike **S12** in `SPIKES.md`.
 
 No generator code exists yet. `adgkit/` currently holds discovery tooling
 only: read, write, diff, round trip, id census, mapping census.

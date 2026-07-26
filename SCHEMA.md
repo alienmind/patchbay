@@ -788,9 +788,109 @@ in the UI until toggled — this cost real time during the spike.
 `RoutingHelper/Routable/UpperDisplayString` from `No Output` to
 `Sends Only`. Recorded as an observation; routing is S11's subject.
 
-## S10. Macro metadata
+## S10. Macro metadata — ANSWERED except mapping range
 
-TBD - name, custom range, exclude from randomisation, visible count.
+Chain of saves from `racks/s3b.adg`, one change each:
+`s10_c` -> `s10_d` -> `s10_e` -> `s10_f` -> `s10_g`.
+
+(`s10_a.adv` / `s10_b.adv` are Saturator *device* presets, saved from the
+device's own save button rather than the rack's, so they carry no macro
+data. `s3b.adg` served as the pre-rename baseline instead.)
+
+### One field per menu item
+
+Live's right-click menu on a macro knob maps cleanly onto the `.N` families:
+
+| menu item | field | diff |
+|---|---|---|
+| *Rename* | `MacroDisplayNames.0` | `"Macro 1"` -> `"Grit"` |
+| *Exclude Macro from Randomization* | `ExcludeMacroFromRandomization.0` | `false` -> `true` |
+| *Exclude Macro From Variations* | `ExcludeMacroFromSnapshots.0` | `false` -> `true` |
+| *Show Generic 0-127 Value* | `ForceDisplayGenericValue.0` | `false` -> `true` |
+| *Return to Default* | `MacroDefaults.0` | see below |
+| — (macro panel control) | `NumVisibleMacroControls` | `8` -> `16` |
+
+**[V]** Note the vocabulary split: the UI says **Variations**, the XML says
+**Snapshots** (`ExcludeMacroFromSnapshots`), matching
+`MacroVariations`/`MacroSnapshots` from S8. Grepping for the UI word finds
+nothing.
+
+**[V]** Changing the visible macro count from 8 to 16 changed **exactly one
+fact** and added no elements. All 16 slots exist in every family
+regardless. A generator always writes 16 and sets the count.
+
+**[V]** The menu offers no macro range item, and mapping ranges were not
+reachable from the macro knob, the target parameter, or the Map button.
+See the open question below.
+
+### Mapping macro 3 confirmed the index rule a third time
+
+`s10_g` mapped Macro 3 to Saturator's Dry/Wet:
+
+```
+Saturator/DryWet/KeyMidi/NoteOrController@Value = 2
+Saturator/DryWet/KeyMidi/Channel@Value          = 16
+```
+
+Zero-based macro index, fixed channel. Consistent with S3 and S3b.
+
+### `MacroDefaults.N` — the S3b anomaly, mostly resolved
+
+**[V]** Observed across the chain:
+
+```
+s3b:     MacroControls.0=69   .1=127        MacroDefaults.0=63.5  .1=-1
+s10_c:   MacroControls.0=57                 MacroDefaults.0=69    .1=127
+s10_f:   MacroControls.2=0                  MacroDefaults.2=0
+s10_g:   MacroControls.2=127  (just mapped) MacroDefaults.2=-1
+```
+
+**[I]** Two behaviours, together explaining S3b:
+
+1. **`MacroDefaults` lags one save.** `s10_c`'s defaults are exactly
+   `s3b`'s *macro values*. This is the third field with a one-save lag,
+   after `PresetRef` (S3) and `UserName` (S5) — evidently Live serialises
+   some bookkeeping from the pre-save state.
+2. **Mapping a macro resets its default to `-1`.** `s10_g` shows
+   `MacroDefaults.2` going `0 -> -1` at the moment Macro 3 was mapped,
+   rather than trailing the previous value. This is why S3b saw
+   `MacroDefaults.1` stay at `-1` while its siblings materialised.
+
+**Actionable rule regardless of which behaviour dominates: write `-1`
+(unset) and do not depend on this field.** It drives the *Return to
+Default* menu item only, has no effect on sound, and Live rewrites it on
+the next save anyway.
+
+### Open: mapping ranges
+
+**[?]** Live 12.4.3's macro right-click menu contains no range editor, and
+none was found on the target parameter or via Map mode. The full menu is:
+Show Automation, Show Automation In New Lane, Show Modulation Source,
+Return to Default, Edit MIDI Map, Edit Key Map, Copy Max for Live Path,
+Copy Parameter Name, Remove Mapping, Show Generic 0-127 Value, Rename,
+Edit Info Text, Exclude Macro from Randomization, Exclude Macro From
+Variations, colour palette.
+
+A reverse test is prepared: `build/s10_range_test.adg` is `s3b` with
+`Saturator/PreDrive/MidiControllerRange/Max` changed from `36` to `12`.
+Loading it and turning Macro 1 to full distinguishes:
+
+- Drive maxes at +12 dB -> `MidiControllerRange` is the mapping range
+- Drive still reaches +36 dB -> ranges live elsewhere, or Live 12 has no
+  per-mapping ranges
+- the knob's own scale visibly ends at +12 -> it is the parameter's range,
+  a different thing
+
+Result not yet recorded.
+
+### Incidental
+
+The `s3b -> s10_c` diff carried extra drift — `IsExpanded`,
+`DocumentColorIndex`, `PreDrive/Manual`, `MacroControls.0` — because that
+step bundled a rename with the randomisation toggle and some knob
+movement. The two fields of interest were still unambiguous, but it is a
+reminder that the one-change discipline is what keeps these diffs to a
+single line, as `s10_c` through `s10_f` each demonstrate.
 
 ## S11. .als track structure
 

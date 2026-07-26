@@ -291,20 +291,35 @@ like any other — chain selection is macro-mappable by the same mechanism.
 **[V]** A rack device carries ~160 children. The macro-related ones are
 fixed-width arrays of **16**, regardless of how many macros are visible:
 
-| family | indices | holds |
-|---|---|---|
-| `MacroControls.N` | 0–15 | the macro parameter itself (`Manual`, range, targets) |
-| `MacroDisplayNames.N` | 0–15 | name; default `"Macro N"` (1-based in the string) |
-| `MacroDefaults.N` | 0–15 | default value. **[V]** `-1` is the unset sentinel |
-| `MacroAnnotations.N` | 0–15 | info text |
-| `MacroColor.N` | 0–15 | colour |
-| `ForceDisplayGenericValue.N` | 0–15 | display override |
-| `ExcludeMacroFromRandomization.N` | 0–15 | randomisation opt-out |
-| `ExcludeMacroFromSnapshots.N` | 0–15 | snapshot opt-out |
+| family | indices | holds | UI |
+|---|---|---|---|
+| `MacroControls.N` | 0–15 | the macro parameter itself (`Manual`, range, targets) | the knob |
+| `MacroDisplayNames.N` | 0–15 | name; default `"Macro N"` (1-based in the string) | *Rename* |
+| `MacroDefaults.N` | 0–15 | default value, `-1` unset | *Return to Default* |
+| `MacroAnnotations.N` | 0–15 | info text | *Edit Info Text* |
+| `MacroColor.N` | 0–15 | colour | colour palette |
+| `ForceDisplayGenericValue.N` | 0–15 | show raw 0-127 instead of units | *Show Generic 0-127 Value* |
+| `ExcludeMacroFromRandomization.N` | 0–15 | randomisation opt-out | *Exclude Macro from Randomization* |
+| `ExcludeMacroFromSnapshots.N` | 0–15 | variation opt-out | *Exclude Macro **From Variations*** |
 
-**[V]** `NumVisibleMacroControls` controls how many are shown (`8` in the
-observed racks). Hidden macros are **present, not absent** — all 16 slots
-exist in the XML either way.
+**[V]** Every one of those was confirmed by a single-change diff.
+
+**[V]** Watch the vocabulary split on the last row: the UI says
+**Variations**, the XML says **Snapshots**, exactly as with
+`MacroVariations`/`MacroSnapshots` in §11. Grepping the UI word finds
+nothing.
+
+**[V]** `NumVisibleMacroControls` controls how many are shown (`8` by
+default). Changing it from 8 to 16 alters **exactly that one fact and adds
+no elements** — all 16 slots exist in every family regardless. A generator
+always writes 16 and sets the count.
+
+**[I]** `MacroDefaults.N` is unreliable bookkeeping. Two behaviours were
+observed: it **lags one save** (a file's defaults equal the previous
+save's macro values — the same lag as `PresetRef` in §9 and `UserName` in
+§6), and **mapping a macro resets it to `-1`**. It drives only the *Return
+to Default* menu item and affects nothing audible. **Write `-1` and do not
+depend on it.**
 
 Other notable children, **[V]** present but not yet characterised:
 `MacroVariations`, `MacroSnapshots` (both empty in current samples),
@@ -699,9 +714,8 @@ Ordered by how much they gate the build.
 
 | | question | spike | gates |
 |---|---|---|---|
-| **[?]** | What writes `MacroDefaults.N`? Mapping a second macro materialised 14 of 16 slots but skipped the one just mapped. Unexplained. | S10 | macro grammar, Phase 5 |
+| **[?]** | Where are per-mapping ranges stored? Live 12.4.3 offers no range editor on the macro, the target, or in Map mode. Reverse test built at `build/s10_range_test.adg`. | S10 tail | macro grammar |
 | **[?]** | How are ids allocated when a device is *added*? Uniqueness scope? | S6 | Phase 2 for non-macro references |
-| **[?]** | Custom macro min/max range per mapping — where stored? Suspect `MidiControllerRange` on the target. | S10 | macro grammar |
 | **[?]** | Chain zone: is `Max` inclusive? Does Live repair a violated zone ordering? | S5 tail | Phase 4, low stakes |
 | **[?]** | Key and velocity zone encoding — assumed sibling of `BranchSelectorRange`, unverified. | S5 rest | Phase 4 |
 | **[?]** | `OriginalCrc` algorithm. 16-bit; zlib and 10 CRC-16 variants ruled out over 4 chunk choices. **Closed as irrelevant** — nothing reads it on load. | — | nothing |
@@ -727,6 +741,7 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 | `s7_a.adg` / `s7_b.adg` | Instrument Rack + Simpler, one sample swapped | the 20 facts a swap moves; two FileRefs |
 | `s8_a/b/c.adg` | same rack with 0, 1 and 2 macro variations | the `MacroSnapshot` structure |
 | `s9_a/b/c/d.adg` | drum rack: 2 pads, then a return, then a send raised, then a pad moved | `ZoneSettings`, `ReturnBranchPresets`, `SendInfos` |
+| `s10_c..g.adg` | one macro-metadata change per save | each `.N` family, `NumVisibleMacroControls` |
 | `build/s7_test_A..F.adg` | six deliberately inconsistent retargets, all loaded in Live | the cache-key model |
 
 Reproduce with:
@@ -741,5 +756,6 @@ adgkit diff racks/s5_a.adg racks/s5_b.adg
 adgkit diff racks/s5_fade_aa.adg racks/s5_fade_bb.adg
 adgkit diff racks/s8_b.adg racks/s8_c.adg
 adgkit diff racks/s9_c.adg racks/s9_d.adg
+adgkit diff racks/s10_c.adg racks/s10_d.adg
 adgkit ids racks/s1_source.adg
 ```

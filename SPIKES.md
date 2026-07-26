@@ -23,9 +23,9 @@ then `SCHEMA.md` for the raw evidence.
 | S7 | FileRef anatomy | **DONE** | two FileRefs; 20 facts move but only the 2 paths are required; metadata is advisory |
 | S8 | macro variations | **DONE** | `MacroSnapshot` list; absolute 0..127 macro values; 16 slots + `MacroHasValue.N` |
 | S9 | drum rack specifics | **DONE** | `ZoneSettings/ReceivingNote`; returns in `ReturnBranchPresets`; sends are linear amplitude |
-| S10 | macro metadata | **NEXT** — also owns the `MacroDefaults` trigger | |
+| S10 | macro metadata | **DONE** (mapping range open) | one field per menu item; all 16 slots always exist |
 | S11 | `.als` track structure | todo | |
-| S12 | minimal device viability | todo | |
+| S12 | minimal device viability | **NEXT** | |
 
 Both kill criteria (S1, S3) are **passed**. The project is viable.
 
@@ -340,7 +340,7 @@ Two UI traps that cost time, worth knowing before repeating this:
 Adding a device brings its whole parameter blob into the diff — the Reverb
 on the return chain was ~800 facts. Use `-n` to cap it.
 
-## S10. Macro metadata
+## ~~S10. Macro metadata~~ — DONE, except mapping range
 
 Four separate one-change diffs from a common `racks/s10_a.adg`:
 rename a macro, set a custom min/max range, toggle exclude from
@@ -348,6 +348,18 @@ randomisation, change visible macro count 8 -> 16.
 
 **Record:** one line each. The macro count one is the interesting one —
 note whether unused macros are present-but-hidden or absent.
+
+**Result:** present, not absent — all 16 slots exist in every family, and
+changing the count alters exactly one fact. Each menu item maps to one
+field; see `ARCHITECTURE.md` §6 for the table.
+
+Two things worth knowing before repeating this:
+
+- Save from the **rack's** save button, not the device's. Two saves here
+  came out as `.adv` device presets with no macro data in them.
+- Live 12.4.3 has **no macro range editor** — not on the macro knob, not
+  on the target parameter, not in Map mode. That part of the spike is
+  still open, with a reverse test prepared at `build/s10_range_test.adg`.
 
 ## S11. .als track structure
 
