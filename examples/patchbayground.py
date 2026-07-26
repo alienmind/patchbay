@@ -43,6 +43,7 @@ Blocked:
 from __future__ import annotations
 
 from itertools import product
+from pathlib import Path
 
 from patchbay.dsl import Grammar, Rack, RackKind, Variation
 
@@ -100,9 +101,34 @@ VOLUME = (0.0, 1.0)
 # The drum rack's top level is NOT the instrument grammar. Eight pads times
 # eight parameters cannot fit eight knobs, so the top level is kit-wide
 # moves only and per-pad control is reached by diving into the pad on Push.
+#
+# selector=None because a drum rack has no chain selector to drive: a pad is
+# chosen by its ReceivingNote, and Live leaves every pad's zone at 0/0/0/0.
+# Macro 1 here chains into each pad's own Sound knob instead.
 KIT = Grammar(
-    "Tune", "Decay", "Drive", "Send A", "Send B", "Punch", "Space", "Character",
+    "Sound", "Pitch", "Filter", "Drive", "Send A", "Send B", "Send Vol",
+    "Volume", selector=None,
 )
+
+# Inside a pad the axis is WHICH SAMPLE, so the selector slot is Sound
+# rather than Instrument. Same eight names as PATCHBAYGROUND so the kit can
+# chain slot to slot by identity; only which slot drives the selector moves.
+PAD = Grammar(*PATCHBAYGROUND.slots, selector="Sound")
+
+# General MIDI-ish pad layout, and the folder each pad draws from. The names
+# are the ones samples/README.md documents, not a vendor's.
+PADS = (
+    ("KICK", 36, "kick"),
+    ("RIM", 37, "rim"),
+    ("SNARE", 38, "snare"),
+    ("CLAP", 39, "clap"),
+    ("TOM", 41, "tom"),
+    ("HAT", 42, "hat"),
+    ("PERC", 43, "perc"),
+    ("OHAT", 46, "ohat"),
+)
+
+SAMPLES_PER_PAD = 8
 
 
 # ===========================================================================
@@ -230,6 +256,73 @@ def ld1() -> Rack:
     return meld(fm(rack))
 
 
+def pad_samples(sound: str, n: int = SAMPLES_PER_PAD) -> list[Path]:
+    """The first n files for one pad sound, in sorted order.
+
+    Asks the filesystem rather than a checked-in list. `samples/` is never
+    committed, not even as an index of filenames, so a manifest in the repo
+    would be the thing CLAUDE.md forbids. The naming convention documented
+    in samples/README.md is the interface: `<sound>/<sound>_NNN.wav`,
+    numbered from 1 and stable once written, so a path in a spec keeps
+    pointing at the same audio.
+    """
+    folder = Path(__file__).resolve().parent.parent / "samples" / "drums" / sound
+    if not folder.is_dir():
+        return []
+    return sorted(folder.glob(f"{sound}_*.wav"))[:n]
+
+
+def pad_rack(name: str, sound: str) -> Rack | None:
+    """One pad: a rack whose chains are samples, selected by the Sound knob.
+
+    This is where slot 2 finally earns its place. Every other rack in this
+    file leaves Sound unbound because it has nothing to select between; a
+    pad has eight samples and one knob to walk them.
+    """
+    files = pad_samples(sound)
+    if not files:
+        return None
+
+    rack = Rack(name, PAD, kind=RackKind.INSTRUMENT)
+    for i, wav in enumerate(files):
+        with rack.engine(f"S{i + 1}", "OriginalSimpler") as e:
+            e.sample(wav)
+            e.bind(
+                filter=("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
+                drive="Filter/Slot/Value/SimplerFilter/Drive",
+                character="Filter/Slot/Value/SimplerFilter/Res",
+                release="VolumeAndPan/Envelope/ReleaseTime",
+                volume=("VolumeAndPan/Volume", -36.0, 0.0),
+            )
+    return rack
+
+
+def dr1() -> Rack | None:
+    """The drum rack: eight pads, each a rack of samples. Three levels.
+
+    Returns None when `samples/` is absent, so this file still imports on a
+    machine that has the repo and not the audio. That is not politeness: the
+    test suite imports this module.
+
+    Kit macros chain into every pad at once. Sound is the interesting one -
+    one knob walks the sample choice across the whole kit, and a pad can be
+    dived into on Push to move its own.
+    """
+    kit = Rack("DR1", KIT, kind=RackKind.DRUM)
+    chained = dict(sound="sound", filter="filter", drive="drive",
+                   volume="volume")
+
+    built = 0
+    for name, note, sound in PADS:
+        inner = pad_rack(name, sound)
+        if inner is None:
+            continue
+        kit.pad(name, note, rack=inner).bind(**chained)
+        built += 1
+
+    return kit if built else None
+
+
 def va1(name: str = "VA1") -> Rack:
     """Various. Each chain is a rack in its own right.
 
@@ -294,7 +387,8 @@ def sound_family(rack: Rack) -> list[Variation]:
     return out
 
 
-RACKS: list[Rack] = [pd1(), pd1_wave(), bs1(), ld1(), va1()]
+RACKS: list[Rack] = [r for r in (pd1(), pd1_wave(), bs1(), ld1(), dr1(), va1())
+                     if r is not None]
 
 
 # ===========================================================================

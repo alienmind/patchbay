@@ -659,6 +659,33 @@ def test_sample_refuses_a_device_with_no_sampleref(tmp_path=None):
     raise AssertionError("Operator holds no sample; pointing one at it is a bug")
 
 
+def test_dr1_is_three_levels_with_one_sample_per_chain():
+    """Skips where `samples/` is absent: the audio is never committed."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+    from patchbay import samples as S
+
+    kit = patchbayground.dr1()
+    if kit is None:
+        return  # no samples on this machine
+
+    root = kit.build()
+    pre = find.preset(root)
+
+    notes = sorted(int(el.get("Value")) for el in root.iter("ReceivingNote"))
+    assert notes == sorted(n for _, n, _ in patchbayground.PADS)
+    assert len(notes) == len(set(notes)), "two pads on one note fire together"
+
+    # kit + one rack per pad
+    assert len(list(find.walk_racks(pre))) == len(notes) + 1
+
+    paths = set()
+    for dev in root.iter("OriginalSimpler"):
+        paths.update(S.targets(dev))
+    assert paths, "every pad chain carries a sample"
+    assert all(Path(p).is_file() for p in paths), "no chain points at nothing"
+
+
 # --- house style ----------------------------------------------------------
 
 EM_DASH = chr(0x2014)   # named by codepoint so this file does not trip its own check
