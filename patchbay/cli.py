@@ -1,5 +1,6 @@
 import argparse
 import sys
+from . import compile as compile_spec
 from . import io, diff, clone, find, ids, mappings, roundtrip
 from .diff import ID_FIELDS
 
@@ -64,6 +65,11 @@ def _main():
                     help="give each copy its own block of STRIDE macros "
                          "instead of ganging every copy to the same ones")
 
+    b = sub.add_parser("build", help="compile a spec into rack presets")
+    b.add_argument("spec", help="a Python file declaring racks")
+    b.add_argument("-o", "--out", default="build", help="output directory")
+    b.add_argument("--only", nargs="+", help="build only these racks, by name")
+
     ck = sub.add_parser("check", help="would Live accept this file?")
     ck.add_argument("src")
 
@@ -119,6 +125,11 @@ def _main():
                     print(f"    Id={dup.get('Id')} {tag}: macro {was} -> {now} "
                           f"OUT OF RANGE, left on {was}")
         print(f"wrote {args.dest}")
+    elif args.cmd == "build":
+        try:
+            compile_spec.report(args.spec, args.out, args.only)
+        except compile_spec.SpecError as e:
+            raise SystemExit(f"spec error: {e}")
     elif args.cmd == "check":
         bad = ids.report(args.src)
         raise SystemExit(1 if bad else 0)
