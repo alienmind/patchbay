@@ -52,7 +52,7 @@ from typing import Iterator, Mapping, Sequence, Union
 
 from lxml import etree
 
-from . import clone, find, io, params, variations
+from . import clone, find, io, params, samples, variations
 from .library import Library
 
 MACRO_MAX: int = 127
@@ -93,15 +93,22 @@ class Grammar:
     slot declared as "Cutoff".
     """
 
-    __slots__ = ("slots", "_index")
+    __slots__ = ("slots", "selector", "_index")
 
-    def __init__(self, *slots: str) -> None:
+    def __init__(self, *slots: str, selector: str | None = "engine") -> None:
         if len(slots) > MAX_MACROS:
             raise ValueError(f"a rack has {MAX_MACROS} macros; got {len(slots)} slots")
         if len(slots) != len({s.lower() for s in slots}):
             raise ValueError("grammar slot names must be unique")
         self.slots: tuple[str, ...] = tuple(slots)
         self._index: dict[str, int] = {s.lower(): i + 1 for i, s in enumerate(slots)}
+        # Which slot drives the chain selector. Named rather than fixed at
+        # slot 1, because a drum rack's macro 1 is not a selector. A grammar
+        # that declares no such slot passes selector=None and gets no
+        # selector mapping at all.
+        if selector is not None and selector.lower() not in self._index:
+            selector = None
+        self.selector: str | None = selector
 
     def macro_of(self, slot: str) -> int:
         """Which macro number serves this slot. 1-based, as in Live's UI."""
@@ -175,6 +182,8 @@ class Engine:
     bindings: dict[str, BoundParam] = field(default_factory=dict)
     #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
     note: int | None = None
+    #: Sample file this chain's device plays. None leaves the donor's own.
+    sample_path: Path | None = None
 
     def bind(self, **slots: Binding) -> "Engine":
         """Bind grammar slots to this device's parameters.
@@ -190,6 +199,21 @@ class Engine:
             else:
                 path, lo, hi = spec
                 self.bindings[slot] = BoundParam(slot, path, float(lo), float(hi))
+        return self
+
+    def sample(self, path: Path | str) -> "Engine":
+        """Point this chain's device at a sample file.
+
+        Refuses a path that does not exist. Live would load the rack and
+        show the sample offline, which is a rack that passes every check
+        here and is silently broken, so this fails at declaration instead.
+        """
+        p = Path(path)
+        if not p.is_file():
+            raise FileNotFoundError(
+                f"{self.name}: no sample at {p}. A missing sample loads as "
+                f"an offline rack rather than an error, so it is refused here.")
+        self.sample_path = p
         return self
 
     def __enter__(self) -> "Engine":
@@ -366,8 +390,8 @@ class Rack:
                 out |= {s.lower() for s in chain.resolved()}
             else:
                 out |= {b.slot.lower() for b in chain.bindings.values()}
-        if "engine" in self.grammar:
-            out.add("engine")
+        if self.grammar.selector is not None:
+            out.add(self.grammar.selector.lower())
         return out
 
     def engine_macro(self, engine: str | int) -> float:
@@ -644,12 +668,17 @@ class Rack:
                     el.set("Value", str(val))
 
     def _map_engine_selector(self, rack_dev: Element) -> None:
-        """Macro 1 drives the chain selector, if the grammar declares it."""
-        if "engine" not in self.grammar:
+        """The grammar's selector slot drives the chain selector.
+
+        Which slot that is comes from the grammar, not from a fixed name.
+        Hardcoding one meant renaming the slot silently produced a rack that
+        loaded and whose first macro moved nothing.
+        """
+        if self.grammar.selector is None:
             return
         selector = find.chain_selector(rack_dev)
         if selector is not None:
-            params.map_to_macro(selector, self.grammar.macro_of("engine"))
+            params.map_to_macro(selector, self.grammar.macro_of(self.grammar.selector))
 
     def _write_variations(self, rack_dev: Element) -> None:
         """Realise the variation set in macro space.
@@ -715,6 +744,14 @@ class Rack:
             if bound.has_range:
                 assert bound.lo is not None and bound.hi is not None
                 params.set_range(param, bound.lo, bound.hi)
+
+        if engine.sample_path is not None:
+            n = samples.retarget(device, engine.sample_path)
+            if not n:
+                raise ValueError(
+                    f"{engine.name}: {engine.device_tag} has no SampleRef to "
+                    f"retarget. The donor for this device carries no sample, "
+                    f"so there is nothing for sample() to point at.")
 
     def __repr__(self) -> str:
         return f"<Rack {self.name!r} {self.kind.name} {len(self.engines)} engines>"

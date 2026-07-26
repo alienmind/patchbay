@@ -7,9 +7,9 @@ Inspired by PLAYGRND, an Ableton Live Set by Andri Soren:
 https://www.youtube.com/watch?v=plQ9F-0RmDw
 
 The architecture that Set demonstrates: one macro grammar across every rack,
-engines as chains, sounds as variations. Rebuilt here to our own taste, from
-a declaration, because doing it by hand is thousands of macro mappings
-entered by mouse.
+engines as chains, a sound addressed by two knobs. Rebuilt here to our own
+taste, from a declaration, because doing it by hand is thousands of macro
+mappings entered by mouse.
 
     patchbay build examples/patchbayground.py -o build/
 
@@ -25,15 +25,19 @@ Each draft block names what it is blocked on. Uncomment as the capability
 lands, and delete this note when nothing is left commented.
 
 Live today:
-  the grammar, complete
-  PD1 as a two engine slice, verified loading and mapping in Live 12.4.3
-  96 variations over four slots, one of them the engine choice
-  VA1 as a two level nest, macros chaining into the selected sub-rack.
-    Compiles; awaiting its gate in Live, see doc/TODO.md
+  the eight slot grammar, complete
+  PD1 as a two engine slice
+  96 variations over four slots, one of them the instrument choice
+  VA1 as a two level nest, macros chaining into the selected sub-rack
+
+  Both racks are gated in Live 12.4.3 under this grammar, ranges included.
+  Slot 2, Sound, binds nothing yet: neither rack has sound chains to select
+  between, and a slot nothing drives writes no mapping.
 
 Blocked:
-  everything else, mostly on donors for the engines the spec actually
-  calls for, and on samples
+  BS1, LD1 and PD1 proper are no longer blocked on donors: Wavetable,
+  Drift and Meld are harvested. They are blocked on being written.
+  SR1 still waits on samples.
 """
 
 from __future__ import annotations
@@ -50,26 +54,35 @@ from patchbay.dsl import Grammar, Rack, RackKind, Variation
 # consistency is the product, more than any individual rack, so it is
 # declared once here and every rack takes it as an argument.
 #
-# Push shows 8 macros per page. Slots 1-8 are page one, 9-13 page two.
-# 14-16 are deliberately unassigned: PATCHBAYGROUND.md does not name them,
-# and inventing slots would be inventing intent.
+# Eight slots, one Push page. A rack has 16 macros and Push will show a
+# second page, but a page flip mid-jam costs more than the extra knobs are
+# worth. Slots 1, 2, 7 and 8 are fixed on every rack; 3 to 6 are character.
 PATCHBAYGROUND = Grammar(
-    # page one, the eight knobs that matter during a jam
-    "Engine",      # 1  chain selector: sweeps engines, and therefore sounds
-    "Cutoff",      # 2
-    "Resonance",   # 3
-    "Decay",       # 4  decay or release, whichever the engine has
-    "Drive",       # 5
-    "Movement",    # 6  LFO or mod depth
-    "Space",       # 7  reverb send
-    "Character",   # 8  per rack wildcard
-    # page two
-    "Glide",       # 9
-    "Detune",      # 10
-    "Delay",       # 11 delay feedback
-    "Width",       # 12
-    "Transient",   # 13
+    "Instrument",  # 1  chain selector: which engine
+    "Sound",       # 2  chain selector: which sound within that engine
+    "Filter",      # 3  cutoff
+    "Drive",       # 4  filter drive
+    "Movement",    # 5  LFO or mod depth
+    "Character",   # 6  per rack wildcard
+    "Release",     # 7  release, or decay where an engine has no release
+    "Volume",      # 8  always
+    selector="Instrument",
 )
+
+# Cutoff range shared by every engine, in Hz.
+#
+# The intersection of what the four engines offer natively: Operator
+# 30..18500, Simpler 30..22000, Wavetable 20..20480, Drift 20..20000. Using
+# the intersection rather than each engine's own maximum is what keeps one
+# knob position meaning one frequency across engines, which is the sound
+# family constraint. Nothing audible is lost at the top; 18.5 kHz is above
+# where a filter sweep reads as pitch.
+#
+# Q15: the macro follows the parameter's LOGARITHMIC taper, so a wide range
+# costs no resolution where it matters. Macro 64 over 200..8000 measured
+# 1.28 kHz, the geometric mean, not the arithmetic one. The old 200..8000
+# cap reached 43% of Operator's range and meant the filter never opened.
+CUTOFF = (30.0, 18500.0)
 
 # The drum rack's top level is NOT the instrument grammar. Eight pads times
 # eight parameters cannot fit eight knobs, so the top level is kit-wide
@@ -87,9 +100,14 @@ def fm(rack: Rack, name: str = "FM") -> Rack:
     """An Operator chain bound to the grammar."""
     with rack.engine(name, "Operator") as e:
         e.bind(
-            cutoff=("Filter/Frequency", 200, 8000),
-            resonance="Filter/Resonance",
-            decay="Filter/Envelope/DecayTime",
+            filter=("Filter/Frequency", *CUTOFF),
+            drive="Filter/Drive",
+            movement="Lfo/LfoAmount",
+            character="Filter/Resonance",
+            release="Operator.0/Envelope/ReleaseTime",
+            # Linear amplitude, native range 0.000316..1.995. Capped at
+            # unity so full right is 0 dB rather than +6 and clipping.
+            volume=("Globals/Volume", 0.0003162277571, 1.0),
         )
     return rack
 
@@ -102,9 +120,15 @@ def sampler(rack: Rack, name: str = "Sample") -> Rack:
     """
     with rack.engine(name, "OriginalSimpler") as e:
         e.bind(
-            cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
-            resonance="Filter/Slot/Value/SimplerFilter/Res",
-            decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime",
+            filter=("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
+            drive="Filter/Slot/Value/SimplerFilter/Drive",
+            movement="Pitch/PitchLfoAmount",
+            character="Filter/Slot/Value/SimplerFilter/Res",
+            release="VolumeAndPan/Envelope/ReleaseTime",
+            # Decibels, native range -36..+36. Capped at unity for the same
+            # reason as the FM engine. The floor is -36 dB because that is
+            # all Simpler offers: audible, where Operator's floor is -70.
+            volume=("VolumeAndPan/Volume", -36.0, 0.0),
         )
     return rack
 
@@ -130,20 +154,21 @@ def va1(name: str = "VA1") -> Rack:
     jobs at once.
     """
     rack = Rack(name, PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
-    chained = dict(cutoff="cutoff", resonance="resonance", decay="decay")
+    chained = dict(filter="filter", drive="drive", movement="movement",
+                   character="character", release="release", volume="volume")
 
     for inner in (fm(sampler(_inner("PADS"))), fm(_inner("KEYS"))):
         rack.nest(inner.name, inner).bind(**chained)
 
     rack.variations(
-        Variation("A bright", engine=rack.engine_macro("PADS"),
-                  cutoff=115, decay=20, resonance=10),
-        Variation("A dark", engine=rack.engine_macro("PADS"),
-                  cutoff=25, decay=110, resonance=90),
-        Variation("B bright", engine=rack.engine_macro("KEYS"),
-                  cutoff=115, decay=20, resonance=10),
-        Variation("B dark", engine=rack.engine_macro("KEYS"),
-                  cutoff=25, decay=110, resonance=90),
+        Variation("A bright", instrument=rack.engine_macro("PADS"),
+                  filter=115, release=20, character=10),
+        Variation("A dark", instrument=rack.engine_macro("PADS"),
+                  filter=25, release=110, character=90),
+        Variation("B bright", instrument=rack.engine_macro("KEYS"),
+                  filter=115, release=20, character=10),
+        Variation("B dark", instrument=rack.engine_macro("KEYS"),
+                  filter=25, release=110, character=90),
     )
     return rack
 
@@ -164,17 +189,17 @@ def sound_family(rack: Rack) -> list[Variation]:
     and the engine is part of what a sound is.
     """
     out = []
-    for i, (eng, cut, dec, res) in enumerate(product(
+    for i, (eng, cut, rel, chr_) in enumerate(product(
             ("FM", "Sample"),
-            (20, 55, 90, 120),      # Cutoff
-            (10, 45, 80, 115),      # Decay
-            (0, 64, 127))):         # Resonance
+            (20, 55, 90, 120),      # Filter
+            (10, 45, 80, 115),      # Release
+            (0, 64, 127))):         # Character, here resonance
         out.append(Variation(
             # The name encodes its own values, so culling by ear is informed
             # rather than blind. KICKOFF.md asks for this.
-            name=f"{i:03d} {eng[0]} c{cut} d{dec} r{res}",
-            engine=rack.engine_macro(eng),
-            cutoff=cut, decay=dec, resonance=res,
+            name=f"{i:03d} {eng[0]} f{cut} r{rel} c{chr_}",
+            instrument=rack.engine_macro(eng),
+            filter=cut, release=rel, character=chr_,
         ))
     return out
 
@@ -210,7 +235,7 @@ RACKS: list[Rack] = [pd1(), va1()]
 #
 # with rack.engine("Sample", "OriginalSimpler") as e:
 #     e.sample("samples/kicks/ebm_01.wav")
-#     e.bind(cutoff="Filter/Slot/Value/SimplerFilter/Freq")
+#     e.bind(filter="Filter/Slot/Value/SimplerFilter/Freq")
 
 
 # ---------------------------------------------------------------------------
@@ -273,15 +298,15 @@ RACKS: list[Rack] = [pd1(), va1()]
 #                         with engines.engine(f"S{i + 1}", "OriginalSimpler") as e:
 #                             e.sample(wav)
 #                             e.bind(
-#                                 cutoff="Filter/Slot/Value/SimplerFilter/Freq",
-#                                 decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime",
+#                                 filter="Filter/Slot/Value/SimplerFilter/Freq",
+#                                 release="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime",
 #                             )
 #                     # The FM layer spans the whole selector rather than
 #                     # taking a slice, so it can blend under any sample.
 #                     with engines.engine("FM", "Operator") as e:
 #                         e.zone(0, 127)
-#                         e.bind(cutoff="Filter/Frequency",
-#                                decay="Filter/Envelope/DecayTime")
+#                         e.bind(filter="Filter/Frequency",
+#                                release="Filter/Envelope/DecayTime")
 #
 #                 pad_rack.device("Saturator").bind(drive="PreDrive")
 #
@@ -309,9 +334,9 @@ RACKS: list[Rack] = [pd1(), va1()]
 #     """Multi engine bass."""
 #     rack = Rack("BS1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
 #     with rack.engine("Wavetable", "InstrumentVector") as e:
-#         e.bind(cutoff="Filter1/Freq", resonance="Filter1/Res", ...)
+#         e.bind(filter="Filter1/Freq", character="Filter1/Res", ...)
 #     with rack.engine("Operator", "Operator") as e:
-#         e.bind(cutoff="Filter/Frequency", ...)
+#         e.bind(filter="Filter/Frequency", ...)
 #     with rack.engine("Drift", "Drift") as e:
 #         e.bind(...)
 #     return rack

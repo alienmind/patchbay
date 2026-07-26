@@ -410,8 +410,8 @@ def test_the_patchbayground_grid_builds():
     assert len({v["name"] for v in got}) == 96, "names must be distinguishable"
     for v in got:
         assert set(v["values"]) == {rack.grammar.macro_of(s)
-                                    for s in ("engine", "cutoff",
-                                              "decay", "resonance")}
+                                    for s in ("instrument", "filter",
+                                              "release", "character")}
 
 
 # --- nested racks ---------------------------------------------------------
@@ -505,7 +505,7 @@ def test_va1_builds_two_levels():
     assert len(racks) == 3, "the outer rack and its two sub-racks"
     chained = [m for m in mappings.find(root)
                if m["target"].startswith("MacroControls.")]
-    assert len(chained) == 6, "3 slots chained into each of 2 sub-racks"
+    assert len(chained) == 12, "6 slots chained into each of 2 sub-racks"
     assert all(m["channel"] == "16" for m in chained), "depth is not encoded"
 
 
@@ -592,6 +592,71 @@ def test_params_survives_a_gutted_device():
         sat.remove(p)
     assert find.params(sat) == []
     assert find.param(sat, "PreDrive") is None, "absent is not an error"
+
+
+# --- T3/S7: sample retargeting --------------------------------------------
+
+def _a_wav(dirpath):
+    """A real, minimal 48 kHz mono 16-bit WAV. 10 frames of silence.
+
+    Written rather than borrowed: nothing under `samples/` may be read by a
+    test, and `sample()` refuses a path that is not a file.
+    """
+    import struct
+    frames = 10
+    data = b"\x00\x00" * frames
+    hdr = (b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt "
+           + struct.pack("<IHHIIHH", 16, 1, 1, 48000, 96000, 2, 16)
+           + b"data" + struct.pack("<I", len(data)))
+    p = Path(dirpath) / "probe.wav"
+    p.write_bytes(hdr + data)
+    return p
+
+
+def test_sample_retargets_both_filerefs(tmp_path=None):
+    from patchbay import samples
+    out = Path(tmp_path) if tmp_path else Path("build")
+    out.mkdir(exist_ok=True)
+    wav = _a_wav(out)
+
+    rack = Rack("SR", Grammar("Instrument", "Filter"), kind=RackKind.INSTRUMENT)
+    with rack.engine("S", "OriginalSimpler") as e:
+        e.sample(wav)
+
+    device = find.devices(next(find.preset(rack.build()).iter("BranchPresets"))[0])[0]
+    got = samples.targets(device)
+
+    # S7: TWO FileRefs per sample, and in the donor they point at different
+    # files. Both must move, or the provenance ref still names the old one.
+    assert len(got) == 2, "the live ref and the provenance ref"
+    assert set(got) == {wav.resolve().as_posix()}, "both, to the same file"
+    assert all("/" in p and "\\" not in p for p in got), "Live writes posix"
+
+
+def test_sample_refuses_a_missing_file():
+    rack = Rack("SR", Grammar("Instrument"), kind=RackKind.INSTRUMENT)
+    with rack.engine("S", "OriginalSimpler") as e:
+        try:
+            e.sample("no/such/file.wav")
+        except FileNotFoundError:
+            return
+    raise AssertionError("a missing sample loads offline, so it must refuse")
+
+
+def test_sample_refuses_a_device_with_no_sampleref(tmp_path=None):
+    out = Path(tmp_path) if tmp_path else Path("build")
+    out.mkdir(exist_ok=True)
+    wav = _a_wav(out)
+
+    rack = Rack("X", Grammar("Instrument"), kind=RackKind.INSTRUMENT)
+    with rack.engine("FM", "Operator") as e:
+        e.sample(wav)
+    try:
+        rack.build()
+    except ValueError as err:
+        assert "SampleRef" in str(err)
+        return
+    raise AssertionError("Operator holds no sample; pointing one at it is a bug")
 
 
 # --- house style ----------------------------------------------------------
