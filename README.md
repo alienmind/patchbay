@@ -8,8 +8,8 @@ instead.
 
 ## Current state
 
-**Phase 0, spikes 4 of 13 done. Both kill criteria passed — the project is
-viable.** Next action is spike **S3b** in `SPIKES.md`.
+**Phase 0, spikes 5 of 13 done, S5 partial. Both kill criteria passed — the project is
+viable.** Next action is spike **S8** in `SPIKES.md`.
 
 No generator code exists yet. `adgkit/` currently holds discovery tooling
 only: read, write, diff, round trip, id census, mapping census.
@@ -19,6 +19,13 @@ mapping is a `KeyMidi` element inside the target parameter, encoding a
 virtual MIDI CC on channel 16 where the CC number is the macro index.
 Targets are named by containment, so mappings survive a subtree copy —
 which removes the risk that was expected to dominate Phase 2.
+
+The macro-to-parameter transfer function is also known: linear over the
+target parameter's own range. That is what Phase 5 needs to generate
+variation grids.
+
+Sample retargeting turned out cheap too — Live re-reads a sample's
+metadata on load, so rewriting two path fields per sample is enough.
 
 ## Documents, in reading order
 
@@ -40,7 +47,7 @@ disagree, `SCHEMA.md` wins, because it cites files in `racks/`.
 Read `SPIKES.md`'s progress table, then `ARCHITECTURE.md`. Between them
 they carry the full state — nothing important lives only in a chat
 transcript. Every **[V]** claim in `ARCHITECTURE.md` is reproducible from
-the files in `racks/` with the commands listed in its §11.
+the files in `racks/` with the commands listed in its §13.
 
 ## Requirements
 
