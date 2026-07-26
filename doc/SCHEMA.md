@@ -1106,8 +1106,10 @@ no UI involved**, which matters because Live 12.4.3 exposes no range
 editor at all. A generator has a capability the GUI does not.
 
 For the macro grammar in `PATCHBAYGROUND.md` this means a macro can be
-scoped to a musically sensible slice of a parameter - e.g. filter cutoff
-over 200 Hz..8 kHz rather than the full sweep - per mapping, per engine.
+scoped per mapping, per engine. What that scoping is FOR is settled by
+Q15: not to concentrate a knob's travel, which the parameter's own taper
+already handles, but to make one knob position mean the same thing on
+engines whose native ranges differ.
 
 ### Incidental
 
@@ -1117,6 +1119,264 @@ step bundled a rename with the randomisation toggle and some knob
 movement. The two fields of interest were still unambiguous, but it is a
 reminder that the one-change discipline is what keeps these diffs to a
 single line, as `s10_c` through `s10_f` each demonstrate.
+
+## Q10. Meld filter resonance - ANSWERED
+
+`donors/Meld Rack.adg` -> `donors/spikes/q10_a.adg`. One change: Engine A filter
+**Q** set to `8.0` in the UI, nothing else touched.
+
+The diff is one fact:
+
+    .../Device/InstrumentMeld/MeldVoice_EngineA_Filter_Macro1/Manual@Value
+    '0' -> '0.07999999821'
+
+**[V]** Meld's filter resonance is `MeldVoice_EngineA_Filter_Macro1`.
+`Macro2` is the L-B-H-N morph, by elimination.
+
+### Why this needed a spike at all
+
+Meld exposes its filter as `FilterType`, `Frequency`, `Macro1`, `Macro2`.
+Nothing in the parameter list contains "res" or "q", so
+`Device.search("filter", "res")` returns NOTHING and the tempting
+conclusion is that Meld has no resonance. It has one. The GUI labels the
+two knobs **Q** and **L-B-H-N**; the XML does not.
+
+This is `CLAUDE.md` rule 1 in its least obvious form. The usual failure is
+inventing a name that does not exist. Here the failure is concluding a
+parameter does not exist because the name search missed it. A search
+returning nothing is not evidence of absence, it is evidence that the GUI
+word is not the element word.
+
+**`Macro1` and `Macro2` are positional, not semantic.** They are whichever
+two knobs the selected `FilterType` offers. The binding above is verified
+for `FilterType = 0` (SVF 12dB) and is not guaranteed to hold for another
+filter type. A rack that changes filter type may silently re-point its
+resonance macro at something else.
+
+### Scale
+
+UI `8.0` stored as `0.07999999821`. See Q11/Q12 below for what that does
+and does not generalise to.
+
+## Q11/Q12. Displayed units are not stored units - ANSWERED
+
+Two one-change diffs, run to find out whether Q10's normalised Q was a
+Meld quirk or a general rule. It is neither, and the answer is more useful
+than either.
+
+| spike | files | change | stored |
+|---|---|---|---|
+| Q11 | `donors/Wavetable Rack.adg` -> `donors/spikes/q11_a.adg` | Filter 1 Res to UI `40` | `0.400000006` |
+| Q12 | `donors/Drift Rack.adg` -> `donors/spikes/q12_a.adg` | Filter Res to UI `1.01` | `1.00999999` |
+
+Both diffs are one real field plus the 16 `MacroDefaults` fields Live
+rewrites on every save.
+
+### The finding
+
+| device | parameter | UI range | stored for UI value | relationship |
+|---|---|---|---|---|
+| Meld | `MeldVoice_EngineA_Filter_Macro1` | 0..100 | `0.08` for `8.0` | UI/100 |
+| Wavetable | `Voice_Filter1_Resonance` | 0..100 | `0.4` for `40` | UI/100 |
+| Drift | `Filter_Resonance` | 0..1.01 | `1.01` for `1.01` | 1:1 |
+
+**[V]** Three resonance controls, two different relationships between what
+the GUI shows and what the file stores. There is no rule that converts one
+to the other.
+
+Drift's UI range is 0..1.01, which is why typing `40` into it produces
+`1.01`: the field clamps. That clamping is the tell. A parameter whose UI
+maxes at a number unlike 100 is displaying something close to its stored
+range; one showing 0..100 may well be displaying a percentage of a 0..1
+stored range.
+
+### What this corrects
+
+Q10 above originally called Meld's normalised Q "a fourth scale" alongside
+the three in `ARCHITECTURE.md` section 12. That was wrong, and the
+correction matters more than the original claim.
+
+Section 12 already says device parameters are in **native units over their
+own range**. Nothing there promises native units equal displayed units.
+Meld and Wavetable are not a new scale; they are devices whose native
+range is 0..1 while their GUI presents 0..100. Drift is a device whose
+native range is what the GUI shows. All three are section 12 behaving as
+written.
+
+The trap is not a missing scale. It is assuming DISPLAY equals NATIVE.
+
+### Q13. Envelope times
+
+Read off the three donors with no save, since the default values differ
+enough to be diagnostic on their own.
+
+| device | parameter | stored | displayed |
+|---|---|---|---|
+| Wavetable | `Voice_Modulators_AmpEnvelope_Times_Decay` | `0.5999999642` | `600 ms` |
+| Wavetable | `Voice_Modulators_AmpEnvelope_Times_Attack` | `0.001000000164` | `1.00 ms` |
+| Drift | `Envelope1_Decay` | `0.6000000238` | `600 ms` |
+| Meld | `MeldVoice_EngineA_AmpEnvelope_Times_Decay` | `0.6000000238` | `600 ms` |
+
+**[V]** Envelope times are stored in SECONDS and displayed in
+MILLISECONDS. A third relationship: not 1:1, not a normalisation, a unit
+prefix. Transcribing the displayed `600` into a binding is wrong by 1000.
+
+### The general rule
+
+Four parameter families, three relationships:
+
+| family | displayed | stored | relationship |
+|---|---|---|---|
+| Cutoff, all three devices | Hz | Hz | 1:1 |
+| Resonance, Wavetable and Meld | 0..100 | 0..1 | UI/100 |
+| Resonance, Drift | 0..1.01 | 0..1.01 | 1:1 |
+| Envelope times, all three | ms | s | UI/1000 |
+
+**Meld is the important row.** Its Q is normalised and its envelope is
+unit-converted, in the same device. So the relationship is a property of
+the PARAMETER, not of the device, and knowing how one parameter behaves
+predicts nothing about its neighbour.
+
+**[V]** There is no conversion rule and no per-device rule. A displayed
+number is never evidence of a stored one.
+
+### Consequence for bindings
+
+`e.bind(filter=("path", lo, hi))` ranges are in STORED units, because that
+is what gets written to `MidiControllerRange`. So a range cannot be
+transcribed from a Live GUI. It is measured:
+
+1. set the parameter to its minimum in Live, save, read the stored value
+2. set it to its maximum, save, read the stored value
+
+Two saves per parameter whose range a rack means to narrow. Cheaper first
+step: set the parameter to a value that cannot be confused, `40` where the
+maximum might be 100, and see what lands. Q11 and Q12 were each settled by
+one such save.
+
+Cutoff is the only family so far that needs no measurement, because
+`20479.998` for 20.5 kHz is self-evidently Hz. A displayed unit that is
+real (Hz, dB, %) is a hint that storage is native; a bare number, or a
+prefixed unit like ms, is not.
+
+## Q14. One slot, two unit systems - ANSWERED BY EAR
+
+Found by playing `build/PD1.adg`, not by reading XML. Macro 8 (Volume) at
+full left silenced the Operator engine and left the Simpler engine clearly
+audible. Full right clipped.
+
+`Device.range_of()` says why:
+
+| engine | parameter | native range | unit |
+|---|---|---|---|
+| Operator | `Globals/Volume` | `0.0003162277571` .. `1.99526238` | linear amplitude |
+| Simpler | `VolumeAndPan/Volume` | `-36.0` .. `36.0` | decibels |
+
+**[V]** Two parameters serving the same musical idea, in two different
+unit systems, on two engines of the same rack.
+
+Operator's floor `0.000316` is the same number `ARCHITECTURE.md` section
+12 gives as the send floor, and it is -70 dB, which reads as silence.
+Simpler's floor is -36 dB, which does not. Neither device is wrong; they
+simply do not agree, and an unscoped binding hands the macro whatever each
+one offers.
+
+The ceilings diverge too. Operator reaches 1.995, about +6 dB; Simpler
+reaches +36 dB. That is the clipping.
+
+### Why the grammar did not catch it
+
+The sound family constraint in `PATCHBAYGROUND.md` says one knob should
+move the same musical idea through different synthesis. Both engines bound
+slot 8 to their own volume, so the binding was correct by that rule and
+still wrong in the room.
+
+**A slot is only as consistent as its RANGES.** Binding the right
+parameter on every engine is necessary and not sufficient. Where engines
+disagree about units, the ranges are what make one knob feel like one
+knob, and `MidiControllerRange` is the only place that agreement can live.
+
+### The fix
+
+Scope both to silence-to-unity in their own units:
+
+```python
+volume=("Globals/Volume", 0.0003162277571, 1.0)        # amplitude
+volume=("VolumeAndPan/Volume", -36.0, 0.0)             # dB
+```
+
+Verified in `build/PD1.adg`: `Min=0.0003162277571 Max=1` and `Min=-36
+Max=0`. Full right is now unity on both, so neither clips.
+
+Full left still differs, -70 dB against -36 dB, because -36 is Simpler's
+floor. That is a device limit, not a choice, and it is the residue this
+fix cannot remove.
+
+### Generalisation
+
+This is the audible case of Q11 through Q13. Those found displayed units
+differing from stored units within one parameter. This finds two
+parameters, bound to one slot, whose stored units differ from each other.
+
+The rule that covers both: **a range is measured, per parameter, and a
+grammar slot needs its ranges reconciled across every engine that binds
+it.** `Device.range_of()` answers the first part without touching Live.
+Only ears answer the second.
+
+## Q15. A macro range follows the parameter's taper - ANSWERED
+
+`build/PD1.adg`, FM engine, macro 3 bound to `Filter/Frequency` over
+`200..8000` Hz. Macro set to 64, the centre. Live displayed **1.28 kHz**.
+
+| hypothesis | predicted at macro 64 | matches |
+|---|---|---|
+| linear in Hz | 4100 Hz | no |
+| logarithmic, geometric mean | 1265 Hz | **yes** |
+
+**[V]** `MidiControllerRange` is interpolated along the PARAMETER'S OWN
+taper, not linearly in stored units. For a filter frequency that taper is
+logarithmic, so knob travel is spread by octave rather than by hertz.
+
+### Consequence: a wide range costs nothing
+
+The reason to narrow a range would be to stop a knob spending most of its
+travel somewhere useless. With a logarithmic taper that does not happen:
+30..18500 Hz is about 9.3 octaves spread evenly across 128 steps, roughly
+14 steps per octave, playable everywhere.
+
+So the `200..8000` this project used everywhere was giving up the top of
+every filter for nothing:
+
+| engine | native cutoff | reachable under 200..8000 |
+|---|---|---|
+| Operator | 30 .. 18500 | 43% |
+| Simpler | 30 .. 22000 | 36% |
+| Wavetable | 20 .. 20480 | 39% |
+| Drift | 20 .. 20000 | 39% |
+
+The filter could never fully open. No macro position meant "filter off",
+and every generated sound was permanently darkened.
+
+### Where the number came from
+
+Nowhere. `200..8000` first appears in `KICKOFF.md` as an illustrative
+range in a spike, and was then copied into `DSL.md`, this file,
+`PATCHBAYGROUND.md` and `examples/patchbayground.py`. No document argued
+for it. It survived because a specific-looking constant reads as
+deliberate.
+
+Worth generalising: **a number repeated in five files with no derivation
+recorded anywhere is a guess wearing a uniform.** The one-change diff
+habit catches wrong facts about the format; it does not catch a plausible
+constant nobody ever measured.
+
+### Replaced by
+
+`CUTOFF = (30.0, 18500.0)` in `examples/patchbayground.py`, the
+INTERSECTION of what the four engines offer. The intersection rather than
+each engine's own maximum, because one knob position should mean one
+frequency on every engine, which is the sound family constraint. Nothing
+audible is lost: 18.5 kHz is already above where a sweep reads as pitch.
 
 ## S11. .als track structure
 
