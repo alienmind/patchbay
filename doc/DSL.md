@@ -57,6 +57,40 @@ parameters to the standard grammar"**. Everything else follows:
 - the same grammar slot means the same macro in every engine, which *is*
   the sound family constraint
 
+## A chain may be another rack
+
+DR1 is three levels deep and VA1 nests a rack per chain, so a chain has to
+be able to hold a rack as easily as a device:
+
+```python
+rack.nest("PADS", pd1())
+rack.nest("KEYS", ld1()).bind(cutoff="cutoff", decay="decay")
+```
+
+`nest` is `engine`'s sibling, not a separate construct. Both add one
+chain, both get a zone, both take part in `engine_macro`, and a slot a
+nested rack answers to counts as driven for variations exactly as a bound
+parameter does. So the outer rack does not know or care which kind of
+chain it has, and a variation reaches into a sub-rack without saying so.
+
+**Bindings are outer slot to inner slot, and the default is identity.**
+That default is the whole argument for one grammar: when both racks share
+it, `outer.nest(name, inner)` with no arguments chains every slot the
+inner rack drives into the matching outer knob. Naming the exceptions is
+the only work, as VA1 does by binding around `engine` so the outer knob
+picks a sub-rack rather than doing two jobs.
+
+Nothing in the mapping code knows how deep it is. A macro-to-macro mapping
+is a `KeyMidi` on the inner rack's `MacroControls.N`, which is an ordinary
+parameter node, and `Channel` stays 16 at every depth. So the same code
+writes depth 1 and depth 3.
+
+The one thing that *does* change with depth is an attribute: a nested
+`GroupDevicePreset` carries an `Id`, and the document's top-level one must
+carry none. That is handled in `_nested_preset` and `_load_skeleton` and
+is invisible from the spec. It is also the whole of what once made nested
+racks look intractable - see `THE_BASEMENT.md`.
+
 ## A sound is a variation
 
 `PATCHBAYGROUND.md` puts ~692 sounds across 18 engines. As chains that is
@@ -112,6 +146,8 @@ Each capability traces to a spike, not an assumption:
 | distributes zones as bounds with collapsed fades | S5: `Min <= XfMin <= XfMax <= Max` |
 | copies devices from donors | S12: partial devices load, but donors carry the configured values |
 | strips a skeleton's own macro mappings | those describe how its *parent* drove it |
+| writes an `Id` on a nested rack and none on the top-level one | S13: that one attribute decides whether Live accepts the drop |
+| chains macros without regard to depth | S4: `Channel` is 16 at every level, depth is not encoded |
 | writes variations in macro space, all 16 slots, `MacroHasValue.N` for participation | S8: that is the `MacroSnapshot` shape, and rewriting Live's own diffs at zero facts |
 
 ## Verified, not merely designed
@@ -132,11 +168,18 @@ ear: recall a Sample variation, turn Engine full left, and the same musical
 idea arrives through FM with nothing re-set. Live accepts more variations
 than the template needs - 256 loaded without truncation.
 
-One thing the exercise caught. The DSL originally scanned `racks/` for a
-skeleton and would lift a rack out of another rack's chain, producing a
-file that passed every check and that Live refused to accept as a drop.
-Skeletons are now top-level only, and the underlying question is open as
-Q1b in `SPIKES.md`. It matters because DR1 needs racks nested INTO chains.
+Nesting passed too. `build/VA1.adg` is two levels written from scratch:
+Macro 1 swaps sub-rack, Macros 2 to 4 chain into whichever is selected,
+and its variations recall through that chain. So a rack Live never saved
+survives being nested, and a macro-to-macro mapping written by patchbay
+drives exactly like one Live wrote.
+
+One thing the exercise caught, and it took two passes. The DSL originally
+lifted a rack out of another rack's chain to use as a skeleton, producing
+a file that passed every check and that Live refused as a drop. The cause
+turned out to be a single leftover attribute; the guard against nested
+skeletons is gone and the attribute is handled. See `THE_BASEMENT.md` for
+why it stayed hidden as long as it did.
 
 ## Deliberate limits
 

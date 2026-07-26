@@ -136,14 +136,35 @@ GroupDevicePreset                        (DrumGroupDevice)
 ```
 
 This is the DR1 pattern from `PATCHBAYGROUND.md`, confirmed to exist and
-function in a real file.
+function in a real file. **[V]** `build/VA1.adg` is two levels of it
+written from scratch by `patchbay`, and it loads.
 
-**[V] A nested rack cannot be lifted out and used standalone.** Taking an
-inner `GroupDevicePreset`, wrapping it in a fresh `<Ableton>` root and
-saving produces a file Live refuses to accept as a drop, without ever
-loading it. Nothing checkable differs from a working rack. See
-`SPIKES.md` Q1b; this is open, and it is a warning for anyone writing
-nested racks rather than only reading them.
+### The one thing that changes with position
+
+**[V] A top-level `GroupDevicePreset` carries no attributes. A nested one
+carries an `Id`.** All 26 racks in `racks/` agree, and it is the only
+structural difference between the same rack built on a top-level skeleton
+and on a nested one.
+
+**[V] A stray `Id` on the top-level preset makes Live refuse the file as a
+drop**, without ever loading it - no dialog, because Live never parses the
+preset. Proved by one change: `build/probe_b_toplevel.adg` loads,
+`build/probe_c_id_added.adg` is the same file plus `Id="0"` and is
+refused.
+
+This is the boundary case of the sibling rule in §8. At the top level a
+`GroupDevicePreset` has no siblings, so it must carry **no** `Id` rather
+than a unique one.
+
+Consequence for a generator: **moving a rack between the two positions
+means adding or removing that attribute.** Lifting an inner rack out to
+use standalone is otherwise correct, and lifting one out *without*
+stripping the `Id` is what made this look like a deep serialisation
+problem for a while. See `THE_BASEMENT.md`.
+
+**[V]** Nothing else about a nested rack differs. `Channel` stays `16` at
+every depth (§5), depth is not encoded anywhere, and a `GroupDevicePreset`
+written into a chain's `DevicePresets` needs no other adjustment.
 
 ## 4. Parameter nodes
 
@@ -417,6 +438,10 @@ until diffed. `KeyRange` and `VelocityRange` elements were observed in
 
 **[V]** **The one rule: an `Id` must be unique among its siblings.**
 Everything else about the value is free.
+
+**[V]** With one boundary case: the document's top-level
+`GroupDevicePreset` has no siblings, and must carry no `Id` at all. See
+§3.
 
 Established by deliberate-failure test. Two sibling `DrumBranchPreset`
 elements sharing `Id="0"` makes Live reject the whole preset with *"the
@@ -784,6 +809,10 @@ Derived from the above; these are the invariants `patchbay` must respect.
 15. **When cloning a branch, give it an `Id` free among its siblings.** That
     is the only id work required, and getting it wrong makes Live reject
     the whole preset. §8.
+17. **A rack written into a chain's `DevicePresets` needs an `Id`; the
+    document's top-level rack must have none.** Moving a rack between
+    those two positions means adding or removing that one attribute, and
+    nothing else. §3.
 16. **Device nodes may be partial** - override the parameters you care
     about and let Live default the rest. §8.
 14. **Adding a return chain means adding an `AudioBranchSendInfo` to every
@@ -828,6 +857,8 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 | `build/PD1.adg` | 96 variations over four slots, one being the engine | variations load and recall; a variation may drive `ChainSelector` |
 | `build/probe_q4_256.adg` | 256 variations, count the only difference from PD1 | no snapshot ceiling at 256 |
 | `build/probe_q5_unmapped.adg` | one variation flagging an unmapped macro | accepted on load, inert on recall |
+| `build/probe_b_toplevel.adg` / `probe_c_id_added.adg` | one rack, differing only by `Id` on the top-level preset | a top-level `GroupDevicePreset` must carry no `Id` |
+| `build/VA1.adg` | two levels of nesting, written from scratch | a rack Live never saved survives being nested; macro-to-macro drives |
 
 Reproduce with:
 

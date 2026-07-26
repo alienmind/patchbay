@@ -20,35 +20,23 @@ The end-to-end chain has passed its gate in Live: a rack declared in
 MIDI track, one grammar driving two synthesis engines, 96 variations
 recalling.
 
+Nesting has passed the same gate. `build/VA1.adg` is two levels written
+from scratch, with macros chaining into whichever sub-rack is selected.
+DR1's remaining blockers are the pad side, not the nesting.
+
 ## In progress
 
 Nothing. Pick from Next.
 
 ## Next
 
-**T1. Nested racks.** The DSL cannot write a `GroupDevicePreset` into
-another rack's `DevicePresets`. DR1 needs three levels. The structure is
-known from S4; what is unknown is whether a rack Live never saved itself
-survives being nested. Build it, then gate it in Live, and confirm
-macro-to-macro mappings still drive.
-*Blocks: DR1, VA1, VA2.*
-
-**T2. Why a nested rack cannot be lifted out** (`SPIKES.md` Q1b). A
-`GroupDevicePreset` taken from inside another rack's chain, wrapped in a
-fresh `<Ableton>` root and saved, produces a file Live refuses as a drop.
-It never gets as far as loading. Everything checkable looks correct: same
-top-level children as a working rack, same `PresetRef` shape with the
-right `DeviceId`, no sibling id collisions, no parent-referencing state in
-`LastPresetRef`, `SourceContext`, `LockId` or `LockSeal`.
-
-Evidence: `build/probe_a_extracted.adg` refuses to drag,
-`build/probe_b_audio.adg` from the same code on a top-level skeleton drags
-onto both track types.
-
-Workaround in place: the DSL accepts only a top-level rack as a skeleton
-and raises otherwise. Diff a hand-built nested rack against a Live-saved
-one to find the difference.
-*Coupled to T1: the same sensitivity may block writing racks INTO chains.*
+**T1. Drum rack pads in the DSL.** What DR1 still needs now that nesting
+is done. `clone.py` already sets `ReceivingNote` and allocates free notes,
+and `Rack.nest` already puts a rack inside a chain; nothing joins them up.
+A drum rack declares pads by note rather than chains by zone, so
+`RackKind.DRUM` needs a pad-shaped entry point rather than `engine`, and
+zone distribution does not apply to a pad.
+*Blocks: DR1. Wants T3 for the samples and Q6 for the return selectors.*
 
 **T3. Sample retargeting** (KICKOFF Phase 3). Much smaller than budgeted:
 S7 showed Live re-reads sample metadata on load, so only the two path

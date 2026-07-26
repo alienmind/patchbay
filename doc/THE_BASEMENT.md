@@ -54,16 +54,43 @@ SIBLINGS. Nothing references ids.
 `clone.py` copies subtrees and checks sibling uniqueness. There is no
 remapping pass, and there never needs to be.
 
-## Lifting a nested rack out to use as a skeleton
+## "A nested rack cannot be lifted out"
 
 The DSL originally scanned `racks/` for a skeleton and would take a
 `GroupDevicePreset` from inside another rack's chain. That produced a file
-which passed every check the tooling has and which Live refuses to accept
-as a drop.
+which passed every check the tooling has and which Live refused to accept
+as a drop, without ever loading it.
 
-The DSL now accepts only a top-level rack as a skeleton, and raises
-otherwise. **Why Live refuses is still open**, as `TODO.md` T2, because
-the same sensitivity may block writing racks INTO chains.
+Stated as a structural claim - that Live serialises a nested rack
+differently, or records its parent somewhere - it was wrong. The nested
+subtree is byte for byte usable. It keeps the `Id` it carried among its
+`DevicePresets` siblings, and a top-level `GroupDevicePreset` must have no
+attributes at all. One attribute, and the drop is refused.
+
+The guard that accepted only top-level skeletons is gone, replaced by
+stripping the `Id`. See S13 in `SCHEMA.md`, and `ARCHITECTURE.md` §3.
+
+**What made it hard to see:** the comparison was between a broken file and
+a working one that also differed in what it contained, so the one fact was
+buried in hundreds. Building the *same rack twice* and changing only the
+skeleton's position reduced it to three facts, two of them cosmetic. When
+a diff is too big to read, the fix is a better pair of files, not a
+closer reading.
+
+## `PresetRef` as the reason a lifted-out rack was refused
+
+The standing suspect while the above was open. A nested rack's
+`AbletonDefaultPresetRef` has `RelativePathType=0` and empty `Path` and
+`RelativePath`, while `racks/s1_source.adg`'s top-level drum rack points
+at the factory device with `RelativePathType=7`. A tidy theory followed:
+Live resolves which device to instantiate from that path when accepting a
+drop, and an empty one cannot be resolved.
+
+Dead on inspection. `racks/s3_a.adg` and `racks/s7_a.adg` are top-level
+racks Live saved with exactly the empty shape, and `build/PD1.adg` has it
+too and was already gated in Live. A never-saved rack simply has nothing
+to point at. The `RelativePathType=7` case is a rack still carrying its
+factory default, not a requirement.
 
 ## The sample cache-key theory
 

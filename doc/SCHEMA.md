@@ -494,6 +494,76 @@ exactly one thing: **give the new branch an `Id` unused by its siblings.**
 sibling collisions directly and its verdict matches Live's behaviour on all
 three test files.
 
+## S13. Where a GroupDevicePreset sits, and its `Id` - ANSWERED
+
+**A top-level `GroupDevicePreset` carries no attributes. A nested one
+carries an `Id`. Getting that backwards is what made Live refuse a lifted
+out nested rack as a drop, without ever loading it.**
+
+This answers Q1b, which had been open with everything checkable looking
+correct.
+
+### Isolating it
+
+The earlier investigation compared a broken file against a working one and
+found nothing, because the two files also differed in what they contained.
+The experiment that worked builds the **same rack twice**, changing only
+which `GroupDevicePreset` is harvested as the skeleton - top level from
+`racks/s7_a.adg`, nested from `racks/s1_source.adg` at depth 2. Everything
+else is identical by construction.
+
+Three facts came back:
+
+```
+CHANGED (2)
+  .../InstrumentBranchPreset[0]/DocumentColorIndex@Value   26  ->  1
+  .../InstrumentGroupDevice/AreMacroControlsVisible@Value  true  ->  false
+
+REMOVED (1)
+  GroupDevicePreset@Id = 0
+```
+
+Two are cosmetic. The third is the finding.
+
+### Static evidence
+
+All **26** `.adg` files in `racks/`, every one saved by Live, have a
+top-level `GroupDevicePreset` whose attribute dict is **empty**. Both
+nested racks in `racks/s1_source.adg` carry an `Id`, `0` and `1`.
+
+Asserted by `test_live_saved_racks_agree_on_that`.
+
+### Deliberate-failure test
+
+Two files, one change apart, both dragged into Live 12.4.3:
+
+| file | change | result |
+|---|---|---|
+| `build/probe_b_toplevel.adg` | none, the control | **loads** |
+| `build/probe_c_id_added.adg` | `Id="0"` on the top-level preset | **refused as a drop** |
+
+The refusal happens at the drop, not at load: there is no dialog, because
+Live never gets as far as parsing the preset.
+
+### What it is not
+
+`PresetRef` was the standing suspect and is **dead**. A never-saved rack
+carries an `AbletonDefaultPresetRef` with `RelativePathType=0` and empty
+`Path` and `RelativePath`, and both `racks/s7_a.adg` and `build/PD1.adg`
+are that shape and load. The `DeviceId` child was already known to be
+correct in the refused files.
+
+### Consequence
+
+The `Id` rule from S6 is unchanged - unique among siblings - and this is
+its boundary case. At the top level a `GroupDevicePreset` has no siblings
+at all, so it must carry no `Id` rather than a unique one.
+
+`Rack._load_skeleton` strips the `Id` when a nested rack is used as a
+skeleton, and `Rack._nested_preset` sets one when a rack is written into a
+chain. `build/VA1.adg`, two levels deep and built entirely by patchbay,
+loads and its macro-to-macro mappings drive.
+
 ## S12. Minimal device viability - ANSWERED
 
 Four copies of the `s3b` Saturator rack with parameter nodes deleted, all

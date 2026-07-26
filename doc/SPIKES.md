@@ -8,8 +8,9 @@ This file is the procedure and the open list.
 
 ## Phase 0 is closed
 
-Twelve spikes answered, one retired. Both kill criteria passed. Every
-verified claim in `ARCHITECTURE.md` traces to a file in `racks/`.
+Thirteen spikes answered, one retired. Both kill criteria passed. Every
+verified claim in `ARCHITECTURE.md` traces to a file in `racks/` or, for
+the constructed failure tests, in `build/`.
 
 | | spike | result |
 |---|---|---|
@@ -25,6 +26,7 @@ verified claim in `ARCHITECTURE.md` traces to a file in `racks/`.
 | S9 | drum racks | `ReceivingNote`, `ReturnBranchPresets`, `SendInfos` |
 | S10 | macro metadata | one field per menu item; ranges are `MidiControllerRange` |
 | S12 | minimal devices | load with ALL parameters deleted |
+| S13 | nested racks | a top-level `GroupDevicePreset` must carry no `Id` |
 | S11 | `.als` structure | RETIRED. Live's API does tracks and routing, see `MCP.md` |
 
 ## Open questions
@@ -32,35 +34,18 @@ verified claim in `ARCHITECTURE.md` traces to a file in `racks/`.
 Ordered by what they block. None is a kill criterion; the project works
 without any of them.
 
-**Q1. Rack inside a chain.** DR1 needs three levels of nesting and the
-structure is known, but the DSL cannot yet write a `GroupDevicePreset`
-into another rack's `DevicePresets`. This is a build task with a spike
-attached: confirm a generated nested rack loads and that macro-to-macro
-mappings survive being written rather than saved by Live.
-*Blocks: DR1, VA1, VA2.*
+**~~Q1. Rack inside a chain.~~ ANSWERED: it writes, and it drives.**
+`build/VA1.adg` is two levels built by `patchbay` from
+`examples/patchbayground.py`. It loads, Macro 1 swaps sub-rack, Macros 2
+to 4 chain macro-to-macro into whichever is selected, and variations
+recall through that chain. So a rack Live never saved survives being
+nested, and a mapping written rather than saved drives identically.
 
-**Q1b. Why a nested rack cannot be lifted out.** A `GroupDevicePreset`
-taken from inside another rack's chain, wrapped in a fresh `<Ableton>`
-root and saved, produces a file Live REFUSES TO ACCEPT AS A DROP. It never
-gets as far as loading.
-
-Everything checkable looks correct: same top-level children as a working
-rack, same `PresetRef` shape with the right `DeviceId`, no sibling id
-collisions, no parent-referencing state in `LastPresetRef`,
-`SourceContext`, `LockId` or `LockSeal`.
-
-Evidence: `build/probe_a_extracted.adg` refuses to drag, while
-`build/probe_b_audio.adg` built by the same code from a top-level skeleton
-drags onto both track types.
-
-This matters beyond skeletons: DR1 needs racks nested INTO chains, and if
-Live is sensitive to something about a nested rack's serialisation then
-writing one may hit the same wall. Diff a hand-built nested rack against a
-Live-saved one to find it.
-
-*Workaround in place:* the DSL now only accepts a top-level rack as a
-skeleton and raises otherwise, rather than silently producing a file that
-cannot be loaded.
+**~~Q1b. Why a nested rack cannot be lifted out.~~ ANSWERED: a leftover
+`Id`.** See S13 below. A top-level `GroupDevicePreset` carries no
+attributes and a nested one carries an `Id`; that one attribute decides
+whether Live accepts the drop. The guard restricting skeletons to
+top-level racks is gone.
 
 **Q2. Aftertouch.** `PATCHBAYGROUND.md` wants aftertouch mapped to filter
 and pitch on every sound, excluding drum pads. Nothing is known about how
@@ -501,3 +486,21 @@ XML is off the table permanently.
 defaults whatever is absent. Donors are therefore about *fidelity*, not
 loadability - they carry a configured device, saving us from knowing every
 parameter name and default. Generators may write partial device nodes.
+
+## ~~S13. Nested racks~~ - DONE
+
+Not planned. It came out of Q1b, which had been open with everything
+checkable looking correct.
+
+**Method, and it is the point of this entry:** build the SAME rack twice,
+changing only which `GroupDevicePreset` is harvested as the skeleton - top
+level from `racks/s7_a.adg`, nested from `racks/s1_source.adg`. Then diff.
+Three facts came back where the earlier comparison had produced hundreds.
+
+**Result:** a top-level `GroupDevicePreset` carries no attributes and a
+nested one carries an `Id`. Confirmed by one change in Live:
+`build/probe_b_toplevel.adg` loads, the same file plus `Id="0"` is refused
+as a drop. Evidence in `SCHEMA.md` S13, model in `ARCHITECTURE.md` §3.
+
+The one-change rule applies to which FILES you compare, not only to what
+you change inside one. A diff too big to read is a badly chosen pair.

@@ -414,6 +414,101 @@ def test_the_patchbayground_grid_builds():
                                               "decay", "resonance")}
 
 
+# --- nested racks ---------------------------------------------------------
+
+def _nested_pair():
+    """An outer rack with one chain holding an inner rack."""
+    g = Grammar("Engine", "Cutoff")
+    inner = Rack("INNER", g, kind=RackKind.INSTRUMENT)
+    with inner.engine("FM", "Operator") as e:
+        e.bind(cutoff="Filter/Frequency")
+    outer = Rack("OUTER", g, kind=RackKind.INSTRUMENT)
+    outer.nest("SUB", inner)
+    return outer
+
+
+def test_only_the_top_level_preset_carries_no_id():
+    """The one difference between the two positions a GroupDevicePreset can
+    occupy, and the reason a lifted-out nested rack was refused as a drop."""
+    outer = _nested_pair()
+    racks = list(find.walk_racks(find.preset(outer.build())))
+    assert len(racks) == 2
+    assert racks[0].attrib == {}, "a top-level preset has no attributes"
+    assert racks[1].get("Id") is not None, "a nested preset is a sibling, so it has one"
+
+
+def test_live_saved_racks_agree_on_that():
+    for f in sorted(RACKS.glob("*.adg")):
+        assert find.preset(io.load(f)).attrib == {}, f.name
+
+
+def test_a_nested_skeleton_loses_its_id():
+    """s1_source's inner rack is usable as a skeleton once the Id is gone."""
+    g = Grammar("Engine", "Cutoff")
+    rack = Rack("FROM_NESTED", g, kind=RackKind.INSTRUMENT,
+                skeleton=RACKS / "s1_source.adg")
+    with rack.engine("FM", "Operator") as e:
+        e.bind(cutoff="Filter/Frequency")
+    assert find.preset(rack.build()).attrib == {}
+
+
+def test_nesting_chains_macro_to_macro():
+    """Outer macro N drives the inner rack's MacroControls, Channel 16 and
+    no depth encoded anywhere - so the mapping is the same at any depth."""
+    root = _nested_pair().build()
+    inner = find.walk_racks(find.preset(root))
+    inner = list(inner)[1]
+    dev = find.rack_device(inner)
+    target = find.macro(dev, 2)                 # inner Cutoff
+    assert params.mapped_macro(target) == 2     # driven by outer Cutoff
+    assert target.find("KeyMidi/Channel").get("Value") == "16"
+
+
+def test_nest_defaults_to_identity_over_the_shared_grammar():
+    outer = _nested_pair()
+    assert outer.engines[0].resolved() == {"Engine": "Engine", "Cutoff": "Cutoff"}
+
+
+def test_an_explicit_bind_replaces_the_default():
+    outer = _nested_pair()
+    outer.engines[0].bind(cutoff="cutoff")
+    assert outer.engines[0].resolved() == {"cutoff": "cutoff"}
+
+
+def test_a_nested_slot_counts_as_driven():
+    """A variation may name a slot only something answers to, and a chained
+    macro answers just as much as a bound parameter does."""
+    outer = _nested_pair()
+    outer.variations(Variation("v", cutoff=40))
+    dev = find.rack_device(find.preset(outer.build()))
+    assert variations.count(dev) == 1
+
+
+def test_an_instrument_rack_is_refused_in_an_audio_effect_chain():
+    g = Grammar("Cutoff")
+    inner = Rack("I", g, kind=RackKind.INSTRUMENT)
+    outer = Rack("A", g, kind=RackKind.AUDIO_EFFECT)
+    try:
+        outer.nest("SUB", inner)
+    except ValueError as e:
+        assert "audio effect chain" in str(e)
+    else:
+        raise AssertionError("Live refuses this preset; so must we")
+
+
+def test_va1_builds_two_levels():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    root = patchbayground.va1().build()
+    racks = list(find.walk_racks(find.preset(root)))
+    assert len(racks) == 3, "the outer rack and its two sub-racks"
+    chained = [m for m in mappings.find(root)
+               if m["target"].startswith("MacroControls.")]
+    assert len(chained) == 6, "3 slots chained into each of 2 sub-racks"
+    assert all(m["channel"] == "16" for m in chained), "depth is not encoded"
+
+
 # --- S12: devices may be partial ------------------------------------------
 
 def test_params_survives_a_gutted_device():

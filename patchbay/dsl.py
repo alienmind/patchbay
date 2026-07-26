@@ -197,6 +197,57 @@ class Engine:
         return False
 
 
+@dataclass(slots=True)
+class Nest:
+    """One chain holding another rack, and the macro-to-macro bindings.
+
+    Nesting is how DR1 is shaped: a drum pad whose chain is an instrument
+    rack, whose chain is another instrument rack. Three levels, observed in
+    racks/s1_source.adg.
+
+    A macro-to-macro mapping is not a special case. The inner rack's
+    MacroControls.N is an ordinary parameter node and takes a KeyMidi like
+    any other, with Channel 16 at every depth (ARCHITECTURE.md section 5).
+    So the bindings here are outer slot -> inner slot, and the default is
+    identity across the shared grammar, which is the whole point of one
+    grammar.
+    """
+
+    rack: "Rack"
+    name: str
+    inner: "Rack"
+    bindings: dict[str, str] = field(default_factory=dict)
+
+    def bind(self, **slots: str) -> "Nest":
+        """Bind outer grammar slots to inner ones. `cutoff="cutoff"`.
+
+        Calling this at all replaces the identity default, so a partial
+        binding means only what is named is driven.
+        """
+        for outer, inner in slots.items():
+            self.rack.grammar.macro_of(outer)     # fail early on a typo
+            self.inner.grammar.macro_of(inner)
+            self.bindings[outer] = inner
+        return self
+
+    def resolved(self) -> dict[str, str]:
+        """The bindings to write, defaulting to identity on shared slots."""
+        if self.bindings:
+            return dict(self.bindings)
+        driven = self.inner.driven_slots()
+        return {s: s for s in self.rack.grammar if s.lower() in driven
+                and s in self.inner.grammar}
+
+    def __enter__(self) -> "Nest":
+        return self
+
+    def __exit__(self, *exc: object) -> bool:
+        return False
+
+
+Chain = Union[Engine, Nest]
+
+
 class Rack:
     """A rack described by its engines and their grammar bindings."""
 
@@ -212,7 +263,7 @@ class Rack:
         self.grammar = grammar
         self.kind = kind
         self.library: Library = library or Library.default()
-        self.engines: list[Engine] = []
+        self.engines: list[Chain] = []
         self.variation_set: list[Variation] = []
         self._skeleton = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
@@ -227,6 +278,23 @@ class Rack:
         e = Engine(self, name, device_tag)
         self.engines.append(e)
         return e
+
+    def nest(self, name: str, inner: "Rack") -> Nest:
+        """Add a chain holding another rack. One nested rack is one chain.
+
+        An instrument cannot live in an audio effect chain, and Live will
+        not load a preset that tries, so the pairing is refused here rather
+        than discovered on a drop.
+        """
+        if inner is self:
+            raise ValueError(f"rack {self.name!r} cannot nest itself")
+        if self.kind is RackKind.AUDIO_EFFECT and inner.kind is not RackKind.AUDIO_EFFECT:
+            raise ValueError(
+                f"{inner.kind.name.lower()} rack {inner.name!r} cannot go in an "
+                f"audio effect chain; Live refuses the preset")
+        n = Nest(self, name, inner)
+        self.engines.append(n)
+        return n
 
     # --- variations -------------------------------------------------------
 
@@ -252,7 +320,12 @@ class Rack:
         entry reads as live and is not (SPIKES.md Q5). Silence is the worse
         failure, so this refuses.
         """
-        out = {b.slot.lower() for e in self.engines for b in e.bindings.values()}
+        out: set[str] = set()
+        for chain in self.engines:
+            if isinstance(chain, Nest):
+                out |= {s.lower() for s in chain.resolved()}
+            else:
+                out |= {b.slot.lower() for b in chain.bindings.values()}
         if "engine" in self.grammar:
             out.add("engine")
         return out
@@ -295,8 +368,11 @@ class Rack:
         self._distribute_zones(branches)
         self._map_engine_selector(rack_dev)
 
-        for engine, branch in zip(self.engines, branches):
-            self._apply_bindings(engine, branch)
+        for chain, branch in zip(self.engines, branches):
+            if isinstance(chain, Nest):
+                self._apply_nest(chain, branch)
+            else:
+                self._apply_bindings(chain, branch)
 
         self._write_variations(rack_dev)
 
@@ -338,6 +414,12 @@ class Rack:
             wrapper.append(preset)
             root = wrapper
 
+        # A nested preset carries the Id it held among its DevicePresets
+        # siblings. A top-level one carries no attributes at all, in all 26
+        # racks Live saved here, and a stray Id is what makes Live refuse
+        # the drop. See THE_BASEMENT.md.
+        preset.attrib.pop("Id", None)
+
         self._strip_inherited_mappings(preset)
 
         container = preset.find("BranchPresets")
@@ -374,21 +456,19 @@ class Rack:
         return removed
 
     def _preset_of_kind(self, root: Element) -> Element | None:
-        """The TOP-LEVEL GroupDevicePreset, if it matches this rack kind.
+        """A GroupDevicePreset of this rack's kind, top level for preference.
 
-        Top level only, deliberately. A rack nested inside another rack's
-        chain cannot be lifted out and used as a standalone preset: Live
-        refuses to even accept the drop. Cause unknown, recorded as an open
-        question in doc/SPIKES.md.
-
-        Silently falling back to a nested rack is how this produced files
-        that looked fine, passed every check, and could not be loaded.
+        A rack nested in another rack's chain is usable as a skeleton, but
+        only once its Id is dropped - see _load_skeleton. Top level is still
+        preferred, because a nested rack also carries its parent's mappings
+        on its own macros and those have to be stripped.
         """
-        for gdp in root:
-            if isinstance(gdp.tag, str) and gdp.tag == "GroupDevicePreset":
-                dev = find.rack_device(gdp)
-                if dev is not None and dev.tag == self.kind.value and find.branches(gdp):
-                    return gdp
+        top = find.preset(root)
+        candidates = list(find.walk_racks(top)) if top is not None else []
+        for gdp in candidates:
+            dev = find.rack_device(gdp)
+            if dev is not None and dev.tag == self.kind.value and find.branches(gdp):
+                return gdp
         return None
 
     def _find_skeleton(self) -> Path:
@@ -408,11 +488,10 @@ class Rack:
                     continue
 
         raise FileNotFoundError(
-            f"no top-level {self.kind.value} to use as a skeleton.\n"
+            f"no {self.kind.value} to use as a skeleton.\n"
             f"Save an empty rack of that kind from Live to "
             f"donors/skeleton_{self.kind.name.lower()}.adg.\n"
-            f"Checked {len(checked)} file(s). Racks nested inside another "
-            f"rack are not usable as skeletons: Live rejects the result.")
+            f"Checked {len(checked)} file(s).")
 
     def _name_macros(self, rack_dev: Element) -> None:
         """Write the grammar's slot names onto the macros."""
@@ -430,29 +509,47 @@ class Rack:
         container = preset.find("BranchPresets")
         made: list[Element] = []
 
-        for i, engine in enumerate(self.engines):
+        for i, chain in enumerate(self.engines):
             branch = copy.deepcopy(self._branch_template)
             branch.set("Id", str(i))
 
             name = branch.find("Name")
             if name is not None:
-                name.set("Value", engine.name)
+                name.set("Value", chain.name)
 
             devices = branch.find("DevicePresets")
-            wrapper = self._device_wrapper()
             for child in list(devices):
                 devices.remove(child)
 
-            holder = wrapper.find("Device")
-            for child in list(holder):
-                holder.remove(child)
-            holder.append(self.library.instance(engine.device_tag))
-            wrapper.set("Id", "0")
-            devices.append(wrapper)
+            if isinstance(chain, Nest):
+                devices.append(self._nested_preset(chain))
+            else:
+                wrapper = self._device_wrapper()
+                holder = wrapper.find("Device")
+                for child in list(holder):
+                    holder.remove(child)
+                holder.append(self.library.instance(chain.device_tag))
+                wrapper.set("Id", "0")
+                devices.append(wrapper)
 
             container.append(branch)
             made.append(branch)
         return made
+
+    def _nested_preset(self, nest: Nest) -> Element:
+        """The inner rack's GroupDevicePreset, ready to sit in a chain.
+
+        A nested preset carries an Id and a top-level one does not - the
+        one difference between the two positions, and the reason lifting a
+        nested rack out used to produce a file Live refused as a drop. See
+        THE_BASEMENT.md.
+        """
+        preset = find.preset(nest.inner.build())
+        parent = preset.getparent()
+        if parent is not None:
+            parent.remove(preset)
+        preset.set("Id", "0")
+        return preset
 
     def _device_wrapper(self) -> Element:
         """An empty AbletonDevicePreset, modelled on the skeleton's."""
@@ -518,6 +615,29 @@ class Rack:
             snapshots.append(
                 (v.name, {self.grammar.macro_of(s): p for s, p in v.values.items()}))
         variations.write(rack_dev, snapshots)
+
+    def _apply_nest(self, nest: Nest, branch: Element) -> None:
+        """Map this rack's macros onto the nested rack's macros.
+
+        Nothing here knows how deep it is: a KeyMidi on the inner rack's
+        MacroControls.N carries Channel 16 whatever the depth, and the
+        owning rack is resolved by containment. So the mapping written at
+        depth 3 is the same mapping written at depth 1.
+        """
+        inner_preset = next((d for d in find.devices(branch)
+                             if d.tag == "GroupDevicePreset"), None)
+        if inner_preset is None:
+            raise ValueError(f"{nest.name}: chain holds no nested rack")
+        inner_dev = find.rack_device(inner_preset)
+        if inner_dev is None:
+            raise ValueError(f"{nest.name}: nested rack has no rack device")
+
+        for outer, inner in nest.resolved().items():
+            target = find.macro(inner_dev, nest.inner.grammar.macro_of(inner))
+            if target is None:
+                raise ValueError(
+                    f"{nest.name}: nested rack has no macro for slot {inner!r}")
+            params.map_to_macro(target, self.grammar.macro_of(outer))
 
     def _apply_bindings(self, engine: Engine, branch: Element) -> None:
         devices = find.devices(branch)

@@ -120,6 +120,7 @@ in Live 12.4.3.
 - chain and drum-pad cloning
 - the declarative DSL, and a compiler for specs
 - macro variations
+- nested racks, at any depth, with macros chaining into them
 
 A variation is a vector over grammar slots in macro space, so it renders
 through every engine without being written per engine, and it may select
@@ -133,7 +134,19 @@ rack.variations(Variation("dark", engine=rack.engine_macro("FM"),
 That module carries the template, since ~692 sounds across 18 engines are
 variations rather than chains.
 
-`uv run pytest tests/ -q` runs 28 tests asserting the library still
+A chain may hold another rack instead of a device, which is how the drum
+rack in `PATCHBAYGROUND.md` gets its three levels:
+
+```python
+rack.nest("PADS", pd1())
+rack.nest("KEYS", ld1()).bind(cutoff="cutoff", decay="decay")
+```
+
+Bindings are outer slot to inner slot, and default to identity when both
+racks share a grammar. So one knob reaches through however many levels are
+between it and the parameter, and the spec says only where it should not.
+
+`uv run pytest tests/ -q` runs 38 tests asserting the library still
 agrees with every recorded finding. One of them clears the variations Live
 wrote in `racks/s8_c.adg`, writes them back through `patchbay`, and requires
 the diff to be empty.

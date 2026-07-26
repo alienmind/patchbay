@@ -28,10 +28,12 @@ Live today:
   the grammar, complete
   PD1 as a two engine slice, verified loading and mapping in Live 12.4.3
   96 variations over four slots, one of them the engine choice
+  VA1 as a two level nest, macros chaining into the selected sub-rack.
+    Compiles; awaiting its gate in Live, see doc/TODO.md
 
 Blocked:
-  everything else, mostly on nested racks and on donors for the engines
-  the spec actually calls for
+  everything else, mostly on donors for the engines the spec actually
+  calls for, and on samples
 """
 
 from __future__ import annotations
@@ -81,31 +83,73 @@ KIT = Grammar(
 # LIVE - compiles and loads today
 # ===========================================================================
 
-def pd1() -> Rack:
-    """Pads. Wavetable-based per the spec; Operator and Simpler for now.
-
-    Both engines bind the same grammar slots to their own parameters, which
-    is what makes variation index N mean the same musical idea rendered
-    through different synthesis.
-    """
-    rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
-
-    with rack.engine("FM", "Operator") as e:
+def fm(rack: Rack, name: str = "FM") -> Rack:
+    """An Operator chain bound to the grammar."""
+    with rack.engine(name, "Operator") as e:
         e.bind(
             cutoff=("Filter/Frequency", 200, 8000),
             resonance="Filter/Resonance",
             decay="Filter/Envelope/DecayTime",
         )
+    return rack
 
-    with rack.engine("Sample", "OriginalSimpler") as e:
+
+def sampler(rack: Rack, name: str = "Sample") -> Rack:
+    """A Simpler chain bound to the SAME grammar slots as `fm`.
+
+    That correspondence is the sound family constraint: one knob moves the
+    same musical idea through different synthesis.
+    """
+    with rack.engine(name, "OriginalSimpler") as e:
         e.bind(
             cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
             resonance="Filter/Slot/Value/SimplerFilter/Res",
             decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime",
         )
+    return rack
 
+
+def pd1() -> Rack:
+    """Pads. Wavetable-based per the spec; Operator and Simpler for now."""
+    rack = sampler(fm(Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)))
     rack.variations(*sound_family(rack))
     return rack
+
+
+def va1(name: str = "VA1") -> Rack:
+    """Various. Each chain is a rack in its own right.
+
+    Two levels rather than the five racks the spec eventually wants, which
+    are blocked on donors. What this exercises is the nesting itself: the
+    outer Engine macro picks a sub-rack, and every other slot chains
+    macro-to-macro into whichever sub-rack is selected.
+
+    Engine is bound explicitly OUT of the chaining. The identity default
+    would also drive each sub-rack's own Engine macro, which is the pattern
+    racks/s1_source.adg uses, but here it would mean one knob doing two
+    jobs at once.
+    """
+    rack = Rack(name, PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    chained = dict(cutoff="cutoff", resonance="resonance", decay="decay")
+
+    for inner in (fm(sampler(_inner("PADS"))), fm(_inner("KEYS"))):
+        rack.nest(inner.name, inner).bind(**chained)
+
+    rack.variations(
+        Variation("A bright", engine=rack.engine_macro("PADS"),
+                  cutoff=115, decay=20, resonance=10),
+        Variation("A dark", engine=rack.engine_macro("PADS"),
+                  cutoff=25, decay=110, resonance=90),
+        Variation("B bright", engine=rack.engine_macro("KEYS"),
+                  cutoff=115, decay=20, resonance=10),
+        Variation("B dark", engine=rack.engine_macro("KEYS"),
+                  cutoff=25, decay=110, resonance=90),
+    )
+    return rack
+
+
+def _inner(name: str) -> Rack:
+    return Rack(name, PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
 
 
 def sound_family(rack: Rack) -> list[Variation]:
@@ -135,7 +179,7 @@ def sound_family(rack: Rack) -> list[Variation]:
     return out
 
 
-RACKS: list[Rack] = [pd1()]
+RACKS: list[Rack] = [pd1(), va1()]
 
 
 # ===========================================================================
@@ -182,10 +226,9 @@ RACKS: list[Rack] = [pd1()]
 
 
 # ---------------------------------------------------------------------------
-# DR1. Blocked on: rack-inside-chain in the DSL, and SPIKES.md Q1b.
-# The three level pattern is verified to EXIST in racks/s1_source.adg. What
-# is unproven is whether a nested rack we WRITE is accepted, since lifting
-# one out produced a file Live refused to even accept as a drop.
+# DR1. Blocked on: drum pads in the DSL, samples, and Q6. Nesting itself is
+# no longer the blocker - VA1 above writes it. What DR1 adds is the pad
+# side: ReceivingNote per pad, a sample per chain, and return selectors.
 # ---------------------------------------------------------------------------
 #
 # from patchbay.dsl import DrumRack, PadSpec
@@ -284,16 +327,9 @@ RACKS: list[Rack] = [pd1()]
 #     """Sampler, built in sounds plus a hot swap slot."""
 #     ...
 #
-# def va1(name: str) -> Rack:
-#     """Various. Nests all five instrument racks as chains.
-#
-#     Blocked on rack-in-rack composition, same as DR1: a Rack has to be
-#     placeable INTO another rack's chain.
-#     """
-#     rack = Rack(name, PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
-#     for inner in (dr1(), bs1(), pd1(), ld1(), sr1()):
-#         rack.nest(inner)
-#     return rack
+# VA1 is live above with two sub-racks. Widening it to the five the spec
+# names is `for inner in (dr1(), bs1(), pd1(), ld1(), sr1())`, and waits
+# only on those racks existing.
 
 
 # ---------------------------------------------------------------------------
