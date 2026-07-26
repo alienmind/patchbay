@@ -1,0 +1,18 @@
+[project]
+name = "adgkit"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["lxml"]
+
+[project.scripts]
+adgkit = "adgkit.cli:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+# racks/, donors/, samples/ and specs/ are asset folders, not packages.
+# Without this setuptools refuses to build, seeing a flat layout with
+# five top-level packages.
+[tool.setuptools]
+packages = ["adgkit"]

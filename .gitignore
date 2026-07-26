@@ -1,0 +1,14 @@
+__pycache__/
+*.xml
+
+build/
+samples/**/*.wav
+samples/**/*.aif
+
+# donors/ and racks/ are assets, tracked on purpose. Generated round trip
+# output is not.
+*.roundtrip.adg
+
+# packaging
+*.egg-info/
+.venv/
