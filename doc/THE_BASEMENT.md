@@ -25,6 +25,49 @@ unbuilt.
 
 **Replaced by:** `TODO.md` T4, `MCP.md`.
 
+## The 13 slot macro grammar
+
+`PATCHBAYGROUND.md` specified thirteen named slots: Engine, Cutoff,
+Resonance, Decay, Drive, Movement, Space, Character on page one, then
+Glide, Detune, Delay, Width, Transient on page two. Slots 14 to 16 were
+left deliberately unnamed.
+
+Two things killed it.
+
+**Page two is not reached during a jam.** Push shows eight macros at a
+time. A page flip mid-performance costs more than the five extra knobs are
+worth, so slots 9 to 13 were paid for and never spent.
+
+**`Space` was on the wrong device.** A reverb send belongs on the channel
+strip, not on the instrument rack, and putting it in the instrument
+grammar spent one of only eight useful knobs on something the strip
+already carries.
+
+**Replaced by** the eight slot grammar in `PATCHBAYGROUND.md`, with slots
+1, 2, 7 and 8 fixed across every rack (Instrument, Sound, Release, Volume)
+and 3 to 6 as per rack character. Volume and Release are new; they were
+absent from the thirteen and are the two most universally wanted knobs.
+
+`examples/patchbayground.py` still declares the thirteen. Reconciling it is
+open work, noted under Current state in `PATCHBAYGROUND.md`.
+
+## ableton-inspector as a dependency
+
+Evaluated twice: once as a way to read Sets, and again as the reading half
+of a rack extractor.
+
+Read only, `.als` only, and its schema coverage stops well short of devices
+and racks. The second look was the decisive one: extracting racks needs
+exactly the part it does not cover, and the part it DOES cover is
+`gzip.open` plus `etree.fromstring`, which is 17 lines in `io.py` and
+already accepts `.als`.
+
+A dependency that reads the easy half and not the hard half is a
+dependency that costs more than it returns.
+
+**Replaced by:** `io.py`, and `TODO.md` T6 for the emitter, which no
+external library could supply because the DSL is ours.
+
 ## Sidechain source, at any level
 
 Absent from the Live Object Model, and not found in the file format

@@ -51,6 +51,86 @@ in a file that already has twenty. Then drive it to build the eight
 tracks, returns, routing, tempo and starter clips, loading each generated
 rack by browser URI. See `MCP.md`.
 
+**T6. Decompile a saved rack into DSL source.** Turn racks built by hand
+in Live into `Rack(...)` declarations, so a library of real racks becomes
+declarable input instead of something to retype. This is `patchbay build`
+run backwards.
+
+*Not blocked on any external library.* `io.load` already opens `.adg`,
+`.adv` and `.als`, because all three are gzipped XML and that is 17 lines.
+`find.py` already walks a preset tree. What is missing is an emitter, and
+no third party has one, because the DSL is ours. See `THE_BASEMENT.md` for
+why ableton-inspector does not help here.
+
+Four steps, each with its own gate. Do them in order; the first is the
+whole value and the last is optional.
+
+**T6a. Emit DSL from a `.adg`.** New module `patchbay/extract.py`, new CLI
+verb `patchbay extract <file.adg>`, printing Python to stdout. Walk the
+preset tree with `find.py` and emit, per rack:
+
+- `Rack(name, grammar, kind=...)` from the rack tag, mapping
+  `InstrumentGroupDevice` to `RackKind.INSTRUMENT` and so on
+- one `rack.engine(chain_name, device_type)` per chain, in `BranchPresets`
+  order, with the device type read off the wrapped device node
+- `e.bind(slot=path)` per macro mapping, using `mappings.py`, which already
+  finds `KeyMidi` targets and knows the CC number IS the macro index
+- `e.zone(min, max)` where a chain's zone is not the full range
+- `rack.variations(...)` from the snapshot data `variations.py` reads
+- `rack.nest(...)` where a chain contains a rack rather than a device,
+  recursing
+
+*Gate, and it is a strong one:* extract `racks/s1_source.adg`, run the
+emitted source through `patchbay build`, then `patchbay diff` the result
+against the original. Three levels of nesting and real macro chaining make
+it the hardest rack we have. Differences are allowed only in the fields
+`ARCHITECTURE.md` already lists as per-save churn.
+
+**T6b. Name the slots.** A decompiler recovers STRUCTURE, not INTENT. It
+can see that macro 2 drives `Filter/Frequency` on three chains; it cannot
+know that we call slot 2 `Cutoff`. Two halves:
+
+- emit a positional grammar by default, `Grammar("Macro 1", "Macro 2", ...)`,
+  which is honest and immediately compiles
+- offer `--grammar patchbayground` to match extracted mappings against an
+  existing grammar's bindings and use its names where a parameter path
+  agrees, leaving the rest positional
+
+Renaming stays a human edit. Do not guess a slot name from a parameter
+path; that is inventing intent, and `CLAUDE.md` rule 1 applies.
+
+**T6c. Locate racks inside a `.als`.** Only now, because it is the part
+that needs a spike first and T6a is useful without it.
+
+*Q9, and it must come first.* A `.adg` stores a rack in PRESET form:
+`GroupDevicePreset` with `Device` and `BranchPresets` as siblings. A `.als`
+stores the same rack in LIVE form, inside
+`LiveSet/Tracks/*/DeviceChain/DeviceChain/Devices`. Whether chains are
+serialised identically in both is UNKNOWN and must not be assumed. Method:
+build one two-chain rack, save it as `racks/q9_a.adg` by dragging to the
+browser, save the Set containing that same rack as `racks/q9_b.als`,
+unpack both and diff by hand. Write the mapping in `SCHEMA.md`.
+
+Then `patchbay extract <file.als>` walks tracks, finds rack nodes in each
+device chain, lifts each into preset form, and reuses all of T6a. Note
+S13: a lifted subtree must have its `Id` stripped, and a top-level
+`GroupDevicePreset` must carry no attributes at all.
+
+*Gate:* extract every rack from a Set, rebuild each, diff each.
+
+**T6d. Batch it.** `patchbay extract --out lib/ <file.als>` writing one
+module per rack plus an index. Trivial once T6c works, and worth nothing
+until then.
+
+**Cheaper path that needs none of T6c.** Dragging a rack from a Live Set
+into the browser saves a `.adg`. If the library is tens of racks rather
+than hundreds, hand-dragging plus T6a gets there without the spike.
+
+**What this will not recover:** slot names, why a range was chosen, which
+sample a `FileRef` was meant to point at once it moves, and anything Live
+regenerates per save. Extraction gives a skeleton that compiles and
+matches. It does not give a spec someone would have written by hand.
+
 **T5. MCP smoke test.** `patchbay` generates a rack, MCP loads it onto a
 track, `get_track_info` confirms the expected device tree appeared. Catches
 gross failures without a human dragging files. It cannot confirm macros are
