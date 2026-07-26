@@ -145,22 +145,44 @@ def compare(path_a, path_b, hide_ids=False, show_all=False, grep=None):
     return changed, only_a, only_b
 
 
-def report(path_a, path_b, hide_ids=False, show_all=False, grep=None):
+def report(path_a, path_b, hide_ids=False, show_all=False, grep=None, limit=None):
+    """limit caps the lines printed per section.
+
+    Adding one device drags its whole parameter blob in — a Reverb is some
+    800 facts — which buries whatever you were looking for. Section counts
+    are always printed in full, so nothing is hidden silently.
+    """
     changed, only_a, only_b = compare(path_a, path_b, hide_ids, show_all, grep)
+
+    def trunc(keys):
+        keys = sorted(keys)
+        if limit and len(keys) > limit:
+            return keys[:limit], len(keys) - limit
+        return keys, 0
 
     print(f"--- {path_a}\n+++ {path_b}\n")
     if changed:
         print(f"CHANGED ({len(changed)})")
-        for k, (av, bv) in sorted(changed.items()):
+        keys, more = trunc(changed)
+        for k in keys:
+            av, bv = changed[k]
             print(f"  {k}\n      {av}  ->  {bv}")
+        if more:
+            print(f"  ... {more} more")
     if only_a:
         print(f"\nREMOVED ({len(only_a)})")
-        for k in sorted(only_a):
+        keys, more = trunc(only_a)
+        for k in keys:
             print(f"  {k} = {only_a[k]}")
+        if more:
+            print(f"  ... {more} more")
     if only_b:
         print(f"\nADDED ({len(only_b)})")
-        for k in sorted(only_b):
+        keys, more = trunc(only_b)
+        for k in keys:
             print(f"  {k} = {only_b[k]}")
+        if more:
+            print(f"  ... {more} more")
     if not (changed or only_a or only_b):
         print("identical")
     return changed, only_a, only_b
