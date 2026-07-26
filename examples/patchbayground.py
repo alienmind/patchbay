@@ -84,6 +84,19 @@ PATCHBAYGROUND = Grammar(
 # cap reached 43% of Operator's range and meant the filter never opened.
 CUTOFF = (30.0, 18500.0)
 
+# The same reasoning as CUTOFF, applied to the other slots whose engines
+# disagree. Each is the INTERSECTION of the native ranges, measured with
+# library.Device.range_of, so one knob position means one result on every
+# engine. Q14 is what happens when this is skipped: a Volume slot bound
+# correctly on both engines that silenced one and not the other.
+#
+#   Release   Wavetable 0.0015..20 s, Drift 0.01..60 s, Meld 0.0015..40 s
+#   Resonance Wavetable 0..1.25,      Drift 0..1.01,    Meld 0..1
+#   Volume    Wavetable 0..1,         Drift 0..1,       Meld 0..1.995
+RELEASE = (0.01, 20.0)
+RESONANCE = (0.0, 1.0)
+VOLUME = (0.0, 1.0)
+
 # The drum rack's top level is NOT the instrument grammar. Eight pads times
 # eight parameters cannot fit eight knobs, so the top level is kit-wide
 # moves only and per-pad control is reached by diving into the pad on Push.
@@ -133,11 +146,88 @@ def sampler(rack: Rack, name: str = "Sample") -> Rack:
     return rack
 
 
+def wavetable(rack: Rack, name: str = "Wave") -> Rack:
+    """A Wavetable chain. Leaves Movement empty, deliberately.
+
+    Wavetable's LFO depth lives in a modulation matrix that is not in the
+    parameter list at all. `Lfo1_Shape_Amount` is a waveshaper, not a
+    depth, so binding it would be inventing intent. A rack that cannot use
+    a slot leaves it empty.
+    """
+    with rack.engine(name, "InstrumentVector") as e:
+        e.bind(
+            filter=("Voice_Filter1_Frequency", *CUTOFF),
+            drive="Voice_Filter1_Drive",
+            character=("Voice_Filter1_Resonance", *RESONANCE),
+            release=("Voice_Modulators_AmpEnvelope_Times_Release", *RELEASE),
+            volume=("Volume", *VOLUME),
+        )
+    return rack
+
+
+def drift(rack: Rack, name: str = "Drift") -> Rack:
+    """A Drift chain. No Drive: Drift exposes no drive parameter at all."""
+    with rack.engine(name, "Drift") as e:
+        e.bind(
+            filter=("Filter_Frequency", *CUTOFF),
+            movement="Lfo_Amount",
+            character=("Filter_Resonance", *RESONANCE),
+            # Envelope1 is inferred to be the amp envelope, from Envelope2
+            # having a Global_Envelope2Mode and Envelope1 not. UNVERIFIED.
+            release=("Envelope1_Release", *RELEASE),
+            volume=("Global_Volume", *VOLUME),
+        )
+    return rack
+
+
+def meld(rack: Rack, name: str = "Meld") -> Rack:
+    """A Meld chain. Engine A only, which is half the instrument.
+
+    Meld is two engines behind one device. Every A-side path here has a B
+    twin, and binding only A moves half the sound. Doing both needs one
+    macro driving two parameters, which the DSL supports; which of the two
+    a rack should move is a taste decision nobody has made yet.
+
+    Q10: the filter's knobs are `Macro1` (Q) and `Macro2` (L-B-H-N morph).
+    """
+    with rack.engine(name, "InstrumentMeld") as e:
+        e.bind(
+            filter=("MeldVoice_EngineA_Filter_Frequency", *CUTOFF),
+            drive="MeldVoice_Drive",
+            character=("MeldVoice_EngineA_Filter_Macro1", *RESONANCE),
+            release=("MeldVoice_EngineA_AmpEnvelope_Times_Release", *RELEASE),
+            volume=("Volume", 0.0, 1.0),
+        )
+    return rack
+
+
 def pd1() -> Rack:
-    """Pads. Wavetable-based per the spec; Operator and Simpler for now."""
+    """Pads. Operator and Simpler, the pair gated in Live 12.4.3.
+
+    Kept as the verified slice: 96 variations, both engines answering one
+    grammar. `pd1_wave` below is what the spec actually calls for.
+    """
     rack = sampler(fm(Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)))
     rack.variations(*sound_family(rack))
     return rack
+
+
+def pd1_wave() -> Rack:
+    """Pads proper: lush wavetable, per PATCHBAYGROUND.md."""
+    rack = Rack("PD1W", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    return drift(wavetable(rack))
+
+
+def bs1() -> Rack:
+    """Multi engine bass. Three syntheses, one grammar."""
+    rack = Rack("BS1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    return meld(drift(wavetable(rack)))
+
+
+def ld1() -> Rack:
+    """Leads. FM first, per the spec, with Meld as the second colour."""
+    rack = Rack("LD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    return meld(fm(rack))
 
 
 def va1(name: str = "VA1") -> Rack:
@@ -204,7 +294,7 @@ def sound_family(rack: Rack) -> list[Variation]:
     return out
 
 
-RACKS: list[Rack] = [pd1(), va1()]
+RACKS: list[Rack] = [pd1(), pd1_wave(), bs1(), ld1(), va1()]
 
 
 # ===========================================================================
