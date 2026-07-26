@@ -19,13 +19,13 @@ then `SCHEMA.md` for the raw evidence.
 | S3b | macro index confirm | **DONE — confirmed** | CC = zero-based macro index; also gives the transfer function |
 | S4 | macro to macro | **DONE — free** | identical structure; observed 3 levels in `s1_source.adg` |
 | S5 | chain select zones | **DONE** (key/vel zones still todo) | `BranchSelectorRange` on the chain; fades grow inward; `Min<=XfMin<=XfMax<=Max` |
-| S6 | id allocation and scope | todo — **downgraded** | no longer gates macro mappings, see ARCHITECTURE §5 |
+| S6 | id allocation and scope | **DONE** | ids must be unique among siblings; nothing else matters; nothing references them |
 | S7 | FileRef anatomy | **DONE** | two FileRefs; 20 facts move but only the 2 paths are required; metadata is advisory |
 | S8 | macro variations | **DONE** | `MacroSnapshot` list; absolute 0..127 macro values; 16 slots + `MacroHasValue.N` |
 | S9 | drum rack specifics | **DONE** | `ZoneSettings/ReceivingNote`; returns in `ReturnBranchPresets`; sends are linear amplitude |
-| S10 | macro metadata | **DONE** (mapping range open) | one field per menu item; all 16 slots always exist |
-| S11 | `.als` track structure | todo | |
-| S12 | minimal device viability | **NEXT** | |
+| S10 | macro metadata | **DONE** | one field per menu item; ranges are `MidiControllerRange` on the target |
+| S11 | `.als` track structure | **NEXT — last one** | |
+| S12 | minimal device viability | **DONE** | devices load with ALL parameters deleted; donors are for fidelity, not loadability |
 
 Both kill criteria (S1, S3) are **passed**. The project is viable.
 
@@ -227,7 +227,7 @@ zone. Widen the zone first.
 whether key/velocity/chain zones are siblings of one structure. Note the
 units — raw semitones vs normalised.
 
-## S6. Id allocation and scope — DOWNGRADED, no longer decides Phase 2
+## ~~S6. Id allocation and scope~~ — DONE
 
 **Live:** rack with two chains. Save `racks/s6_a.adg`. Add one device to
 one chain. Save `racks/s6_b.adg`.
@@ -259,6 +259,15 @@ Then the destructive test: hand-edit an unpacked file to give two nodes
 the same id, repack, load in Live. Record what Live actually does —
 refuses, silently cross-wires, or repairs. That failure mode determines
 how loud `clone.py` has to be.
+
+**Result: it refuses**, with a dialog. The rule is simply that an `Id` must
+be unique among its siblings; gaps, out-of-range values and file-wide
+repetition are all fine, and nothing references ids at all. See
+`ARCHITECTURE.md` §8.
+
+Method note: the first collision file changed two things at once and had to
+be rebuilt split. The one-change rule applies to constructed test files
+just as much as to saves from Live.
 
 ## ~~S7. FileRef anatomy~~ — DONE
 
@@ -371,7 +380,7 @@ track; compare a return track against a regular track.
 This decides whether Phase 6 is viable or gets skipped per KICKOFF's
 fallback.
 
-## S12. Minimal device viability
+## ~~S12. Minimal device viability~~ — DONE
 
 **Live:** save any donor device.
 
@@ -381,3 +390,8 @@ Binary search until you know whether Live tolerates partial devices.
 **Record:** the answer decides how load bearing the donor pattern is. If
 Live demands the full blob, donors are mandatory and generating device
 XML is off the table permanently.
+
+**Result: a device loads with all 18 of its parameters deleted.** Live
+defaults whatever is absent. Donors are therefore about *fidelity*, not
+loadability — they carry a configured device, saving us from knowing every
+parameter name and default. Generators may write partial device nodes.

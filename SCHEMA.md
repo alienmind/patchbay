@@ -436,10 +436,110 @@ addressable and an edge drag is a two-field edit.
 Key and velocity zones are untested. They are Instrument Rack only and
 are presumably siblings of this structure; do not assume it.
 
-## S6. Id allocation and scope
+## S6. Id allocation and scope — ANSWERED
 
-TBD - `adgkit ids` plus a diff of "added one device".
-Per field: definition or reference, and what scope it is unique within.
+**An `Id` must be unique among its siblings. Nothing else about it
+matters.**
+
+### Static evidence
+
+Across `s9_b`, `s1_source`, `s8_c` and `s7_b`: **2347 of 2359** elements
+carrying an `Id` attribute have `Id` equal to their index among same-tag
+siblings. `Id` is a sequence number assigned on insert.
+
+The 12 exceptions are gaps, not errors — `s1_source.adg` has
+`AbletonDevicePreset Id="2"` sitting at index 1, left behind when a device
+was deleted. Live opens that file fine, so **ids are not compacted and
+gaps are legal**.
+
+`s9_b.adg` has 555 `Id` occurrences with **3 distinct values**; 548 of them
+are `0`. Ids are emphatically **not** file-unique.
+
+Adding a device (`s9_a` -> `s9_b`) introduced 76 new `Id` facts and changed
+**zero** existing ones.
+
+### Deliberate-failure test
+
+Three files built and loaded in Live 12.4.3:
+
+| file | change | result |
+|---|---|---|
+| `build/s6_collide.adg` | both pads `Id=0` **and** all devices `Id=7` | **"the preset cannot be loaded"** |
+| `build/s6_dup_pads_only.adg` | both pads `Id=0`, devices untouched | **refuses to load** |
+| `build/s6_high_id_only.adg` | all devices `Id=7`, no duplicates | **loads fine** |
+
+The first test changed two things at once and had to be re-run split —
+the one-change rule applies to constructed files as much as to Live saves.
+
+**Conclusions:**
+
+- **Duplicate `Id` among siblings -> Live rejects the entire preset**, with
+  a dialog. Loud failure, not silent corruption. This is the good outcome:
+  `CLAUDE.md`'s "Live will either silently cross-wire the mappings or
+  refuse to load" resolves to *refuse*.
+- **Value is arbitrary otherwise.** Not contiguous, not matching index, not
+  file-unique. `Id="7"` on every device loads happily.
+- **Nothing references these ids.** No `PointeeId` in any preset carries a
+  non-zero value pointing anywhere. Combined with S3, the format uses
+  containment rather than reference throughout.
+
+### Consequence for Phase 2
+
+Landmine #1 in `CLAUDE.md` survives, but in a far narrower and cheaper form
+than written. Cloning a branch does **not** require remapping a web of
+cross-references — macro mappings carry no ids at all (S3). It requires
+exactly one thing: **give the new branch an `Id` unused by its siblings.**
+
+`adgkit.ids.next_free_id(parent, tag)` does that. `adgkit ids` now reports
+sibling collisions directly and its verdict matches Live's behaviour on all
+three test files.
+
+## S12. Minimal device viability — ANSWERED
+
+Four copies of the `s3b` Saturator rack with parameter nodes deleted, all
+loaded in Live 12.4.3:
+
+| file | parameters dropped | result |
+|---|---|---|
+| `build/s12_one.adg` | 1 of 18 | loads, sounds correct |
+| `build/s12_five.adg` | 5 of 18 | loads, sounds correct |
+| `build/s12_half.adg` | 9 of 18 | loads, sounds correct |
+| `build/s12_all.adg` | **18 of 18** | loads, sounds correct |
+
+**[V] A device loads with every one of its parameter nodes removed.** Live
+fills defaults for whatever is absent. There is no threshold and no
+required subset.
+
+### What this changes, and what it does not
+
+The donor pattern is **not** required for loadability. It is still required
+for **fidelity**: absent parameters come back as defaults, so a donor is
+how a device arrives with the right values. That is the whole point of
+`donors/` — carrying a *configured* device, not a loadable one.
+
+So the KICKOFF rationale stands, with the reason corrected: donors save us
+from having to know every parameter's default and name, not from producing
+unloadable files.
+
+Practical upshot for Phase 4: a generator may write **partial** device
+nodes, overriding only the parameters it cares about and letting Live
+default the rest. That is a much smaller surface than emitting a complete
+Saturator.
+
+### Deleting a parameter deletes its mapping
+
+**[V]** Every variant dropped `PreDrive` (first parameter in document
+order), which was Macro 1's target. All four loaded with **Macro 1
+unmapped** — because a mapping *is* a `KeyMidi` element inside the target
+parameter (S3). Remove the parameter, remove the mapping.
+
+**[V]** Macro 2 -> `PostDrive` survived in `s12_one` and `s12_five`, and
+**still drives Output correctly** after its sibling parameters were
+deleted. Mappings are robust to structural edits around them.
+
+This is a clean confirmation of the containment model from an angle S3
+could not reach, and it is reassuring for Phase 2: editing a chain cannot
+corrupt a mapping it does not touch.
 
 ## S7. FileRef / sample reference — PARTIAL, failure test outstanding
 
@@ -861,27 +961,33 @@ s10_g:   MacroControls.2=127  (just mapped) MacroDefaults.2=-1
 Default* menu item only, has no effect on sound, and Live rewrites it on
 the next save anyway.
 
-### Open: mapping ranges
+### Mapping ranges
 
-**[?]** Live 12.4.3's macro right-click menu contains no range editor, and
-none was found on the target parameter or via Map mode. The full menu is:
+**Answered — see below.** Live 12.4.3's macro right-click menu contains no
+range editor, and none was found on the target parameter or via Map mode.
+The full menu is:
 Show Automation, Show Automation In New Lane, Show Modulation Source,
 Return to Default, Edit MIDI Map, Edit Key Map, Copy Max for Live Path,
 Copy Parameter Name, Remove Mapping, Show Generic 0-127 Value, Rename,
 Edit Info Text, Exclude Macro from Randomization, Exclude Macro From
 Variations, colour palette.
 
-A reverse test is prepared: `build/s10_range_test.adg` is `s3b` with
+### Resolved by reverse test — ranges ARE `MidiControllerRange`
+
+`build/s10_range_test.adg` is `s3b` with
 `Saturator/PreDrive/MidiControllerRange/Max` changed from `36` to `12`.
-Loading it and turning Macro 1 to full distinguishes:
+Loaded in Live, **Macro 1 at full drives Drive to exactly +12 dB.**
 
-- Drive maxes at +12 dB -> `MidiControllerRange` is the mapping range
-- Drive still reaches +36 dB -> ranges live elsewhere, or Live 12 has no
-  per-mapping ranges
-- the knob's own scale visibly ends at +12 -> it is the parameter's range,
-  a different thing
+**[V]** `MidiControllerRange` on the target parameter is the macro mapping
+range. Narrowing it narrows what the macro can reach.
 
-Result not yet recorded.
+This is the useful direction: mapping ranges are **writable from XML with
+no UI involved**, which matters because Live 12.4.3 exposes no range
+editor at all. A generator has a capability the GUI does not.
+
+For the macro grammar in `TEMPLATE_SPEC.md` this means a macro can be
+scoped to a musically sensible slice of a parameter — e.g. filter cutoff
+over 200 Hz..8 kHz rather than the full sweep — per mapping, per engine.
 
 ### Incidental
 
@@ -896,6 +1002,4 @@ single line, as `s10_c` through `s10_f` each demonstrate.
 
 TBD - routing, sidechain source, return tracks.
 
-## S12. Minimal device viability
 
-TBD - can a device load with parameters missing?

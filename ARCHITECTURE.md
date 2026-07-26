@@ -163,7 +163,7 @@ parameter, with a consistent set of children:
 | child | meaning |
 |---|---|
 | `Manual` | the parameter's value. **[V]** absolute, in the parameter's own units |
-| `MidiControllerRange` | **[V]** the parameter's full range, e.g. Saturator Drive is `-36..36` dB |
+| `MidiControllerRange` | **[V]** the range a macro drives this parameter across — the **mapping range**, not merely a display bound. Saturator Drive defaults to `-36..36` dB |
 | `AutomationTarget` / `ModulationTarget` | automation plumbing. **[V]** `Id="0"` throughout preset files — presets carry no automation, so these are inert here |
 | `KeyMidi` | **[V]** present only when mapped. See §5 |
 
@@ -246,6 +246,16 @@ The 1.5e-6 gap is float32 storage precision.
 
 **[V]** Macro values are **continuous, not integer CC steps.** Mapping a
 parameter sitting at mid-range writes macro `63.5`, not `63` or `64`.
+
+**[V] The mapping range is `MidiControllerRange` on the target.** Narrowing
+it narrows what the macro reaches: setting Drive's `Max` to `12` makes
+Macro 1 at full land on exactly +12 dB. Verified by writing the file and
+loading it.
+
+Worth noting for the macro grammar: **Live 12.4.3 exposes no range editor
+in its UI** — not on the macro, the target, or in Map mode. Ranges are
+writable only from the file, so a generator can express per-mapping scoping
+that cannot be built by hand.
 
 **[V]** Ranges are per parameter, not per device: within one Saturator,
 Drive is `-36..36` while Output is `-36..0`.
@@ -398,9 +408,26 @@ until diffed. `KeyRange` and `VelocityRange` elements were observed in
 **[V]** Id-bearing fields seen: `Id` (an attribute), and elements
 `PointeeId`, `LomId`, `LomIdView`.
 
+**[V]** **The one rule: an `Id` must be unique among its siblings.**
+Everything else about the value is free.
+
+Established by deliberate-failure test. Two sibling `DrumBranchPreset`
+elements sharing `Id="0"` makes Live reject the whole preset with *"the
+preset cannot be loaded"*. Forcing every `AbletonDevicePreset` to `Id="7"`
+— gapped, out of range, but unique among siblings — loads fine.
+
+**[V]** Ids are **not file-unique**: `Id="0"` occurs 548 times in one real
+rack. They are **not contiguous**: a rack with `Id="2"` at index 1, left by
+a deleted device, opens fine. They are **not** required to equal the index,
+though 2347 of 2359 observed do — the value is a sequence number assigned
+on insert and never compacted.
+
+**[V]** **Nothing references them.** No `PointeeId` in any preset points
+anywhere. With S3's mappings also being containment-based, the preset
+format uses no cross-references at all.
+
 **[V]** **Ids are stable across saves.** Saving the same rack twice with
-no edits renumbers nothing. They are persistent identities, not per-save
-serial numbers.
+no edits renumbers nothing.
 
 **[V]** In preset files most are `0`: every `AutomationTarget`,
 `ModulationTarget` and `Pointee` observed carries `Id="0"`, and container
@@ -410,10 +437,33 @@ nodes like `AbletonDevicePreset Id="0"` repeat the value freely. Ids in
 **[I]** This is consistent with ids mattering mainly inside `.als`, where
 automation and routing need real cross-references.
 
-**[?]** What happens to ids when a device is *added* is untested — see
-S6. Stability across a no-op save does not prove stability across an
-edit, and nothing here yet establishes uniqueness scope. Cloning does not
-depend on it for macro mappings, but may for other references.
+**[V]** Adding a device introduced 76 new `Id` facts and changed zero
+existing ones.
+
+### Consequence for cloning
+
+Landmine #1 in `CLAUDE.md` holds, but narrowly: duplicating a branch needs
+exactly one fixup — **an `Id` unused by its new siblings**. There is no web
+of references to remap, because there are no references.
+
+`adgkit.ids.next_free_id(parent, tag)` allocates one, and `adgkit ids`
+reports sibling collisions; its verdict matches Live's on every test file.
+
+### Devices may be partial
+
+**[V]** A device loads with **every one of its parameter nodes deleted** —
+all 18 of a Saturator's. Live fills defaults for whatever is absent. There
+is no required subset and no threshold.
+
+So `donors/` is not needed for a file to *load*. It is needed for
+**fidelity**: absent parameters return as defaults, and a donor is how a
+device arrives configured. A generator may write **partial** device nodes,
+overriding only what it cares about — a much smaller surface than emitting
+a complete device.
+
+**[V]** Deleting a parameter deletes any mapping to it, since the mapping
+is a `KeyMidi` *inside* that parameter (§5). Mappings to *other* parameters
+survive untouched and still work.
 
 ## 9. Save-time nondeterminism
 
@@ -705,6 +755,11 @@ Derived from the above; these are the invariants `adgkit` must respect.
 12. **Variations are written in macro space, 0..127**, with all 16 slots
     present and `MacroHasValue.N` carrying participation. §11.
 13. **A pad's grid position is `ReceivingNote`**; leave `SendingNote` at 60. §12.
+15. **When cloning a branch, give it an `Id` free among its siblings.** That
+    is the only id work required, and getting it wrong makes Live reject
+    the whole preset. §8.
+16. **Device nodes may be partial** — override the parameters you care
+    about and let Live default the rest. §8.
 14. **Adding a return chain means adding an `AudioBranchSendInfo` to every
     chain**, and send levels are linear amplitude, not dB. §12.
 
@@ -714,14 +769,11 @@ Ordered by how much they gate the build.
 
 | | question | spike | gates |
 |---|---|---|---|
-| **[?]** | Where are per-mapping ranges stored? Live 12.4.3 offers no range editor on the macro, the target, or in Map mode. Reverse test built at `build/s10_range_test.adg`. | S10 tail | macro grammar |
-| **[?]** | How are ids allocated when a device is *added*? Uniqueness scope? | S6 | Phase 2 for non-macro references |
 | **[?]** | Chain zone: is `Max` inclusive? Does Live repair a violated zone ordering? | S5 tail | Phase 4, low stakes |
 | **[?]** | Key and velocity zone encoding — assumed sibling of `BranchSelectorRange`, unverified. | S5 rest | Phase 4 |
 | **[?]** | `OriginalCrc` algorithm. 16-bit; zlib and 10 CRC-16 variants ruled out over 4 chunk choices. **Closed as irrelevant** — nothing reads it on load. | — | nothing |
 | **[?]** | Can an *unmapped* macro carry `MacroHasValue = true` in a variation? | S8 tail | Phase 5, minor |
 | **[?]** | Drum rack pad-to-note (`ReceivingNote`, `SendingNote` seen but uncharacterised), internal returns, per-chain sends. | S9 | Phase 4 |
-| **[?]** | Can a device node load with parameters missing? | S12 | how load-bearing `donors/` is |
 | **[?]** | `.als` track routing, sidechain source, return tracks. | S11 | Phase 6 |
 | **[?]** | Does element order within a parameter matter? `KeyMidi` is written between `LomId` and `Manual`. | — | writer safety |
 
@@ -742,6 +794,9 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 | `s8_a/b/c.adg` | same rack with 0, 1 and 2 macro variations | the `MacroSnapshot` structure |
 | `s9_a/b/c/d.adg` | drum rack: 2 pads, then a return, then a send raised, then a pad moved | `ZoneSettings`, `ReturnBranchPresets`, `SendInfos` |
 | `s10_c..g.adg` | one macro-metadata change per save | each `.N` family, `NumVisibleMacroControls` |
+| `build/s10_range_test.adg` | Drive's `MidiControllerRange/Max` set to 12 | mapping ranges are `MidiControllerRange` |
+| `build/s6_*.adg` | duplicate vs merely-gapped ids | siblings must be unique; value is free |
+| `build/s12_*.adg` | 1, 5, 9 and all 18 parameters deleted | devices may be partial |
 | `build/s7_test_A..F.adg` | six deliberately inconsistent retargets, all loaded in Live | the cache-key model |
 
 Reproduce with:
