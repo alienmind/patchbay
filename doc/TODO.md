@@ -101,6 +101,24 @@ audible from the file; it is one knob position meaning one length, or not.
 
 Expected still broken: Macro 5 on every rack, until Q16.
 
+### K. The donors we still lack are all stock devices
+
+`patchbay harvest` took the tracked library from 8 devices to 32, out of
+the AM_RADIAN template. What is still missing is missing everywhere, or is
+only available in projects that are not ours to redistribute, so it stays
+in the gitignored `donors_local/` and a clone cannot build with it.
+
+One rack, one save, and the tracked library covers the whole
+`PATCHBAYGROUND.md` device chain. Defaults are wanted here, not settings:
+a donor is for the parameter list and each parameter's native range.
+
+| # | Do this | Save as |
+|---|---|---|
+| K1 | New Audio Effect Rack. Drop one each of Channel EQ, Roar, Redux, Overdrive, Corpus, Gate, Auto Shift, Utility into ONE chain, all at defaults | `donors/AM_FX_donors.adg` |
+| K2 | New MIDI Effect Rack. One each of Arpeggiator, Velocity, Note Length, Chord, all at defaults | `donors/AM_MIDI_donors.adg` |
+
+Expected still broken: nothing. This only widens the vocabulary.
+
 ### Q16. Drift's LFO reaches nothing
 
 Held over from round B. `Lfo_Amount` is the right parameter and moves.

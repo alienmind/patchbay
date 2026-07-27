@@ -130,6 +130,7 @@ in Live 12.4.3.
 - sample retargeting, so a chain plays a file you name rather than
   whichever one the donor happened to carry
 - extraction: read a saved `.adg` back out as DSL source
+- donor harvesting from any saved file, Live Sets included
 
 A variation is a vector over grammar slots in macro space, so it renders
 through every engine without being written per engine, and it may select
@@ -169,6 +170,19 @@ the emitted source fills each device from a donor, so parameter values, a
 chain's second and third device, and per-rack cosmetics do not survive.
 Slot names never survive either - they are intent, and the emitted grammar
 is positional, `Macro_1` through `Macro_N`, for you to rename.
+
+A device can only be used if the library has a donor for it, and donors
+come from files you already own:
+
+```
+patchbay harvest "path/to/Project" -o donors_local/
+```
+
+Indexing a device never looks at preset structure, so a `.als` donates its
+devices exactly as a rack does and one Set is usually worth dozens of
+hand-saved racks. Paths and names are stripped on the way out, and a tag
+the library already indexes is left alone so a fuller copy of a device
+cannot silently rebuild racks that were gated against the old one.
 
 `uv run pytest tests/ -q` runs 59 tests asserting the library still
 agrees with every recorded finding. One of them clears the variations Live
@@ -212,6 +226,7 @@ was an editable install still pointing at the folder's old name.
 | `patchbay variations SRC` | list macro variations |
 | `patchbay clone SRC DEST -n N` | duplicate a chain |
 | `patchbay extract SRC` | emit DSL source for a saved rack |
+| `patchbay harvest SRC -o DIR` | lift donors out of files or Live Sets |
 | `patchbay check SRC` | would Live accept this file? |
 | `patchbay roundtrip SRC` | prove load-then-save is lossless |
 | `patchbay ids SRC` | id census and collision report |

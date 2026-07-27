@@ -73,19 +73,41 @@ class Library:
     def from_paths(cls, *paths):
         lib = cls()
         for p in paths:
-            for f in sorted(Path(p).glob("*.adg")) if Path(p).is_dir() else [Path(p)]:
-                lib.harvest(f)
+            lib.harvest_all(p)
         return lib
 
     @classmethod
     def default(cls, root=None):
-        """Harvest donors/ and racks/, in that order of preference.
+        """Harvest donors/, donors_local/ and racks/.
 
         donors/ is the curated asset; racks/ is spike evidence that happens
         to contain usable devices, which is why it comes second.
+
+        donors_local/ is gitignored and machine-specific: devices lifted out
+        of projects that are not ours to publish. Nothing tracked may depend
+        on it, so a donor there never displaces one in donors/ - see
+        `harvest`, where the richer copy wins, and the harvest script, which
+        refuses to write a tag donors/ already holds.
         """
         root = Path(root or Path(__file__).resolve().parent.parent)
-        return cls.from_paths(root / "donors", root / "racks")
+        return cls.from_paths(root / "donors", root / "donors_local",
+                              root / "racks")
+
+    def harvest_all(self, path):
+        """Index one file, or every Ableton file in one directory.
+
+        `.als` too, not only `.adg`. Harvesting never looks at preset
+        structure - it takes any element carrying a LomId and two or more
+        parameters - so a Live Set donates its devices exactly as a rack
+        does, and one Set is worth dozens of hand-saved racks.
+        """
+        p = Path(path)
+        if not p.is_dir():
+            return self.harvest(p)
+        for ext in ("*.adg", "*.adv", "*.als"):
+            for f in sorted(p.glob(ext)):
+                self.harvest(f)
+        return self
 
     def harvest(self, path):
         """Index every device node in one file."""

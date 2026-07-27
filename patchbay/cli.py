@@ -81,6 +81,13 @@ def _main():
     ex = sub.add_parser("extract", help="emit DSL source for a saved rack")
     ex.add_argument("src")
 
+    hv = sub.add_parser("harvest", help="lift donors out of saved files or Sets")
+    hv.add_argument("src", nargs="+", help="files or directories, .adg/.adv/.als")
+    hv.add_argument("-o", "--out", default="donors_local",
+                    help="where to write, default donors_local/")
+    hv.add_argument("--keep-known", action="store_true",
+                    help="also write tags the library already indexes")
+
     i = sub.add_parser("ids", help="S6: census of id fields and their scope")
     i.add_argument("src")
     i.add_argument("--fields", help=f"comma separated, default {','.join(ID_FIELDS)}")
@@ -90,6 +97,9 @@ def _main():
     if args.cmd == "extract":
         from . import extract
         extract.report(args.src)
+    elif args.cmd == "harvest":
+        from . import harvest
+        harvest.report(args.src, args.out, keep_known=args.keep_known)
     elif args.cmd == "unpack":
         print(io.unpack(args.src, args.out))
     elif args.cmd == "repack":

@@ -472,3 +472,10 @@ generating `.als`. A Set-level layer should emit MCP calls, not XML.
 **Donors are the vocabulary.** A device the library has never seen cannot
 be used, and the error says so and lists what is available. That is
 correct: inventing device XML is how you get a file Live half-loads.
+
+The vocabulary is cheap to widen. `patchbay harvest` reads `.als` as
+readily as `.adg`, because indexing a device never looks at preset
+structure, so one Live Set donates whatever it happens to contain. What a
+donor is wanted for is the parameter list and each parameter's native
+range, not anybody's settings, so paths and names are stripped on the way
+out.
