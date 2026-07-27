@@ -24,20 +24,29 @@ someone's head.
 Each draft block names what it is blocked on. Uncomment as the capability
 lands, and delete this note when nothing is left commented.
 
-Live today:
-  the eight slot grammar, complete
-  PD1 as a two engine slice
-  96 variations over four slots, one of them the instrument choice
-  VA1 as a two level nest, macros chaining into the selected sub-rack
+Live today: six racks, all compiling. PD1, PD1W, BS1, LD1 and DR1 have been
+loaded, played and corrected in Live 12.4.3; VA1 exercises nesting.
 
-  Both racks are gated in Live 12.4.3 under this grammar, ranges included.
-  Slot 2, Sound, binds nothing yet: neither rack has sound chains to select
-  between, and a slot nothing drives writes no mapping.
+Slot 2, Sound, binds nothing on the instrument racks: they have no sound
+chains to select between, and a slot nothing drives writes no mapping. It
+earns its place inside a drum pad, where it walks eight samples.
 
-Blocked:
-  BS1, LD1 and PD1 proper are no longer blocked on donors: Wavetable,
-  Drift and Meld are harvested. They are blocked on being written.
-  SR1 still waits on samples.
+Blocked: SR1, on samples.
+
+## Two things this file decides that the grammar does not
+
+**Slot 3 drives cutoff AND resonance.** One knob, two parameters that
+belong together, which is what frees slot 6 to be a real wildcard instead
+of a permanent home for resonance. The cost is that a paired slot cannot be
+automated to move one half.
+
+**Slot 6 is chosen per rack from a role table.** Attack on pads, glide on
+leads, morph where Meld lands. An engine that cannot serve the role leaves
+the slot empty rather than substituting something else, which is why BS1's
+slot 6 moves on Meld and on nothing else.
+
+Not relitigated here, because they are gated: the eight names, the selector
+slot, the ranges, the level trims, DR1's pad layout.
 """
 
 from __future__ import annotations
@@ -226,36 +235,97 @@ SAMPLES_PER_PAD = 8
 # LIVE - compiles and loads today
 # ===========================================================================
 
-def fm(rack: Rack, name: str = "FM") -> Rack:
+# What each engine offers for slot 6, by role. A rack asks for a role; an
+# engine that does not have it leaves the slot EMPTY rather than
+# substituting something else, which is what makes the wildcard a decision
+# instead of a leftover.
+#
+# Every path here was read from library.Device.search, not from memory. The
+# gaps are real:
+#
+#   saturation  only Operator has a shaper. Drift, Wavetable and Meld have
+#               nothing that is a saturator rather than a waveshaper or an
+#               oscillator control.
+#   morph       only Meld, whose filter Macro2 is the L-B-H-N morph. Q10.
+#   glide       everywhere, under four different names.
+#
+# Meld's entries are pairs, driven together for the same reason its filter
+# is: this grammar has one knob, not an A knob and a B knob.
+WILDCARD: dict[str, dict[str, object]] = {
+    "Operator": {
+        "attack": "Operator.0/Envelope/AttackTime",
+        "glide": "Globals/PortamentoTime",
+        "saturation": "Shaper/Drive",
+    },
+    "OriginalSimpler": {
+        "attack": "VolumeAndPan/Envelope/AttackTime",
+        "glide": "Globals/PortamentoTime",
+    },
+    "InstrumentVector": {
+        "attack": "Voice_Modulators_AmpEnvelope_Times_Attack",
+        "glide": "Voice_Global_Glide",
+    },
+    "Drift": {
+        "attack": "Envelope1_Attack",
+        "glide": "Global_Glide",
+    },
+    "InstrumentMeld": {
+        "attack": ["MeldVoice_EngineA_AmpEnvelope_Times_Attack",
+                   "MeldVoice_EngineB_AmpEnvelope_Times_Attack"],
+        "glide": ["MeldVoice_EngineA_GlideTime",
+                  "MeldVoice_EngineB_GlideTime"],
+        "morph": ["MeldVoice_EngineA_Filter_Macro2",
+                  "MeldVoice_EngineB_Filter_Macro2"],
+    },
+}
+
+
+def _bind(e, tag: str, paths: dict, role: str | None) -> None:
+    """Apply an engine's common shape, dropping what it cannot serve.
+
+    Returning nothing for a missing role rather than raising is the point:
+    a rack asks the whole family for one role, and the engines that lack it
+    stay silent. Raising would force every rack to know what every engine
+    has.
+    """
+    slots = {k: v for k, v in paths.items() if v is not None}
+    extra = WILDCARD.get(tag, {}).get(role) if role else None
+    if extra is not None:
+        slots["character"] = extra
+    e.bind(**slots)
+
+
+def fm(rack: Rack, name: str = "FM", character: str | None = None) -> Rack:
     """An Operator chain bound to the grammar."""
     with rack.engine(name, "Operator") as e:
-        e.bind(
-            filter=("Filter/Frequency", *CUTOFF),
+        _bind(e, "Operator", dict(
+            filter=[("Filter/Frequency", *CUTOFF),
+                    ("Filter/Resonance", *RESONANCE)],
             drive="Filter/Drive",
             movement="Lfo/LfoAmount",
-            character="Filter/Resonance",
             release="Operator.0/Envelope/ReleaseTime",
             # Linear amplitude, native range 0.000316..1.995. The floor is
             # -70 dB, well below Simpler's -36. The top is set by PEAK_DB:
             # capping at 1.0 was the right gain SETTING and still clipped,
             # because Operator is the hottest engine here by 12 dB.
             volume=("Globals/Volume", *trimmed("Operator", 0.0003162277571, 1.0)),
-        )
+        ), character)
     return rack
 
 
-def sampler(rack: Rack, name: str = "Sample") -> Rack:
+def sampler(rack: Rack, name: str = "Sample",
+            character: str | None = None) -> Rack:
     """A Simpler chain bound to the SAME grammar slots as `fm`.
 
     That correspondence is the sound family constraint: one knob moves the
     same musical idea through different synthesis.
     """
     with rack.engine(name, "OriginalSimpler") as e:
-        e.bind(
-            filter=("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
+        _bind(e, "OriginalSimpler", dict(
+            filter=[("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
+                    ("Filter/Slot/Value/SimplerFilter/Res", *RESONANCE)],
             drive="Filter/Slot/Value/SimplerFilter/Drive",
             movement="Pitch/PitchLfoAmount",
-            character="Filter/Slot/Value/SimplerFilter/Res",
             release="VolumeAndPan/Envelope/ReleaseTime",
             # Decibels, native range -36..+36. Capped at unity for the same
             # reason as the FM engine. The floor is -36 dB because that is
@@ -266,11 +336,12 @@ def sampler(rack: Rack, name: str = "Sample") -> Rack:
             # also plays whatever sample it is given, so any figure measured
             # once would only hold for that sample.
             volume=("VolumeAndPan/Volume", -36.0, 0.0),
-        )
+        ), character)
     return rack
 
 
-def wavetable(rack: Rack, name: str = "Wave") -> Rack:
+def wavetable(rack: Rack, name: str = "Wave",
+              character: str | None = None) -> Rack:
     """A Wavetable chain. Leaves Movement empty, deliberately.
 
     Wavetable's LFO depth lives in a modulation matrix that is not in the
@@ -279,49 +350,65 @@ def wavetable(rack: Rack, name: str = "Wave") -> Rack:
     a slot leaves it empty.
     """
     with rack.engine(name, "InstrumentVector") as e:
-        e.bind(
-            filter=("Voice_Filter1_Frequency", *CUTOFF),
+        _bind(e, "InstrumentVector", dict(
+            filter=[("Voice_Filter1_Frequency", *CUTOFF),
+                    ("Voice_Filter1_Resonance", *RESONANCE)],
             drive="Voice_Filter1_Drive",
-            character=("Voice_Filter1_Resonance", *RESONANCE),
             release=("Voice_Modulators_AmpEnvelope_Times_Release", *RELEASE),
             volume=("Volume", *trimmed("InstrumentVector", *VOLUME)),
-        )
+        ), character)
     return rack
 
 
-def drift(rack: Rack, name: str = "Drift") -> Rack:
+def drift(rack: Rack, name: str = "Drift",
+          character: str | None = None) -> Rack:
     """A Drift chain. No Drive: Drift exposes no drive parameter at all."""
     with rack.engine(name, "Drift") as e:
-        e.bind(
-            filter=("Filter_Frequency", *CUTOFF),
+        _bind(e, "Drift", dict(
+            filter=[("Filter_Frequency", *CUTOFF),
+                    ("Filter_Resonance", *RESONANCE)],
             movement="Lfo_Amount",
-            character=("Filter_Resonance", *RESONANCE),
-            # Envelope1 is inferred to be the amp envelope, from Envelope2
-            # having a Global_Envelope2Mode and Envelope1 not. UNVERIFIED.
+            # Envelope1 is Drift's amp envelope, which was inferred from
+            # Envelope2 having a Global_Envelope2Mode and Envelope1 not, and
+            # is now gated in Live 12.4.3: C1 held a note and heard the tail
+            # follow this macro.
             release=("Envelope1_Release", *RELEASE),
             volume=("Global_Volume", *trimmed("Drift", *VOLUME)),
-        )
+        ), character)
     return rack
 
 
-def meld(rack: Rack, name: str = "Meld") -> Rack:
-    """A Meld chain. Engine A only, which is half the instrument.
+def meld(rack: Rack, name: str = "Meld",
+         character: str | None = None) -> Rack:
+    """A Meld chain. Both engines, driven together off one macro each.
 
-    Meld is two engines behind one device. Every A-side path here has a B
-    twin, and binding only A moves half the sound. Doing both needs one
-    macro driving two parameters, which the DSL supports; which of the two
-    a rack should move is a taste decision nobody has made yet.
+    Meld is two synthesis engines behind one device, and every A-side path
+    has a B twin. Binding only A was gated in Live 12.4.3 as C2 and failed
+    exactly as suspected: Macro 3 filtered half the sound and left the
+    other half open, which passes every structural check there is.
 
-    Q10: the filter's knobs are `Macro1` (Q) and `Macro2` (L-B-H-N morph).
+    Both sides move together because this grammar has one Filter knob, not
+    an A knob and a B knob. Splitting them would be a second axis, and a
+    Push page has no room for one.
+
+    Q10: the filter's two knobs are `Macro1` (Q) and `Macro2` (L-B-H-N
+    morph), and that pairing holds for FilterType 0 only. A rack asking for
+    `morph` on a Meld whose filter type has been changed gets a valid
+    mapping onto a different control. Nothing detects that.
     """
     with rack.engine(name, "InstrumentMeld") as e:
-        e.bind(
-            filter=("MeldVoice_EngineA_Filter_Frequency", *CUTOFF),
+        _bind(e, "InstrumentMeld", dict(
+            filter=[("MeldVoice_EngineA_Filter_Frequency", *CUTOFF),
+                    ("MeldVoice_EngineB_Filter_Frequency", *CUTOFF),
+                    ("MeldVoice_EngineA_Filter_Macro1", *RESONANCE),
+                    ("MeldVoice_EngineB_Filter_Macro1", *RESONANCE)],
+            # Drive is device-wide on Meld, one parameter for both engines.
             drive="MeldVoice_Drive",
-            character=("MeldVoice_EngineA_Filter_Macro1", *RESONANCE),
-            release=("MeldVoice_EngineA_AmpEnvelope_Times_Release", *RELEASE),
+            release=[("MeldVoice_EngineA_AmpEnvelope_Times_Release", *RELEASE),
+                     ("MeldVoice_EngineB_AmpEnvelope_Times_Release", *RELEASE)],
+            # Volume is device-wide too.
             volume=("Volume", *trimmed("InstrumentMeld", *VOLUME)),
-        )
+        ), character)
     return rack
 
 
@@ -331,27 +418,44 @@ def pd1() -> Rack:
     Kept as the verified slice: 96 variations, both engines answering one
     grammar. `pd1_wave` below is what the spec actually calls for.
     """
-    rack = sampler(fm(Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)))
+    rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    sampler(fm(rack, character="attack"), character="attack")
     rack.variations(*sound_family(rack))
     return rack
 
 
 def pd1_wave() -> Rack:
-    """Pads proper: lush wavetable, per PATCHBAYGROUND.md."""
+    """Pads proper: lush wavetable. Slot 6 is ATTACK, because a pad is
+    played into: a pad you cannot soften is a stab, and softening is most
+    of what separates the two.
+    """
     rack = Rack("PD1W", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
-    return drift(wavetable(rack))
+    return drift(wavetable(rack, character="attack"), character="attack")
 
 
 def bs1() -> Rack:
-    """Multi engine bass. Three syntheses, one grammar."""
+    """Multi engine bass. Three syntheses, one grammar. Slot 6 is MORPH.
+
+    Only Meld can serve morph, so Wavetable and Drift leave slot 6 empty.
+    That is the rule working, not a hole: the alternative is binding three
+    different ideas to one knob and calling it consistency.
+
+    `PATCHBAYGROUND.md` asks for saturation as the bass wildcard, and it is
+    not available. Of the engines in this file only Operator has a shaper,
+    and Operator is not in this rack.
+    """
     rack = Rack("BS1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
-    return meld(drift(wavetable(rack)))
+    return meld(drift(wavetable(rack)), character="morph")
 
 
 def ld1() -> Rack:
-    """Leads. FM first, per the spec, with Meld as the second colour."""
+    """Leads. FM first, per the spec, with Meld as the second colour.
+
+    Slot 6 is GLIDE, the one control a lead needs that a pad does not, and
+    the rack where the wildcard pays best: a mono lead lives on portamento.
+    """
     rack = Rack("LD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
-    return meld(fm(rack))
+    return meld(fm(rack, character="glide"), character="glide")
 
 
 def pad_samples(sound: str, n: int = SAMPLES_PER_PAD) -> list[Path]:
@@ -376,6 +480,10 @@ def pad_rack(name: str, sound: str) -> Rack | None:
     This is where slot 2 finally earns its place. Every other rack in this
     file leaves Sound unbound because it has nothing to select between; a
     pad has eight samples and one knob to walk them.
+
+    Slot 6 is attack, for the same reason PD1 spends it there: it turns a
+    sample into a softer version of itself without reaching for the sample
+    list.
     """
     files = pad_samples(sound)
     if not files:
@@ -385,13 +493,13 @@ def pad_rack(name: str, sound: str) -> Rack | None:
     for i, wav in enumerate(files):
         with rack.engine(f"S{i + 1}", "OriginalSimpler") as e:
             e.sample(wav)
-            e.bind(
-                filter=("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
+            _bind(e, "OriginalSimpler", dict(
+                filter=[("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
+                        ("Filter/Slot/Value/SimplerFilter/Res", *RESONANCE)],
                 drive="Filter/Slot/Value/SimplerFilter/Drive",
-                character="Filter/Slot/Value/SimplerFilter/Res",
                 release="VolumeAndPan/Envelope/ReleaseTime",
                 volume=("VolumeAndPan/Volume", -36.0, 0.0),
-            )
+            ), "attack")
     return rack
 
 
@@ -474,7 +582,7 @@ def sound_family(rack: Rack) -> list[Variation]:
             ("FM", "Sample"),
             (20, 55, 90, 120),      # Filter
             (10, 45, 80, 115),      # Release
-            (0, 64, 127))):         # Character, here resonance
+            (0, 64, 127))):         # Character, which on PD1 is attack
         out.append(Variation(
             # The name encodes its own values, so culling by ear is informed
             # rather than blind. KICKOFF.md asks for this.

@@ -1153,6 +1153,12 @@ for `FilterType = 0` (SVF 12dB) and is not guaranteed to hold for another
 filter type. A rack that changes filter type may silently re-point its
 resonance macro at something else.
 
+`library.Device.range_of` puts `FilterType` at 0..16, so there are
+**17 filter types** and 17 possible meanings for each of the two knobs.
+Only type 0 has been measured. Binding resonance and then changing filter
+type is a silent-wrong change, not an error: the mapping stays valid and
+starts moving a different control.
+
 ### Scale
 
 UI `8.0` stored as `0.07999999821`. See Q11/Q12 below for what that does
