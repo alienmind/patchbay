@@ -117,6 +117,18 @@ a donor is for the parameter list and each parameter's native range.
 | K1 | New Audio Effect Rack. Drop one each of Channel EQ, Roar, Redux, Overdrive, Corpus, Gate, Auto Shift, Utility into ONE chain, all at defaults | `donors/AM_FX_donors.adg` |
 | K2 | New MIDI Effect Rack. One each of Arpeggiator, Velocity, Note Length, Chord, all at defaults | `donors/AM_MIDI_donors.adg` |
 
+K3 is the one that can fail. Every donor above came out of a `.als`, and
+whether a device node is serialised identically in Set form and preset form
+is Q9, which is open. Id checks pass and say nothing about it.
+
+| # | Do this | Should happen |
+|---|---|---|
+| K3 | Drag in `build/K3_als_donor.adg`. Three chains: Auto Filter, EQ Eight, Echo, all built from Set-harvested donors | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+
+If K3 refuses or half-loads, every `donors/h_*.adg` is suspect and the
+harvest needs to go through preset form instead. Nothing else depends on
+them yet.
+
 Expected still broken: nothing. This only widens the vocabulary.
 
 ### Q16. Drift's LFO reaches nothing
