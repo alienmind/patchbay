@@ -65,6 +65,20 @@ Binding = Union[str, tuple[str, float, float]]
 Element = etree._Element
 
 
+def _macro_pos(slot: str, pos: float) -> float:
+    """A macro position, checked against the only scale macros have.
+
+    Out of range is refused rather than clamped: Live clamps silently, so a
+    127 meant as a percentage would load as a rack that works and a 200
+    would load as one that looks identical and is not what was written.
+    """
+    pos = float(pos)
+    if not 0.0 <= pos <= MACRO_MAX:
+        raise ValueError(
+            f"{slot}: macro positions are 0..{MACRO_MAX}, got {pos:g}")
+    return pos
+
+
 class RackKind(str, Enum):
     """Which kind of rack to build.
 
@@ -93,15 +107,29 @@ class Grammar:
     slot declared as "Cutoff".
     """
 
-    __slots__ = ("slots", "selector", "_index")
+    __slots__ = ("slots", "selector", "start", "_index")
 
-    def __init__(self, *slots: str, selector: str | None = "engine") -> None:
+    def __init__(self, *slots: str, selector: str | None = "engine",
+                 start: Mapping[str, float] | None = None) -> None:
         if len(slots) > MAX_MACROS:
             raise ValueError(f"a rack has {MAX_MACROS} macros; got {len(slots)} slots")
         if len(slots) != len({s.lower() for s in slots}):
             raise ValueError("grammar slot names must be unique")
         self.slots: tuple[str, ...] = tuple(slots)
         self._index: dict[str, int] = {s.lower(): i + 1 for i, s in enumerate(slots)}
+        # Where each knob sits on a fresh drop. A macro Live has never been
+        # told about reads 0, and 0 through a binding is the BOTTOM of the
+        # parameter's range: silent volume, shut filter, instant release. So
+        # a rack that binds a slot and does not place it loads mute. The
+        # position belongs to the grammar rather than the rack, for the same
+        # reason the slot names do: one knob means one thing everywhere.
+        self.start: dict[str, float] = {}
+        for slot, pos in (start or {}).items():
+            if slot.lower() not in self._index:
+                raise KeyError(
+                    f"start position for {slot!r}, which is not a slot here. "
+                    f"Slots: {', '.join(self.slots)}")
+            self.start[slot.lower()] = _macro_pos(slot, pos)
         # Which slot drives the chain selector. Named rather than fixed at
         # slot 1, because a drum rack's macro 1 is not a selector. A grammar
         # that declares no such slot passes selector=None and gets no
@@ -308,6 +336,7 @@ class Rack:
         self.library: Library = library or Library.default()
         self.engines: list[Chain] = []
         self.variation_set: list[Variation] = []
+        self.starts: dict[str, float] = dict(grammar.start)
         self._skeleton = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
         self._wrapper_template: Element | None = None
@@ -374,6 +403,18 @@ class Rack:
         chain = self.nest(name, rack) if rack is not None else self.engine(name, device)
         chain.note = note
         return chain
+
+    def start(self, **slots: float) -> "Rack":
+        """Move this rack's knobs off the grammar's opening position.
+
+        The grammar sets where a slot opens; this is for the rack that
+        needs a different one, and it overrides slot by slot rather than
+        replacing the set.
+        """
+        for slot, pos in slots.items():
+            self.grammar.macro_of(slot)          # fail early on a typo
+            self.starts[slot.lower()] = _macro_pos(slot, pos)
+        return self
 
     # --- variations -------------------------------------------------------
 
@@ -444,6 +485,7 @@ class Rack:
             raise ValueError("skeleton has no rack device")
 
         self._name_macros(rack_dev)
+        self._write_starts(rack_dev)
         branches = self._make_chains(preset)
         self._distribute_zones(branches)
         self._map_engine_selector(rack_dev)
@@ -586,6 +628,22 @@ class Rack:
         if vis is not None:
             # All 16 slots always exist; this only sets how many show.
             vis.set("Value", "16" if len(self.grammar) > 8 else "8")
+
+    def _write_starts(self, rack_dev: Element) -> None:
+        """Place the knobs, for the slots this rack actually drives.
+
+        Only driven slots. A start written on a slot no engine binds shows a
+        knob parked somewhere meaningful and moving nothing, which reads as
+        a mapping that broke. A grammar declares starts for all its slots
+        because it does not know which rack binds what.
+        """
+        driven = self.driven_slots()
+        for slot, pos in self.starts.items():
+            if slot not in driven:
+                continue
+            macro = find.macro(rack_dev, self.grammar.macro_of(slot))
+            if macro is not None:
+                params.set_value(macro, pos)
 
     def _make_chains(self, preset: Element) -> list[Element]:
         assert self._branch_template is not None

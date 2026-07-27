@@ -292,6 +292,21 @@ This is the arithmetic Phase 5 needs. To place a parameter at a chosen
 value across a variation grid, invert the formula using that parameter's
 own `MidiControllerRange`.
 
+**[V] The macro wins on load.** A mapped parameter still stores its own
+`Manual`, and Live overwrites it from the macro the moment the preset
+loads. So `MacroControls.N/Manual` is not cosmetic: it decides where every
+parameter that macro drives starts.
+
+Read that with the two facts above and the trap is exact. A macro nobody
+has touched reads `0`; a macro at `0` puts its target at the BOTTOM of the
+range; and nothing about the file is malformed when it happens. Gated in
+Live 12.4.3: five racks whose Volume and Filter macros were left at `0`
+loaded silent with the filter shut, and every diff, every id check and all
+49 tests passed on them. Ears caught it.
+
+A generator therefore has to place the knobs, not just wire them. The DSL
+does it with grammar-level start positions, see `DSL.md`.
+
 ### Why this matters for cloning
 
 **[V]** Because mappings are containment-addressed rather than

@@ -145,6 +145,44 @@ What this is not is a second axis. Both Meld engines move together because
 the grammar has one Filter knob; an A knob and a B knob would be two slots
 out of eight, and a Push page has no room for that.
 
+## A grammar says where the knobs open
+
+Binding a slot is half the job. The other half is where the knob sits when
+the rack is dropped, and the default answer is the worst one available: an
+untouched macro reads 0, a macro at 0 drives its target to the bottom of
+that target's range, so a rack that binds Volume and does not place it
+loads silent. `ARCHITECTURE.md` has the mechanism and what it cost.
+
+The position belongs to the GRAMMAR, for the same reason the slot names
+do. If Volume means one thing on every rack, then where Volume opens is
+also one thing on every rack, and a per-rack answer is a chance to get it
+wrong per rack:
+
+```python
+PATCHBAYGROUND = Grammar(
+    "Instrument", "Sound", "Filter", "Drive",
+    "Movement", "Character", "Release", "Volume",
+    selector="Instrument",
+    start={"Filter": 127, "Release": 30, "Volume": 127},
+)
+```
+
+Full right is the NEUTRAL position here, not a loud one, because every
+volume binding is capped at unity and every filter binding tops out above
+the audible band. Drive and Movement are absent from the mapping because
+their neutral is off, which is what 0 already means.
+
+`rack.start(volume=100)` overrides one slot for one rack. Positions are
+0..127 like everything else in macro space, and out of range raises rather
+than clamps: Live clamps silently, so a 200 would load as a rack that
+looks correct and is not what was written.
+
+**A start is written only for a slot the rack actually drives.** Grammars
+declare positions for all their slots and no rack binds all of them.
+Wavetable leaves Movement unbound; parking that knob at a meaningful
+number would show a control that moves nothing, which reads exactly like a
+mapping that broke.
+
 ## A chain may be another rack
 
 DR1 is three levels deep and VA1 nests a rack per chain, so a chain has to

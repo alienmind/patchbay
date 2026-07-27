@@ -686,6 +686,50 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
     assert all(Path(p).is_file() for p in paths), "no chain points at nothing"
 
 
+def test_bound_macros_do_not_open_at_zero():
+    """Every rack in the example places the slots it binds.
+
+    A macro Live has never been told about reads 0, and 0 through a binding
+    is the BOTTOM of the parameter's range. That shipped once: PD1W, BS1,
+    LD1, DR1 and PD1 all loaded in Live 12.4.3 silent, with the filter shut,
+    and every one of them had to be turned up by hand before it made a
+    sound. Nothing in the file was malformed, so only ears caught it.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    for rack in patchbayground.RACKS:
+        dev = find.rack_device(find.preset(rack.build()))
+        for slot in ("Filter", "Volume"):
+            if slot.lower() not in rack.driven_slots():
+                continue
+            got = params.value(find.macro(dev, rack.grammar.macro_of(slot)))
+            assert got, f"{rack.name}: {slot} opens at {got}"
+
+
+def test_start_refuses_a_position_off_the_macro_scale():
+    g = Grammar("Engine", "Volume", selector="Engine")
+    rack = Rack("X", g)
+    for bad in (-1, 128, 200):
+        try:
+            rack.start(volume=bad)
+        except ValueError:
+            continue
+        assert False, f"{bad} accepted as a macro position"
+
+
+def test_start_is_not_written_for_a_slot_nothing_drives():
+    """A knob parked somewhere meaningful that moves nothing reads as a bug."""
+    g = Grammar("Engine", "Filter", "Volume", selector="Engine",
+                start={"Filter": 127, "Volume": 127})
+    rack = Rack("X", g)
+    with rack.engine("A", "Operator") as e:
+        e.bind(volume="Globals/Volume")
+    dev = find.rack_device(find.preset(rack.build()))
+    assert params.value(find.macro(dev, 3)) == 127     # Volume, bound
+    assert params.value(find.macro(dev, 2)) == 0       # Filter, bound by nothing
+
+
 def test_one_slot_can_drive_several_parameters():
     """Meld is two engines behind one device; binding A alone filters half.
 
@@ -717,14 +761,20 @@ def test_binding_a_slot_twice_replaces_rather_than_accumulates():
 # --- T6a: extraction ------------------------------------------------------
 
 def _structure(root):
-    """Chains and macro mappings: what a spec determines, and no more."""
+    """Chains, macro mappings and macro positions: what a spec determines.
+
+    Positions are in here because dropping them is not a cosmetic loss: a
+    Volume macro rebuilt at 0 is a rack that loads silent.
+    """
     pre = find.preset(root)
+    dev = find.rack_device(pre)
     chains = [((b.find("Name").get("Value") if b.find("Name") is not None else ""),
                find.devices(b)[0].tag if find.devices(b) else None)
               for b in find.branches(pre)]
     maps = sorted((m["macro"], m["target"])
                   for m in mappings.find(root) if m["macro"])
-    return chains, maps
+    pos = [params.raw_value(find.macro(dev, i + 1)) for i in range(8)]
+    return chains, maps, pos
 
 
 def test_extract_round_trips_structure(tmp_path=None):
@@ -752,6 +802,7 @@ def test_extract_round_trips_structure(tmp_path=None):
         a, b = _structure(io.load(out)), _structure(rebuilt)
         assert a[0] == b[0], f"{rack.name}: chains differ"
         assert a[1] == b[1], f"{rack.name}: mappings differ"
+        assert a[2] == b[2], f"{rack.name}: macro positions differ"
 
 
 # --- house style ----------------------------------------------------------

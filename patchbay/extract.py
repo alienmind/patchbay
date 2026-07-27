@@ -131,6 +131,23 @@ def _chained_slots(branch) -> dict[int, int]:
     return out
 
 
+def _starts(rack_dev, n: int) -> dict[int, str]:
+    """Macro number -> its resting position, for the ones not at 0.
+
+    Recoverable where a slot name is not, because this is a value rather
+    than a meaning. Worth recovering: a rack whose Volume macro rebuilt at 0
+    loads silent, so dropping these turns a working rack into a mute one.
+    """
+    out: dict[int, str] = {}
+    for i in range(n):
+        el = find.macro(rack_dev, i + 1)
+        manual = None if el is None else el.find("Manual")
+        val = None if manual is None else manual.get("Value")
+        if val not in (None, "", "0"):
+            out[i + 1] = val
+    return out
+
+
 def _selector_slot(rack_dev) -> int | None:
     """Which macro drives this rack's chain selector, if any."""
     sel = find.chain_selector(rack_dev)
@@ -174,6 +191,11 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             children[i] = _emit_rack(nested[0], hint, used, lines, depth + 1)
 
     lines.append(f'{var} = Rack({name!r}, Grammar({slots}{sel_arg}), kind={kind})')
+
+    starts = _starts(rack_dev, n)
+    if starts:
+        args = ", ".join(f"macro_{k}={v}" for k, v in sorted(starts.items()))
+        lines.append(f'{var}.start({args})')
 
     for i, branch in enumerate(branches):
         bname_el = branch.find("Name")

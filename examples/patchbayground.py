@@ -68,6 +68,18 @@ PATCHBAYGROUND = Grammar(
     "Release",     # 7  release, or decay where an engine has no release
     "Volume",      # 8  always
     selector="Instrument",
+    # Where each knob sits on a fresh drop. Without this every macro reads
+    # 0, and 0 through a binding is the BOTTOM of the parameter's range, so
+    # the rack loads silent with the filter shut. Gated in Live 12.4.3: A1
+    # to A5 all had to be turned up by hand before anything was audible.
+    #
+    # Volume and Filter open at 127 because unity and fully open are the
+    # neutral positions, not loud ones. Drive and Movement open at 0 because
+    # their neutral IS off. Release opens at 30, roughly 0.4 s on the shared
+    # 0.01..20 s range: short enough to play, long enough to hear the knob
+    # move in either direction. Instrument and Sound open at 0, the first
+    # chain.
+    start={"Filter": 127, "Release": 30, "Volume": 127},
 )
 
 # Cutoff range shared by every engine, in Hz.
@@ -108,12 +120,18 @@ VOLUME = (0.0, 1.0)
 KIT = Grammar(
     "Sound", "Pitch", "Filter", "Drive", "Send A", "Send B", "Send Vol",
     "Volume", selector=None,
+    # Same reasoning as PATCHBAYGROUND, and it matters twice over here: a
+    # kit macro at 0 drives the PAD macro to 0, which drives the sample's
+    # volume to its floor. Pitch and the sends are unbound, so their start
+    # is not written.
+    start={"Filter": 127, "Volume": 127},
 )
 
 # Inside a pad the axis is WHICH SAMPLE, so the selector slot is Sound
 # rather than Instrument. Same eight names as PATCHBAYGROUND so the kit can
 # chain slot to slot by identity; only which slot drives the selector moves.
-PAD = Grammar(*PATCHBAYGROUND.slots, selector="Sound")
+PAD = Grammar(*PATCHBAYGROUND.slots, selector="Sound",
+              start=dict(PATCHBAYGROUND.start))
 
 # General MIDI-ish pad layout, and the folder each pad draws from. The names
 # are the ones samples/README.md documents, not a vendor's.
