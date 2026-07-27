@@ -73,9 +73,10 @@ PATCHBAYGROUND = Grammar(
     # the rack loads silent with the filter shut. Gated in Live 12.4.3: A1
     # to A5 all had to be turned up by hand before anything was audible.
     #
-    # Volume and Filter open at 127 because unity and fully open are the
-    # neutral positions, not loud ones. Drive and Movement open at 0 because
-    # their neutral IS off. Release opens at 30, roughly 0.4 s on the shared
+    # Volume and Filter open at 127 because the top of each binding's range
+    # IS the neutral position, not a loud one: every volume binding is
+    # capped at unity or below, see PEAK_DB. Drive and Movement open at 0
+    # because their neutral is off. Release opens at 30, roughly 0.4 s on the shared
     # 0.01..20 s range: short enough to play, long enough to hear the knob
     # move in either direction. Instrument and Sound open at 0, the first
     # chain.
@@ -109,6 +110,64 @@ CUTOFF = (30.0, 18500.0)
 RELEASE = (0.01, 20.0)
 RESONANCE = (0.0, 1.0)
 VOLUME = (0.0, 1.0)
+
+# What each engine actually PUTS OUT with the Volume slot full right, in
+# dBFS, measured in Live 12.4.3 on LD1 and BS1.
+#
+# The intersection above makes one knob position mean one gain SETTING. It
+# cannot make it mean one loudness, because what an engine delivers to its
+# volume stage is a property of the engine. Four engines at what each calls
+# unity span 12 dB:
+#
+#   Operator  +4.4    Wavetable  -4.0    Meld  -6.8    Drift  -5.8
+#
+# Operator's figure is derived, not read: at unity it clips, and a pinned
+# meter reports nothing. It was measured at -1.62 through a -6 dB trim.
+#
+# Every figure here has been confirmed by correcting from it and measuring
+# again: Operator, Wavetable and Meld all landed on the target to within
+# the meter's resolution. Drift did not, coming back 2.2 dB loud, so its
+# entry is the second measurement rather than the first. Meld was measured
+# twice on two different racks, -6.74 on LD1 and -6.75 on BS1, which is
+# what says these are engine properties and not patch properties.
+PEAK_DB = {
+    "Operator": 4.38,
+    "InstrumentVector": -4.0,
+    "InstrumentMeld": -6.75,
+    "Drift": -5.78,
+}
+
+# Where they all land after correcting.
+#
+# There is a CEILING on this number and it is not taste. Wavetable's Volume
+# and Drift's Global_Volume both max out at 1.0 amplitude natively, so
+# neither can be pushed ABOVE its own unity from a range, whatever the
+# range says; only Meld and Operator go higher, to 1.995. So the target can
+# never exceed the quietest engine that cannot be boosted, which is
+# Wavetable at -4.
+#
+# -8 sits below that ceiling with margin to spare, so every correction is a
+# cut and no correction can introduce clipping. It was originally forced
+# rather than chosen, from a first Drift reading of -8 that later measured
+# -5.78. Left where it is: it is gated, and -8 dBFS per track is
+# unremarkable gain staging with eight tracks running.
+TARGET_PEAK_DB = -8.0
+
+
+def trimmed(tag: str, lo: float, hi: float) -> tuple[float, float]:
+    """A volume range with this engine's level correction folded into its top.
+
+    Amplitude, so a correction in dB is a ratio on the top of the range.
+    Only the top: the bottom is already silence, and scaling silence
+    changes nothing.
+
+    An engine absent from `PEAK_DB` is UNMEASURED, not verified equal, and
+    passes through untouched. Measuring it is a job for ears in Live.
+    """
+    if tag not in PEAK_DB:
+        return (lo, hi)
+    return (lo, hi * 10.0 ** ((TARGET_PEAK_DB - PEAK_DB[tag]) / 20.0))
+
 
 # The drum rack's top level is NOT the instrument grammar. Eight pads times
 # eight parameters cannot fit eight knobs, so the top level is kit-wide
@@ -176,9 +235,11 @@ def fm(rack: Rack, name: str = "FM") -> Rack:
             movement="Lfo/LfoAmount",
             character="Filter/Resonance",
             release="Operator.0/Envelope/ReleaseTime",
-            # Linear amplitude, native range 0.000316..1.995. Capped at
-            # unity so full right is 0 dB rather than +6 and clipping.
-            volume=("Globals/Volume", 0.0003162277571, 1.0),
+            # Linear amplitude, native range 0.000316..1.995. The floor is
+            # -70 dB, well below Simpler's -36. The top is set by PEAK_DB:
+            # capping at 1.0 was the right gain SETTING and still clipped,
+            # because Operator is the hottest engine here by 12 dB.
+            volume=("Globals/Volume", *trimmed("Operator", 0.0003162277571, 1.0)),
         )
     return rack
 
@@ -199,6 +260,11 @@ def sampler(rack: Rack, name: str = "Sample") -> Rack:
             # Decibels, native range -36..+36. Capped at unity for the same
             # reason as the FM engine. The floor is -36 dB because that is
             # all Simpler offers: audible, where Operator's floor is -70.
+            #
+            # No `trimmed`: this range is in dB and that helper multiplies an
+            # AMPLITUDE. A trim here is a subtraction from the top. Simpler
+            # also plays whatever sample it is given, so any figure measured
+            # once would only hold for that sample.
             volume=("VolumeAndPan/Volume", -36.0, 0.0),
         )
     return rack
@@ -218,7 +284,7 @@ def wavetable(rack: Rack, name: str = "Wave") -> Rack:
             drive="Voice_Filter1_Drive",
             character=("Voice_Filter1_Resonance", *RESONANCE),
             release=("Voice_Modulators_AmpEnvelope_Times_Release", *RELEASE),
-            volume=("Volume", *VOLUME),
+            volume=("Volume", *trimmed("InstrumentVector", *VOLUME)),
         )
     return rack
 
@@ -233,7 +299,7 @@ def drift(rack: Rack, name: str = "Drift") -> Rack:
             # Envelope1 is inferred to be the amp envelope, from Envelope2
             # having a Global_Envelope2Mode and Envelope1 not. UNVERIFIED.
             release=("Envelope1_Release", *RELEASE),
-            volume=("Global_Volume", *VOLUME),
+            volume=("Global_Volume", *trimmed("Drift", *VOLUME)),
         )
     return rack
 
@@ -254,7 +320,7 @@ def meld(rack: Rack, name: str = "Meld") -> Rack:
             drive="MeldVoice_Drive",
             character=("MeldVoice_EngineA_Filter_Macro1", *RESONANCE),
             release=("MeldVoice_EngineA_AmpEnvelope_Times_Release", *RELEASE),
-            volume=("Volume", 0.0, 1.0),
+            volume=("Volume", *trimmed("InstrumentMeld", *VOLUME)),
         )
     return rack
 
