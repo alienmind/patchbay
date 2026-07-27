@@ -152,6 +152,24 @@ RELEASE = (0.01, 20.0)
 RESONANCE = (0.0, 1.0)
 VOLUME = (0.0, 1.0)
 
+# The same range, in the units Operator and Simpler keep their envelope
+# times in. Both read 1..60000 on `Operator.0/Envelope/ReleaseTime` and
+# `VolumeAndPan/Envelope/ReleaseTime`, against 0.0015..20 on Wavetable and
+# 0.01..60 on Drift: milliseconds, not seconds. So the two scales cover the
+# same 60 s ceiling and RELEASE is the intersection of all five, expressed
+# twice.
+#
+# Writing RELEASE on these two would bind the slot to 0.01..20 MILLISECONDS,
+# a knob whose whole travel is inside one click of the attack. Leaving it
+# unranged, which is what the code did until now, gives the full 1 ms..60 s
+# instead: playable, and three times the sweep the other engines get at the
+# same knob position.
+#
+# Unit, not name: it is inferred from the numbers, not read anywhere. What
+# supports it is the donor defaults. Operator sits at 400 and Simpler at 50,
+# which are Live's stated 400 ms and 50 ms, and are absurd as seconds.
+RELEASE_MS = tuple(v * 1000.0 for v in RELEASE)
+
 # What each engine actually PUTS OUT with the Volume slot full right, in
 # dBFS, measured in Live 12.4.3 on LD1 and BS1.
 #
@@ -342,7 +360,7 @@ def fm(rack: Rack, name: str = "FM", character: str | None = None) -> Rack:
                     ("Filter/Resonance", *RESONANCE)],
             drive="Filter/Drive",
             movement="Lfo/LfoAmount",
-            release="Operator.0/Envelope/ReleaseTime",
+            release=("Operator.0/Envelope/ReleaseTime", *RELEASE_MS),
             # Linear amplitude, native range 0.000316..1.995. The floor is
             # -70 dB, well below Simpler's -36. The top is set by PEAK_DB:
             # capping at 1.0 was the right gain SETTING and still clipped,
@@ -365,7 +383,7 @@ def sampler(rack: Rack, name: str = "Sample",
                     ("Filter/Slot/Value/SimplerFilter/Res", *RESONANCE)],
             drive="Filter/Slot/Value/SimplerFilter/Drive",
             movement="Pitch/PitchLfoAmount",
-            release="VolumeAndPan/Envelope/ReleaseTime",
+            release=("VolumeAndPan/Envelope/ReleaseTime", *RELEASE_MS),
             # Decibels, native range -36..+36. Capped at unity for the same
             # reason as the FM engine. The floor is -36 dB because that is
             # all Simpler offers: audible, where Operator's floor is -70.
@@ -551,7 +569,7 @@ def pad_rack(name: str, sound: str) -> Rack | None:
                 filter=[("Filter/Slot/Value/SimplerFilter/Freq", *CUTOFF),
                         ("Filter/Slot/Value/SimplerFilter/Res", *RESONANCE)],
                 drive="Filter/Slot/Value/SimplerFilter/Drive",
-                release="VolumeAndPan/Envelope/ReleaseTime",
+                release=("VolumeAndPan/Envelope/ReleaseTime", *RELEASE_MS),
                 volume=("VolumeAndPan/Volume", -36.0, 0.0),
             ), "attack")
     return rack

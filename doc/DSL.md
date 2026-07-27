@@ -36,13 +36,13 @@ rack = Rack("PD1", PUSH, kind=RackKind.INSTRUMENT)
 with rack.engine("FM", "Operator") as e:
     e.bind(filter=("Filter/Frequency", 30, 18500),
            character="Filter/Resonance",
-           release="Operator.0/Envelope/ReleaseTime",
+           release=("Operator.0/Envelope/ReleaseTime", 10, 20000),
            volume=("Globals/Volume", 0.0003162277571, 1.0))
 
 with rack.engine("Sample", "OriginalSimpler") as e:
     e.bind(filter=("Filter/Slot/Value/SimplerFilter/Freq", 30, 18500),
            character="Filter/Slot/Value/SimplerFilter/Res",
-           release="VolumeAndPan/Envelope/ReleaseTime",
+           release=("VolumeAndPan/Envelope/ReleaseTime", 10, 20000),
            volume=("VolumeAndPan/Volume", -36.0, 0.0))
 
 rack.variations(Variation("dark", filter=30, release=110),

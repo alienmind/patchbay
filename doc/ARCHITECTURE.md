@@ -201,6 +201,35 @@ parameter's element name - diff for it.
 
 **[V]** Values are absolute and in native units, not normalised 0..1.
 
+**[I]** **The unit is a property of the parameter, not of the quantity.**
+Two devices measuring the same physical thing may keep it in different
+units, and nothing in the element says which. Envelope release, read with
+`library.Device.range_of` off `racks/s1_source.adg` and `donors/Drift
+Rack.adg`:
+
+| device | parameter | range |
+|---|---|---|
+| Operator | `Operator.0/Envelope/ReleaseTime` | 1 .. 60000 |
+| Simpler | `VolumeAndPan/Envelope/ReleaseTime` | 1 .. 60000 |
+| Wavetable | `Voice_Modulators_AmpEnvelope_Times_Release` | 0.0015 .. 20 |
+| Drift | `Envelope1_Release` | 0.01 .. 60 |
+| Meld | `MeldVoice_EngineA_AmpEnvelope_Times_Release` | 0.0015 .. 40 |
+
+The first two are milliseconds, the last three seconds. Both cover the
+same 60 s ceiling. What supports the reading is the donor defaults:
+Operator sits at 400 and Simpler at 50, Live's stated 400 ms and 50 ms and
+absurd as seconds.
+
+So a range shared across engines, which is how one knob position is made
+to mean one result, has to be expressed once per unit. Writing the seconds
+figure on Operator binds the macro to 0.01 .. 20 ms, a full knob sweep
+inside one click of the attack. It does not error; §5 mappings never do.
+`examples/patchbayground.py` carries `RELEASE` and `RELEASE_MS` for this,
+the second derived from the first.
+
+Nothing marks the unit, so the only way to find one is to read the range
+and the default together and recognise the number.
+
 ## 5. Macro mappings - the central mechanism
 
 **[V]** **A macro mapping is a `KeyMidi` element inserted as a child of
@@ -808,7 +837,10 @@ Derived from the above; these are the invariants `patchbay` must respect.
    structurally. §5.
 6. **Write all 16 macro slots**, and set `NumVisibleMacroControls` to
    control visibility. §6.
-7. **Values are absolute in native units.** Do not normalise. §4.
+7. **Values are absolute in native units.** Do not normalise, and do not
+   reuse one engine's figure on another without checking the unit: Operator
+   and Simpler keep envelope times in ms where Wavetable, Drift and Meld
+   keep them in seconds. §4.
 8. **Rewrite `Path` and `RelativePath` together**, never one alone. §9.
 9. **Chain zones are bounds on a 0..127 scale, stored per chain.** §7.
 10. **To retarget a sample:** rewriting `Path` + `RelativePath` on **both**

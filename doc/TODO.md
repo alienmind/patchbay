@@ -23,8 +23,9 @@ recalling, and eight drum pads on their own notes each holding a rack of
 eight samples.
 
 The eight slot grammar in `PATCHBAYGROUND.md` is what the code declares.
-Ranges, level trims and pad layout are gated. Slot 3's pairing, slot 6's
-per rack role and the local labels are NOT: they are the current round.
+The cutoff and volume ranges, level trims and pad layout are gated. Slot
+3's pairing, slot 6's per rack role, the local labels and the release range
+on Operator and Simpler are NOT: they are the current round.
 
 ## In progress
 
@@ -83,6 +84,22 @@ than a Live one.
 I1 and I2 decide whether labels can carry a phrase at all. If Push shows
 eight characters, `Filter + Res` is not the answer and the pairing needs a
 different word rather than a longer one.
+
+### J. Release, now that Operator and Simpler are ranged
+
+Macro 7 bound through the full 1 ms..60 s on Operator and Simpler and
+through 0.01..20 s everywhere else. Both now go through the same
+intersection, expressed twice because the two devices keep envelope times
+in milliseconds and the other three in seconds. Nothing about this is
+audible from the file; it is one knob position meaning one length, or not.
+
+| # | Rack | Do this | Should happen |
+|---|---|---|---|
+| J1 | PD1 | Macro 7 full right, hold a note on FM, then on Sample | Tail sounds the same length on both, about 20 s |
+| J2 | PD1W | Same, Wave then Drift | Same length again, and the same as J1 |
+| J3 | LD1 | Macro 7 at its 30 default, FM then Meld | Short and comparable. Report if either is too short to play |
+
+Expected still broken: Macro 5 on every rack, until Q16.
 
 ### Q16. Drift's LFO reaches nothing
 
@@ -175,16 +192,6 @@ memory half.
 
 *Wants Q6 either way: the kit-level sends are FX selectors, not send
 levels, and nothing wires them yet.*
-
-**T7. LD1's Release slot is unranged on both engines.** `fm` binds
-`Operator.0/Envelope/ReleaseTime` and `sampler` binds
-`VolumeAndPan/Envelope/ReleaseTime` with no range, while `wavetable`,
-`drift` and `meld` all bind through `RELEASE = (0.01, 20.0)`. So Macro 7
-means one thing on BS1 and PD1W and something else on LD1 and PD1. This is
-the Q14 shape exactly: correct on each engine, inconsistent across them.
-Measure both with `library.Device.range_of` and decide whether `RELEASE`
-still holds as the intersection once Operator's 1..60000 ms and Simpler's
-own range are in it. B2 does not catch this, because BS1 has no Operator.
 
 **T1. Drum rack pads in the DSL.** What DR1 still needs now that nesting
 is done. `clone.py` already sets `ReceivingNote` and allocates free notes,
