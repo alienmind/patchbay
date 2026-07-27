@@ -71,6 +71,13 @@ how you end up staring at `EQC_LD1` on a pad track wondering what it means.
 Six return tracks. Sends live on the channel strip and on DR1 pads, NOT on
 the instrument rack, so an instrument's eight knobs stay spent on sound.
 
+**Returns are named for character, not device.** A return called
+`A-Rvb:Short` says what it does to a sound; one called `Reverb 1` says
+nothing you cannot already see. Push shows the send name next to the knob,
+so this is the difference between choosing a send by ear and choosing it by
+counting. Two reverbs and two delays of contrasting length is the minimum
+useful spread; the remaining two returns are ours to spend.
+
 ## Macro grammar
 
 Identical across every instrument rack so muscle memory transfers. This
@@ -101,6 +108,35 @@ SR1 is the deliberate exception: a sampler has no instrument axis, so slots
 1 and 2 become Samples and Start Point, and slots 3 to 6 become Filter,
 Pitch, Loop Length and Attack. Same shape, different content.
 
+### One knob may drive two parameters
+
+Eight slots do not cover a synth with more than eight things worth
+reaching, so a slot is allowed to move a PAIR that belongs together:
+cutoff with resonance on slot 3, drive with the filter envelope on slot 4.
+
+This is the alternative to spending a whole slot on resonance, and it is
+what frees slot 6 to be a real wildcard rather than a dumping ground.
+Mature templates of this kind pair exactly these two, which is a reasonable
+signal that the pairing survives contact with playing.
+
+The cost is that a paired slot cannot be automated to move one half. Where
+that matters, split them and spend the wildcard.
+
+### Slot 6 is genuinely per rack
+
+The wildcard earns its name only if racks disagree about it. They should:
+a pad wants an attack knob, a bass wants saturation, a lead wants glide.
+A rack that has nothing to put there leaves it empty.
+
+Slot 5 may also carry a second function where the rack has one worth
+reaching, such as pairing modulation depth with a re-roll of the sound
+selector. That is the one case where a slot reaches back into slot 2's
+territory, and it is deliberate rather than an accident of naming.
+
+Slot 1 is the selector on every rack that has something to select between,
+and it is worth marking as such on the display so a glance tells you which
+knob steps rather than sweeps.
+
 The grammar is a CONTRACT, not a template. A rack does not "have" these
 macros, it BINDS its own parameters to these slots:
 
@@ -112,6 +148,11 @@ with rack.engine("FM", "Operator") as e:
 
 Ranges are optional and scope what the macro reaches. Live 12.4.3 has no UI
 for them, so they exist only in code.
+
+Push renders a value in whatever unit reads best, switching between
+milliseconds and seconds on the same control as it crosses one second. That
+is display only. Bindings are written in stored units, which for envelope
+times is seconds. See Q13 in `SCHEMA.md`.
 
 Every sound also maps aftertouch to filter and pitch. Exception: drum rack
 pads, since Push does not send per pad aftertouch there.
@@ -190,6 +231,28 @@ Drum Rack                      global kit macros only
 Macros chain to macros: Drum Rack Sound drives pad rack Sound drives engine
 rack Sound drives the chain selector.
 
+### One pad, one family
+
+A pad is a family, not a slot. The kick pad holds kicks, the snare pad
+holds snares, and its Sound knob walks that family. Open and closed hats
+are therefore SEPARATE PADS with separate families, not two ends of one
+knob. The tempting design is a hat pad whose Sound sweeps closed to open;
+it is the wrong shape, because a kit needs both at once.
+
+Eight pads, eight families:
+
+    KICK   RIM   SNARE   CLAP   TOM   HAT   PERC   OHAT
+
+### Pad slot names are local
+
+The grammar is positional. A pad LABELS its own slots for what they
+actually drive, so a kick can read "Filter and Envelope" and "Drive and
+Snap" where a hat reads plain "Filter" and "Drive". Same knob positions,
+same chaining, different words on the display.
+
+This is the drum rack equivalent of the slot 6 wildcard: the position is
+the contract, the label is local.
+
 Top level macros are reserved for kit wide moves, because 8 pads times 8
 parameters cannot fit 8 knobs:
 
@@ -206,6 +269,21 @@ reverbs and delays.
 
 Pads are pitched, playable instruments, not fixed kit slots. A tuned tom
 should be usable as a bassline.
+
+### What a slot means may depend on depth
+
+Our grammar fixes a slot's meaning for a whole rack. Inside a drum pad that
+may be too rigid: the useful controls at the pad level are the two sends,
+and the useful controls one level down are the FM pair, and there are only
+eight knobs at either level.
+
+Letting slots 5 and 6 mean sends at the pad level and FM inside the sound
+buys four controls without a page flip, at the cost of the one property the
+grammar exists to guarantee. Muscle memory is the product, and a knob that
+changes meaning as you dive is the thing muscle memory cannot absorb.
+
+Undecided. It is the sharpest open question in the DR1 design, and the
+answer decides whether the grammar is a contract per rack or per level.
 
 ## AFX1
 
@@ -305,8 +383,12 @@ rather than by accident:
   same across engines that disagree about units.
 - **The slot 6 wildcard, per rack.** PD1 spends `Character` on resonance,
   because Operator and Simpler both have one and slot 3 is cutoff alone.
-  That is a default, not a decision: Meld's L-B-H-N morph is the better
-  argument for what the slot is FOR, and no rack uses it yet.
+  That is a default, not a decision. Pairing resonance onto slot 3 frees
+  slot 6 for what it is actually for: attack on a pad, saturation on a
+  bass, glide on a lead, and Meld's L-B-H-N morph wherever Meld lands.
+- **Whether a slot may change meaning with depth.** Fixed per rack is the
+  current rule. Per level buys four more controls inside DR1 and costs the
+  guarantee that a knob means one thing. See DR1 structure above.
 - **A second effect slot on the strip.** AFXS1 exists in the layout and has
   no contents.
 
