@@ -146,6 +146,36 @@ move the parent's pointer to a commit no remote has.
 
 ## Next
 
+**T8. DECIDE WHAT SLOTS 5 AND 6 MEAN INSIDE A DRUM PAD.** A design call,
+not a task. Nobody else can make it and the code is currently sitting on a
+placeholder.
+
+`PATCHBAYGROUND.md`, "What a slot means may depend on depth", records it as
+undecided and calls it the sharpest open question in the DR1 design. The
+two answers:
+
+- **One meaning per rack, whatever the depth.** What the code does today.
+  Slots 5 and 6 mean modulation depth and the wildcard at every level.
+  Muscle memory is the product and a knob that changes meaning as you dive
+  is the thing muscle memory cannot absorb.
+- **Meaning per LEVEL.** Slots 5 and 6 become the two sends at kit level
+  and the FM pair inside the sound. Buys four controls with no page flip,
+  and spends the one property the grammar exists to guarantee.
+
+The conservative reading is in the code because it is reversible; the other
+is not, once anything is played on it. Nothing is blocked on this and the
+cost of deciding late is that DR1 gets rebuilt.
+
+Two things now bear on it that did not when it was written. Slot 6 is a
+per rack role rather than a fixed meaning, so meaning already varies by
+RACK and the question is only whether it may also vary by DEPTH. And
+labels are local, so a pad can SAY what its slot 5 does, which removes the
+"you cannot tell what the knob is" half of the argument but not the muscle
+memory half.
+
+*Wants Q6 either way: the kit-level sends are FX selectors, not send
+levels, and nothing wires them yet.*
+
 **T7. LD1's Release slot is unranged on both engines.** `fm` binds
 `Operator.0/Envelope/ReleaseTime` and `sampler` binds
 `VolumeAndPan/Envelope/ReleaseTime` with no range, while `wavetable`,
