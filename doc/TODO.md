@@ -15,73 +15,103 @@ Phase 0 discovery is closed: 12 spikes answered, 1 retired, both kill
 criteria passed. What the format does is in `ARCHITECTURE.md`, each claim
 marked verified, inferred or open and traced to a file in `racks/`.
 
-The end-to-end chain has passed its gate in Live: a rack declared in
-`examples/patchbayground.py`, compiled with `patchbay build`, dropped on a
-MIDI track, one grammar driving two synthesis engines, 96 variations
-recalling.
+Six racks compile from `examples/patchbayground.py`. Five have been loaded
+into Live 12.4.3, played, and corrected on what playing them found: PD1,
+PD1W, BS1, LD1 and DR1, with VA1 exercising nesting. Three levels of
+nesting, macros chaining into whichever sub-rack is selected, 96 variations
+recalling, and eight drum pads on their own notes each holding a rack of
+eight samples.
 
-Nesting has passed the same gate. `build/VA1.adg` is two levels written
-from scratch, with macros chaining into whichever sub-rack is selected.
-DR1's remaining blockers are the pad side, not the nesting.
-
-The eight slot grammar in `PATCHBAYGROUND.md` is what the code declares
-and is gated in Live 12.4.3 on both racks, ranges included. Donors for
-Wavetable, Drift and Meld are harvested and their bindings measured, so
-BS1, LD1 and PD1 proper are blocked on being written, not on evidence.
+The eight slot grammar in `PATCHBAYGROUND.md` is what the code declares.
+Ranges, level trims and pad layout are gated. Slot 3's pairing, slot 6's
+per rack role and the local labels are NOT: they are the current round.
 
 ## In progress
 
-**Awaiting a human in Live.** Everything below was written in one headless
-session on branch `headless/overnight`. It compiles, 49 tests pass, and
-NONE of it has been loaded into Live. Tooling verification proves a file is
-well formed; it has never once proved a rack sounds right, and this session
-produced two silent-wrong bugs that only ears caught.
+**Awaiting a human in Live.** Tooling verification proves a file is well
+formed; it has never once proved a rack sounds right.
 
-Work the checks in the order given: the loads come first, because if a file
-is refused nothing after it matters.
+The first three rounds are spent. A, B and C all ran: every rack loads and
+plays, macros open where they should, DR1's pads follow the 808 Core Kit
+grid, Drift's `Envelope1` is confirmed as its amp envelope, and Meld's B
+side is bound alongside its A side after Macro 3 was heard filtering half
+the sound. What is left of those rounds is `Q16` below.
 
-### A. Do the new racks load and play
+**`patchbayground.py` has since changed shape, and every check below is
+against the new build.** Three changes, all from the reconstruction in
+`PATCHBAYGROUND.md`:
 
-| # | File | Do this | Should happen |
-|---|---|---|---|
-| A1 | `build/PD1W.adg` | Drag onto a MIDI track, play | Wavetable pad sounds |
-| A2 | `build/PD1W.adg` | Macro 1 full left, full right | Sweeps Wave to Drift |
-| A3 | `build/BS1.adg` | Drag on, sweep Macro 1 | Three engines: Wave, Drift, Meld |
-| A4 | `build/LD1.adg` | Drag on, sweep Macro 1 | Two engines: FM, Meld |
-| A5 | `build/DR1.adg` | Drag onto a MIDI track | 8 pads, none red or offline |
-| A6 | `build/DR1.adg` | Play pads 36,37,38,39,41,42,43,46 | Kick, rim, snare, clap, tom, hat, perc, ohat |
+| | old | new |
+|---|---|---|
+| slot 3 | cutoff | cutoff AND resonance, one knob |
+| slot 6 | resonance on every rack | per rack: attack, glide or morph |
+| labels | grammar name on every rack | local per rack |
 
-### B. Does the grammar hold on the new racks
+BS1's slot 6 moving on Meld ALONE is the rule working: only Meld can serve
+morph, so Wavetable and Drift leave it empty rather than binding three
+different ideas to one knob.
 
-Same knob, same meaning, on every engine. Q14 is what it looks like when
-this fails: a slot bound correctly everywhere that still did two different
-things.
+Rebuild before anything below: `patchbay build examples/patchbayground.py`
+
+### H. The new slot 3, and the new slot 6
+
+Everything the old B round proved about slots 3 and 6 is void; those two
+knobs drive different parameters now. Slots 1, 2, 4, 7 and 8 are unchanged
+and are not re-checked.
 
 | # | Rack | Do this | Should happen |
 |---|---|---|---|
-| B1 | BS1 | Macro 3 across all three engines | Cutoff moves, comparable range |
-| B2 | BS1 | Macro 7 across all three engines | Release length comparable |
-| B3 | BS1 | Macro 8 full left, then right, each engine | Silent at 0, unity at 127, no clipping |
-| B4 | BS1 | Macro 4 on Drift | NOTHING. Drift exposes no drive |
-| B5 | BS1 | Macro 5 on Wave, then Meld | NOTHING on either. Only Drift has LFO depth |
-| B6 | BS1/LD1 | Macro 6 on Meld | Filter Q moves |
+| H1 | BS1 | Macro 3 across all three engines | Cutoff AND resonance move together, comparable on all three |
+| H2 | BS1 | Macro 3 at 127 | Fully open with resonance at maximum. Confirm this is playable, not a scream. If it is, slot 3's resonance half wants a narrower range |
+| H3 | PD1W | Macro 6 | Attack softens on Wave and Drift both |
+| H4 | LD1 | Macro 6 | Glide on FM and Meld both |
+| H5 | BS1 | Macro 6 on Meld, then Wave, then Drift | Filter morphs on Meld. NOTHING on the other two, by design |
+| H6 | LD1 | Macro 5 | NOTHING, until Q16 |
 
-### C. Two guesses I could not check without you
+### I. Do the labels read right on the hardware
 
-Both are inferences, marked as such in the source. Either could be wrong.
+The first check of this whole mechanism, and it is a Push check rather
+than a Live one.
 
-| # | Check | How | If wrong |
-|---|---|---|---|
-| C1 | Drift's amp envelope is `Envelope1` | BS1, select Drift, hold a note, turn Macro 7. Does the TAIL change? | It is `Envelope2`; say so and I will swap it |
-| C2 | Meld Engine A only | BS1, select Meld, turn Macro 3. Does the whole sound filter, or half? | Needs both A and B bound to one macro |
+| # | Do this | Report |
+|---|---|---|
+| I1 | BS1 on Push, look at the macro row | Do you see `> Instrument`, `Filter + Res`, `Morph`? Or truncated versions, and truncated to what? |
+| I2 | Same in Live's rack panel | Same question. Live's macro name field is narrower than Push's |
+| I3 | DR1, dive into KICK, then into HAT | KICK slot 4 reads `Drive + Snap`, HAT reads `Drive`, same position |
+| I4 | Any rack | Does `>` read as "this one steps"? If it is noise on the display, say so and it goes |
+
+I1 and I2 decide whether labels can carry a phrase at all. If Push shows
+eight characters, `Filter + Res` is not the answer and the pairing needs a
+different word rather than a longer one.
+
+### Q16. Drift's LFO reaches nothing
+
+Held over from round B. `Lfo_Amount` is the right parameter and moves.
+What is missing is the routing, and it is NOT in the parameter list: Drift
+keeps it in plain `Value` elements next to the parameters, as
+`Filter_ModSource1`, `ModulationMatrix_Source1` / `_Target1` / `_Amount1`
+and their numbered siblings. The donor has `ModulationMatrix_Source1=5,
+Target1=8, Amount1=0.8` and `Lfo_ModSource=5`, so the enums are guessable
+and therefore exactly what must not be guessed.
+
+One change diff, and it answers the whole thing at once:
+
+| # | Do this | Save as |
+|---|---|---|
+| Q16 | Load `build/BS1.adg`, select Drift, set ONE modulation matrix row to LFO -> Filter Frequency, nothing else | `racks/q16_a.adg`, and the same rack with that row cleared as `racks/q16_b.adg` |
+
+Until it lands, Macro 5 does nothing audible on any engine: Wavetable's
+LFO depth is not in the parameter list at all, and Meld has no equivalent.
 
 ### D. DR1 in depth
 
+Unaffected by the reshape except D3, which now moves a pair.
+
 | # | Do this | Should happen |
-|---|---------|---------------|
+|---------|---------|---------------|
 | D1 | Kit Macro 1 (Sound), slowly, while playing a pad | Sample changes on EVERY pad at once |
 | D2 | Dive into KICK on Push, turn its Sound knob | Only the kick's sample changes |
-| D3 | Kit Macro 3 (Filter) | Cutoff on all pads |
+| D3 | Kit Macro 3 (Filter + Res) | Cutoff and resonance on all pads |
 | D4 | Kit Macros 5, 6, 7 (Send A, Send B, Send Vol) | NOTHING. Sends are not wired: needs Q6 |
 
 ### E. Spikes, each a one change diff
@@ -115,6 +145,16 @@ deliberately NOT an edit to the `ableton-mcp` submodule, because that would
 move the parent's pointer to a commit no remote has.
 
 ## Next
+
+**T7. LD1's Release slot is unranged on both engines.** `fm` binds
+`Operator.0/Envelope/ReleaseTime` and `sampler` binds
+`VolumeAndPan/Envelope/ReleaseTime` with no range, while `wavetable`,
+`drift` and `meld` all bind through `RELEASE = (0.01, 20.0)`. So Macro 7
+means one thing on BS1 and PD1W and something else on LD1 and PD1. This is
+the Q14 shape exactly: correct on each engine, inconsistent across them.
+Measure both with `library.Device.range_of` and decide whether `RELEASE`
+still holds as the intersection once Operator's 1..60000 ms and Simpler's
+own range are in it. B2 does not catch this, because BS1 has no Operator.
 
 **T1. Drum rack pads in the DSL.** What DR1 still needs now that nesting
 is done. `clone.py` already sets `ReceivingNote` and allocates free notes,
