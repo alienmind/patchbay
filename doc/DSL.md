@@ -202,6 +202,36 @@ cutoff is a gain stage; none of that was held fixed. The table did its job,
 which was killing a 12 dB spread that clipped, and it will not get past a
 few dB without a repeatable signal instead of a played note.
 
+## The slot name and the knob label are two different things
+
+A slot name is doing two jobs that pull apart: it is the KEY a rack binds
+against, and it is the WORD on the hardware. `_name_macros` wrote the
+grammar's name onto every rack, so every rack sharing a grammar showed
+identical words.
+
+Two cases break that, and neither is cosmetic:
+
+- **A paired slot under-describes itself.** Slot 3 drives cutoff and
+  resonance. A knob labelled "Filter" that also moves resonance is lying
+  by omission, on the one surface the player actually reads.
+- **A selector steps where every other knob sweeps**, and nothing in the
+  format marks it. That is a property of the rack, not of the parameter.
+
+So labels are separate, declared on the grammar and overridable per rack,
+exactly as start positions are:
+
+```python
+PATCHBAYGROUND = Grammar(..., labels={"Instrument": "> Instrument"})
+
+Rack("KICK", PAD, labels={"Drive": "Drive + Snap"})
+```
+
+**Position stays the contract; the word is local.** A kick reading
+"Drive + Snap" where a hat reads "Drive" is the same slot, the same
+chaining and the same muscle memory. Nothing about what the knob DOES
+changes, which is what makes this safe: a label cannot move a mapping, and
+a label for a slot that is not in the grammar raises.
+
 ## A grammar says where the knobs open
 
 Binding a slot is half the job. The other half is where the knob sits when

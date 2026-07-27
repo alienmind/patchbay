@@ -707,29 +707,6 @@ def test_bound_macros_do_not_open_at_zero():
             assert got, f"{rack.name}: {slot} opens at {got}"
 
 
-def test_start_refuses_a_position_off_the_macro_scale():
-    g = Grammar("Engine", "Volume", selector="Engine")
-    rack = Rack("X", g)
-    for bad in (-1, 128, 200):
-        try:
-            rack.start(volume=bad)
-        except ValueError:
-            continue
-        assert False, f"{bad} accepted as a macro position"
-
-
-def test_start_is_not_written_for_a_slot_nothing_drives():
-    """A knob parked somewhere meaningful that moves nothing reads as a bug."""
-    g = Grammar("Engine", "Filter", "Volume", selector="Engine",
-                start={"Filter": 127, "Volume": 127})
-    rack = Rack("X", g)
-    with rack.engine("A", "Operator") as e:
-        e.bind(volume="Globals/Volume")
-    dev = find.rack_device(find.preset(rack.build()))
-    assert params.value(find.macro(dev, 3)) == 127     # Volume, bound
-    assert params.value(find.macro(dev, 2)) == 0       # Filter, bound by nothing
-
-
 def test_one_slot_can_drive_several_parameters():
     """Meld is two engines behind one device; binding A alone filters half.
 
@@ -758,6 +735,73 @@ def test_binding_a_slot_twice_replaces_rather_than_accumulates():
     assert on_two == ["MeldVoice_EngineB_Filter_Frequency"]
 
 
+def _labels(rack):
+    dev = find.rack_device(find.preset(rack.build()))
+    return [dev.find(f"MacroDisplayNames.{i}").get("Value")
+            for i in range(len(rack.grammar))]
+
+
+def test_a_label_overrides_the_slot_name_without_moving_the_slot():
+    """Position is the contract, the word is local.
+
+    A slot that drives a PAIR ships a knob whose name under-describes it,
+    and nothing in the format marks a selector as stepping rather than
+    sweeping. Both are display problems with no other place to live.
+    """
+    g = Grammar("Engine", "Filter", selector="Engine",
+                labels={"Engine": "> Engine"})
+    rack = Rack("X", g, labels={"Filter": "Filter + Res"})
+    with rack.engine("A", "Operator") as e:
+        e.bind(filter="Filter/Frequency")
+    assert _labels(rack) == ["> Engine", "Filter + Res"]
+    # The key did not move: bind() and macro_of() still take the slot name.
+    assert g.macro_of("filter") == 2
+
+
+def test_two_racks_on_one_grammar_may_label_differently():
+    g = Grammar("Engine", "Drive", selector="Engine")
+    a = Rack("KICK", g, labels={"Drive": "Drive + Snap"})
+    b = Rack("HAT", g)
+    for r in (a, b):
+        with r.engine("S", "OriginalSimpler") as e:
+            e.bind(drive="Filter/Slot/Value/SimplerFilter/Drive")
+    assert _labels(a) == ["Engine", "Drive + Snap"]
+    assert _labels(b) == ["Engine", "Drive"]
+
+
+def test_a_label_for_a_slot_that_does_not_exist_is_refused():
+    g = Grammar("Engine", "Filter", selector="Engine")
+    for bad in ({"Cutoff": "x"},):
+        try:
+            Rack("X", g, labels=bad)
+        except KeyError:
+            continue
+        assert False, f"{bad} accepted as a label"
+
+
+def test_start_refuses_a_position_off_the_macro_scale():
+    g = Grammar("Engine", "Volume", selector="Engine")
+    rack = Rack("X", g)
+    for bad in (-1, 128, 200):
+        try:
+            rack.start(volume=bad)
+        except ValueError:
+            continue
+        assert False, f"{bad} accepted as a macro position"
+
+
+def test_start_is_not_written_for_a_slot_nothing_drives():
+    """A knob parked somewhere meaningful that moves nothing reads as a bug."""
+    g = Grammar("Engine", "Filter", "Volume", selector="Engine",
+                start={"Filter": 127, "Volume": 127})
+    rack = Rack("X", g)
+    with rack.engine("A", "Operator") as e:
+        e.bind(volume="Globals/Volume")
+    dev = find.rack_device(find.preset(rack.build()))
+    assert params.value(find.macro(dev, 3)) == 127     # Volume, bound
+    assert params.value(find.macro(dev, 2)) == 0       # Filter, bound by nothing
+
+
 # --- T6a: extraction ------------------------------------------------------
 
 def _structure(root):
@@ -774,7 +818,8 @@ def _structure(root):
     maps = sorted((m["macro"], m["target"])
                   for m in mappings.find(root) if m["macro"])
     pos = [params.raw_value(find.macro(dev, i + 1)) for i in range(8)]
-    return chains, maps, pos
+    names = [dev.find(f"MacroDisplayNames.{i}").get("Value") for i in range(8)]
+    return chains, maps, pos, names
 
 
 def test_extract_round_trips_structure(tmp_path=None):
@@ -803,6 +848,7 @@ def test_extract_round_trips_structure(tmp_path=None):
         assert a[0] == b[0], f"{rack.name}: chains differ"
         assert a[1] == b[1], f"{rack.name}: mappings differ"
         assert a[2] == b[2], f"{rack.name}: macro positions differ"
+        assert a[3] == b[3], f"{rack.name}: macro labels differ"
 
 
 # --- house style ----------------------------------------------------------

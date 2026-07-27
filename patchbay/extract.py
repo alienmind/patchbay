@@ -192,6 +192,18 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
 
     lines.append(f'{var} = Rack({name!r}, Grammar({slots}{sel_arg}), kind={kind})')
 
+    # The emitted grammar is positional, so a label that matches its own
+    # slot name carries nothing. One that does not is the only record of
+    # what this rack called the knob.
+    shown = {}
+    for i in range(n):
+        el = rack_dev.find(f"MacroDisplayNames.{i}")
+        text = None if el is None else el.get("Value")
+        if text and text != f"Macro {i + 1}":
+            shown[f"Macro_{i + 1}"] = text
+    if shown:
+        lines.append(f'{var}.label(**{shown!r})')
+
     starts = _starts(rack_dev, n)
     if starts:
         args = ", ".join(f"macro_{k}={v}" for k, v in sorted(starts.items()))

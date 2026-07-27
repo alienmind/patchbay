@@ -33,7 +33,7 @@ earns its place inside a drum pad, where it walks eight samples.
 
 Blocked: SR1, on samples.
 
-## Two things this file decides that the grammar does not
+## Three things this file decides that the grammar does not
 
 **Slot 3 drives cutoff AND resonance.** One knob, two parameters that
 belong together, which is what frees slot 6 to be a real wildcard instead
@@ -44,6 +44,11 @@ automated to move one half.
 leads, morph where Meld lands. An engine that cannot serve the role leaves
 the slot empty rather than substituting something else, which is why BS1's
 slot 6 moves on Meld and on nothing else.
+
+**Labels are local, positions are not.** A kick's slot 4 reads
+"Drive + Snap" where a hat's reads "Drive": same slot, same chaining, same
+muscle memory. Without it, change 1 would ship a knob called Filter that
+also moves resonance and never says so.
 
 Not relitigated here, because they are gated: the eight names, the selector
 slot, the ranges, the level trims, DR1's pad layout.
@@ -85,12 +90,39 @@ PATCHBAYGROUND = Grammar(
     # Volume and Filter open at 127 because the top of each binding's range
     # IS the neutral position, not a loud one: every volume binding is
     # capped at unity or below, see PEAK_DB. Drive and Movement open at 0
-    # because their neutral is off. Release opens at 30, roughly 0.4 s on the shared
-    # 0.01..20 s range: short enough to play, long enough to hear the knob
-    # move in either direction. Instrument and Sound open at 0, the first
-    # chain.
+    # because their neutral is off. Release opens at 30, roughly 0.4 s on
+    # the shared 0.01..20 s range: short enough to play, long enough to hear
+    # the knob move in either direction. Instrument and Sound open at 0, the
+    # first chain.
     start={"Filter": 127, "Release": 30, "Volume": 127},
+    # Slot 1 STEPS where every other knob SWEEPS, and a player wants to
+    # know which is which before touching it. `>` is this project's mark
+    # for that, not a Live convention: nothing in the format distinguishes
+    # a selector on the display, so the distinction has to be spelled.
+    labels={"Instrument": "> Instrument"},
 )
+
+# Slot 3 drives cutoff AND resonance, and slot 4 drives drive; a knob whose
+# label under-describes what it moves is the thing labels exist to stop.
+# Applied per rack rather than declared on the grammar because a rack that
+# spends slot 6 on resonance instead would not pair, and then the plain
+# name is the true one.
+#
+# The cost of pairing, stated once: a paired slot cannot be automated to
+# move one half. Where that matters, split them and spend the wildcard.
+PAIRED = {"Filter": "Filter + Res"}
+
+
+def paired(role: str | None = None) -> dict[str, str]:
+    """Labels for a rack: the pairing on slot 3, and slot 6's actual role.
+
+    Slot 6 is called Character in the grammar because that is what the
+    CONTRACT is; on the hardware it says which wildcard this rack spent it
+    on. A rack that leaves the slot empty for some of its engines still
+    names the role, because the knob does work on the engines that have it.
+    """
+    return {**PAIRED, **({"Character": role.title()} if role else {})}
+
 
 # Cutoff range shared by every engine, in Hz.
 #
@@ -193,13 +225,20 @@ KIT = Grammar(
     # volume to its floor. Pitch and the sends are unbound, so their start
     # is not written.
     start={"Filter": 127, "Volume": 127},
+    # The kit's Filter chains into each pad's Filter, which is paired, so
+    # the kit knob moves cutoff and resonance on eight pads at once and
+    # says so. Sound STEPS rather than sweeps: it walks the sample list.
+    labels={"Sound": "> Sound", "Filter": "Filter + Res"},
 )
 
 # Inside a pad the axis is WHICH SAMPLE, so the selector slot is Sound
 # rather than Instrument. Same eight names as PATCHBAYGROUND so the kit can
 # chain slot to slot by identity; only which slot drives the selector moves.
 PAD = Grammar(*PATCHBAYGROUND.slots, selector="Sound",
-              start=dict(PATCHBAYGROUND.start))
+              start=dict(PATCHBAYGROUND.start),
+              # The selector mark moves with the selector: inside a pad it
+              # is Sound that steps, and Instrument is not bound at all.
+              labels={"Sound": "> Sound"})
 
 # Pad layout, and the folder each pad draws from. The names are the ones
 # samples/README.md documents, not a vendor's.
@@ -418,7 +457,8 @@ def pd1() -> Rack:
     Kept as the verified slice: 96 variations, both engines answering one
     grammar. `pd1_wave` below is what the spec actually calls for.
     """
-    rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
+                labels=paired("attack"))
     sampler(fm(rack, character="attack"), character="attack")
     rack.variations(*sound_family(rack))
     return rack
@@ -429,7 +469,8 @@ def pd1_wave() -> Rack:
     played into: a pad you cannot soften is a stab, and softening is most
     of what separates the two.
     """
-    rack = Rack("PD1W", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    rack = Rack("PD1W", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
+                labels=paired("attack"))
     return drift(wavetable(rack, character="attack"), character="attack")
 
 
@@ -444,7 +485,8 @@ def bs1() -> Rack:
     not available. Of the engines in this file only Operator has a shaper,
     and Operator is not in this rack.
     """
-    rack = Rack("BS1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    rack = Rack("BS1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
+                labels=paired("morph"))
     return meld(drift(wavetable(rack)), character="morph")
 
 
@@ -454,7 +496,8 @@ def ld1() -> Rack:
     Slot 6 is GLIDE, the one control a lead needs that a pad does not, and
     the rack where the wildcard pays best: a mono lead lives on portamento.
     """
-    rack = Rack("LD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+    rack = Rack("LD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
+                labels=paired("glide"))
     return meld(fm(rack, character="glide"), character="glide")
 
 
@@ -474,6 +517,16 @@ def pad_samples(sound: str, n: int = SAMPLES_PER_PAD) -> list[Path]:
     return sorted(folder.glob(f"{sound}_*.wav"))[:n]
 
 
+# What a pad calls its knobs, over the shared PAIRED labels. The grammar is
+# positional: same slot, same chaining, different word, which is the drum
+# rack form of the slot 6 wildcard. A kick's slot 4 is where its snap
+# lives, so it says so; a hat's is plain drive.
+PAD_LABELS: dict[str, dict[str, str]] = {
+    "KICK": {"Drive": "Drive + Snap"},
+    "SNARE": {"Drive": "Drive + Snap"},
+}
+
+
 def pad_rack(name: str, sound: str) -> Rack | None:
     """One pad: a rack whose chains are samples, selected by the Sound knob.
 
@@ -489,7 +542,8 @@ def pad_rack(name: str, sound: str) -> Rack | None:
     if not files:
         return None
 
-    rack = Rack(name, PAD, kind=RackKind.INSTRUMENT)
+    rack = Rack(name, PAD, kind=RackKind.INSTRUMENT,
+                labels={**paired("attack"), **PAD_LABELS.get(name, {})})
     for i, wav in enumerate(files):
         with rack.engine(f"S{i + 1}", "OriginalSimpler") as e:
             e.sample(wav)

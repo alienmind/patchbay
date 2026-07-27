@@ -105,12 +105,18 @@ class Grammar:
 
     Slot 1 is macro 1. Lookup is case insensitive, so `cutoff` finds the
     slot declared as "Cutoff".
+
+    A slot name is two things that look like one: the KEY a rack binds
+    against, and the WORD shown on the hardware. `labels` separates them,
+    so the key stays stable while the display says what this rack's knob
+    actually does.
     """
 
-    __slots__ = ("slots", "selector", "start", "_index")
+    __slots__ = ("slots", "selector", "start", "labels", "_index")
 
     def __init__(self, *slots: str, selector: str | None = "engine",
-                 start: Mapping[str, float] | None = None) -> None:
+                 start: Mapping[str, float] | None = None,
+                 labels: Mapping[str, str] | None = None) -> None:
         if len(slots) > MAX_MACROS:
             raise ValueError(f"a rack has {MAX_MACROS} macros; got {len(slots)} slots")
         if len(slots) != len({s.lower() for s in slots}):
@@ -130,6 +136,13 @@ class Grammar:
                     f"start position for {slot!r}, which is not a slot here. "
                     f"Slots: {', '.join(self.slots)}")
             self.start[slot.lower()] = _macro_pos(slot, pos)
+        self.labels: dict[str, str] = {}
+        for slot, text in (labels or {}).items():
+            if slot.lower() not in self._index:
+                raise KeyError(
+                    f"label for {slot!r}, which is not a slot here. "
+                    f"Slots: {', '.join(self.slots)}")
+            self.labels[slot.lower()] = text
         # Which slot drives the chain selector. Named rather than fixed at
         # slot 1, because a drum rack's macro 1 is not a selector. A grammar
         # that declares no such slot passes selector=None and gets no
@@ -329,6 +342,7 @@ class Rack:
         kind: RackKind = RackKind.INSTRUMENT,
         library: Library | None = None,
         skeleton: Path | str | None = None,
+        labels: Mapping[str, str] | None = None,
     ) -> None:
         self.name = name
         self.grammar = grammar
@@ -337,6 +351,10 @@ class Rack:
         self.engines: list[Chain] = []
         self.variation_set: list[Variation] = []
         self.starts: dict[str, float] = dict(grammar.start)
+        self.display: dict[str, str] = dict(grammar.labels)
+        for slot, text in (labels or {}).items():
+            grammar.macro_of(slot)               # fail early on a typo
+            self.display[slot.lower()] = text
         self._skeleton = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
         self._wrapper_template: Element | None = None
@@ -403,6 +421,17 @@ class Rack:
         chain = self.nest(name, rack) if rack is not None else self.engine(name, device)
         chain.note = note
         return chain
+
+    def label(self, **slots: str) -> "Rack":
+        """Rename this rack's knobs on the display. The slot keys do not move.
+
+        The keyword form of the `labels=` argument, for a rack built up in
+        steps rather than declared in one call.
+        """
+        for slot, text in slots.items():
+            self.grammar.macro_of(slot)          # fail early on a typo
+            self.display[slot.lower()] = text
+        return self
 
     def start(self, **slots: float) -> "Rack":
         """Move this rack's knobs off the grammar's opening position.
@@ -619,11 +648,18 @@ class Rack:
             f"Checked {len(checked)} file(s).")
 
     def _name_macros(self, rack_dev: Element) -> None:
-        """Write the grammar's slot names onto the macros."""
+        """Write what each knob is CALLED, which is not what it is keyed by.
+
+        The grammar's slot name is the default and a label overrides it.
+        Position is the contract; the word is local. A kick reading
+        "Drive & Snap" where a hat reads "Drive" is the same slot, the same
+        chaining and the same muscle memory, and it is the only way a slot
+        that drives a pair can say so on the hardware.
+        """
         for i, slot in enumerate(self.grammar):
             el = rack_dev.find(f"MacroDisplayNames.{i}")
             if el is not None:
-                el.set("Value", slot)
+                el.set("Value", self.display.get(slot.lower(), slot))
         vis = rack_dev.find("NumVisibleMacroControls")
         if vis is not None:
             # All 16 slots always exist; this only sets how many show.
