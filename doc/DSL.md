@@ -96,6 +96,30 @@ under `SourceContext`. In a donor they routinely point at DIFFERENT files,
 so writing only the first leaves the second naming a sample this rack no
 longer plays.
 
+Naming the sample a chain ALREADY plays writes nothing at all. Flattening
+a donor's own pair to say the same thing in our form would discard the
+provenance ref for no gain, and it showed up as a difference the moment
+`patchbay extract` started round-tripping racks.
+
+## A chain may state where on the selector it answers
+
+```python
+with rack.engine("Wave", "InstrumentVector") as e:
+    e.zone(0, 63)
+```
+
+The default is an even share of 0..127 among the chains that are not pads,
+which is what a generated rack wants and what every rack in
+`examples/patchbayground.py` uses. This is for the rack that was not
+generated: a hand built one whose chains overlap, or divide unevenly, or
+leave a dead band. It is also what makes such a rack survive `patchbay
+extract`.
+
+Declaring it on ONE chain makes the whole rack explicit, and a chain left
+out then raises. The alternative is a rack that mixes a stated bound with
+an even share computed from a different chain count, which puts a chain
+somewhere nobody wrote.
+
 ## A slot is only as consistent as its ranges
 
 Two engines binding the same slot to their own equivalent parameter
@@ -397,6 +421,44 @@ a file that passed every check and that Live refused as a drop. The cause
 turned out to be a single leftover attribute; the guard against nested
 skeletons is gone and the attribute is handled. See `THE_BASEMENT.md` for
 why it stayed hidden as long as it did.
+
+## The compiler runs backwards
+
+`patchbay extract file.adg` prints DSL source for a saved rack. It recovers
+what is in the file: chains and their device types, every macro mapping
+with its range, chain zones, samples, macro resting positions, macro
+labels, variations, and nesting to any depth with the macro-to-macro
+chaining intact.
+
+For a rack patchbay built, extracting and rebuilding is EXACT. All six
+racks in `examples/patchbayground.py`, including DR1 at three levels with
+64 sample chains, diff clean against the original, and a test holds them
+there. That gate is what found the gaps: ranges were not being emitted at
+all, variations came out as a comment, and unnamed chains were given
+invented names.
+
+For a rack LIVE built it recovers a skeleton, and the shortfall is
+structural rather than a missing feature. A declaration names a device by
+tag and the compiler fills it from a donor, so:
+
+- **parameter values do not survive.** The rebuilt device holds the donor's
+  settings, not the original's. On `racks/s1_source.adg` that is about
+  15,000 facts.
+- **only the first device on a chain survives.** A chain holding Simpler
+  plus a Pitch device comes back as Simpler.
+- **only the first sample of a multi-sampled device survives.** Q3.
+- **per-rack cosmetics do not survive**, `DocumentColorIndex` and
+  `AreMacroVariationsControlsVisible` among them.
+
+Closing that gap means a DSL that can carry an arbitrary parameter dump,
+which is a different tool: at that point the declaration is the rack rather
+than a description of one, and the donor stops being the vocabulary.
+
+**Slot names never survive, from either source.** The emitted grammar is
+positional, `Macro_1` through `Macro_N`. That a macro drives
+`Filter/Frequency` on every chain is in the file; that its author called
+the slot `Filter` is not, and guessing it is inventing intent. Renaming is
+a human edit, and every binding follows the rename.
 
 ## Deliberate limits
 

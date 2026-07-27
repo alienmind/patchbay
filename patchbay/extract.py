@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import find, io, mappings, variations
+from . import find, io, mappings, params as P, samples, variations
 
 KIND_OF = {
     "InstrumentGroupDevice": "RackKind.INSTRUMENT",
@@ -27,8 +27,6 @@ KIND_OF = {
     "MidiEffectGroupDevice": "RackKind.MIDI_EFFECT",
     "DrumGroupDevice": "RackKind.DRUM",
 }
-
-FULL_ZONE = ("0", "127")
 
 
 def _ident(name: str, used: set[str]) -> str:
@@ -67,32 +65,89 @@ def _macro_count(preset_el, rack_dev) -> int:
     return max(highest, 1)
 
 
-def _bindings_for(branch, device, rack_dev) -> dict[int, list[str]]:
-    """Macro number -> the parameter paths it drives, on one chain's device.
+def _range_literal(param_el) -> tuple[str, str] | None:
+    """The mapping range, as the strings the file holds.
+
+    Strings rather than floats: `0.24043628000069334` survives a round trip
+    through `float` only by luck of repr, and a range that shifts in the
+    last digit is a diff that has to be explained every time.
+    """
+    r = param_el.find("MidiControllerRange")
+    if r is None:
+        return None
+    lo, hi = r.find("Min"), r.find("Max")
+    if lo is None or hi is None:
+        return None
+    return (lo.get("Value"), hi.get("Value"))
+
+
+def _bindings_for(branch, device, rack_dev) -> dict[int, list[str | tuple]]:
+    """Macro number -> what it drives, on one chain's device.
 
     A list, because one macro driving several parameters is ordinary: Meld
     binds each slot to both its A and B engines. Keeping only the last would
     emit a rack that filters half the sound.
+
+    The range is emitted ALWAYS, never only where it looks non-default.
+    Nothing in the file distinguishes a range the author set from one the
+    donor came with, and the rebuild takes its unranged values from whatever
+    donor is indexed that day. Writing it out is what makes the emitted
+    source say the same thing as the rack, independently of donors.
     """
-    out: dict[int, list[str]] = {}
+    out: dict[int, list[str | tuple]] = {}
     for m in mappings.find(device):
         if not m["macro"]:
             continue
-        path = find.param_path(m["element"].getparent(), device)
-        if path:
-            out.setdefault(m["macro"], []).append(path)
+        param = m["element"].getparent()
+        path = find.param_path(param, device)
+        if not path:
+            continue
+        rng = _range_literal(param)
+        out.setdefault(m["macro"], []).append(
+            path if rng is None else (path, rng[0], rng[1]))
+    return out
+
+
+def _fmt_binding(spec) -> str:
+    """A binding as source. Range numbers go in bare, not as strings."""
+    if isinstance(spec, tuple):
+        return f"({spec[0]!r}, {spec[1]}, {spec[2]})"
+    return repr(spec)
+
+
+def _sample_targets(device) -> list[str]:
+    """One path per sample: the LIVE FileRef, not the provenance one.
+
+    `samples.file_refs` yields both, and the two disagree by design - the
+    OriginalFileRef records where the audio came from before it was moved
+    into the Library. Emitting that one produces source that points at a
+    file the rack does not use.
+    """
+    out = []
+    for sample_ref in device.iter("SampleRef"):
+        live = sample_ref.find("FileRef")
+        if live is None:
+            continue
+        el = live.find("Path")
+        if el is not None and el.get("Value"):
+            out.append(el.get("Value"))
     return out
 
 
 def _zone_of(branch) -> tuple[str, str] | None:
+    """This chain's selector bounds, emitted whether or not they look default.
+
+    Not suppressed when they cover the whole scale. `Engine.zone` is all or
+    nothing per rack, so a chain left out because its bounds looked ordinary
+    would take an even share instead and land somewhere else.
+    """
     z = find.zone(branch)
     if z is None:
         return None
-    lo = z.find("Min"), z.find("Max")
-    if lo[0] is None or lo[1] is None:
+    lo, hi = z.find("Min"), z.find("Max")
+    if lo is None or hi is None:
         return None
-    pair = (lo[0].get("Value"), lo[1].get("Value"))
-    return None if pair == FULL_ZONE else pair
+    return (lo.get("Value"), hi.get("Value"))
 
 
 def _receiving_note(branch) -> str | None:
@@ -188,6 +243,7 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             child_name = branch.find("Name")
             hint = (child_name.get("Value") if child_name is not None
                     else f"{name}_{i}")
+            hint = hint if hint != "" else f"{name}_{i}"
             children[i] = _emit_rack(nested[0], hint, used, lines, depth + 1)
 
     lines.append(f'{var} = Rack({name!r}, Grammar({slots}{sel_arg}), kind={kind})')
@@ -199,7 +255,11 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
     for i in range(n):
         el = rack_dev.find(f"MacroDisplayNames.{i}")
         text = None if el is None else el.get("Value")
-        if text and text != f"Macro {i + 1}":
+        # Live's own default, "Macro 1", is emitted too. It differs from the
+        # positional slot name "Macro_1" by the underscore the slot needs to
+        # be a keyword argument, and dropping it renames every knob on a
+        # rack that was never labelled.
+        if text:
             shown[f"Macro_{i + 1}"] = text
     if shown:
         lines.append(f'{var}.label(**{shown!r})')
@@ -210,8 +270,10 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
         lines.append(f'{var}.start({args})')
 
     for i, branch in enumerate(branches):
+        # The stored name, empty string included. Live leaves a chain
+        # unnamed and inventing "chain0" for it is a change to the rack.
         bname_el = branch.find("Name")
-        bname = (bname_el.get("Value") if bname_el is not None else "") or f"chain{i}"
+        bname = bname_el.get("Value") if bname_el is not None else f"chain{i}"
         note = _receiving_note(branch)
 
         if i in children:
@@ -228,6 +290,9 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
                 args = ", ".join(f'macro_{o}="macro_{i2}"'
                                  for o, i2 in sorted(chain.items()))
                 call += f'.bind({args})'
+            zone = _zone_of(branch)
+            if zone and note is None:
+                call += f'.zone({zone[0]}, {zone[1]})'
             lines.append(call)
             continue
 
@@ -244,10 +309,26 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
         else:
             lines.append(f'with {var}.engine({bname!r}, {device.tag!r}) as e:')
 
+        # Before the bindings, because `sample()` replaces the whole
+        # MultiSampleMap on some devices and a binding written first would
+        # be emitted against a map that is about to go.
+        #
+        # Only the first target: a device with several samples is a
+        # multi-sampled instrument, which `sample()` cannot express and Q3
+        # gates. Emitting one of them silently would be a lie about what
+        # rebuilt.
+        got_samples = _sample_targets(device)
+        if got_samples:
+            lines.append(f'    e.sample({got_samples[0]!r})')
+            if len(got_samples) > 1:
+                lines.append(f'    # {len(got_samples) - 1} further sample(s) '
+                             f'not emitted: multi-sampling is Q3')
+
         binds = _bindings_for(branch, device, rack_dev)
         if binds:
             args = ", ".join(
-                f'macro_{k}={(v[0] if len(v) == 1 else v)!r}'
+                f"macro_{k}=" + (_fmt_binding(v[0]) if len(v) == 1
+                                 else "[" + ", ".join(map(_fmt_binding, v)) + "]")
                 for k, v in sorted(binds.items()))
             lines.append(f'    e.bind({args})')
         else:
@@ -255,15 +336,22 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
 
         zone = _zone_of(branch)
         if zone and note is None:
-            lines.append(f'    # zone {zone[0]}..{zone[1]}')
+            lines.append(f'    e.zone({zone[0]}, {zone[1]})')
 
     got = variations.read(rack_dev)
     if got:
-        lines.append(f'# {len(got)} variation(s) on {name!r}, macro -> value:')
-        for v in got[:3]:
-            lines.append(f'#   {v["name"]!r}: {v["values"]}')
-        if len(got) > 3:
-            lines.append(f'#   ... {len(got) - 3} more')
+        # One call, not one per variation: `variations()` appends, so
+        # splitting it would still work and reads as though order were
+        # negotiable. It is not - a variation is recalled by index.
+        made = []
+        for v in got:
+            args = ", ".join(f"macro_{m}={P.fmt(p)}"
+                             for m, p in sorted(v["values"].items()))
+            made.append(f'Variation({(v["name"] or "")!r}{", " + args if args else ""})')
+        lines.append(f"{var}.variations(")
+        for m in made:
+            lines.append(f"    {m},")
+        lines.append(")")
 
     lines.append("")
     return var
@@ -283,7 +371,7 @@ def source(path: Path | str) -> str:
         "slots to whatever this rack means, and the bindings follow.",
         '"""',
         "",
-        "from patchbay.dsl import Grammar, Rack, RackKind",
+        "from patchbay.dsl import Grammar, Rack, RackKind, Variation",
         "",
     ]
     used: set[str] = set()

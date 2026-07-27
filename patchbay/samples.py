@@ -63,9 +63,24 @@ def retarget(device, path: Path | str) -> int:
 
     Forward slashes even on Windows: that is how Live writes them, in
     every FileRef in every file examined.
+
+    Retargeting to where the device ALREADY points writes nothing. A donor
+    arrives carrying its own sample, with a User Library relative path and a
+    provenance ref naming where the audio came from before it was imported.
+    Rewriting that pair to say the same thing in our own flattened form
+    destroys the provenance and changes the file for no gain, which is what
+    `patchbay extract` then has to explain as a difference.
     """
     p = Path(path).resolve()
     absolute = p.as_posix()
+
+    live = [r.find("Path") for sr in device.iter("SampleRef")
+            for r in [sr.find("FileRef")] if r is not None]
+    if live and all(el is not None and el.get("Value") == absolute
+                    for el in live):
+        # The count, not 0: the caller reads 0 as "this device has no
+        # sample to point at" and raises on it.
+        return len(list(file_refs(device)))
 
     n = 0
     for ref in file_refs(device):

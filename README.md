@@ -129,6 +129,7 @@ in Live 12.4.3.
 - nested racks, at any depth, with macros chaining into them
 - sample retargeting, so a chain plays a file you name rather than
   whichever one the donor happened to carry
+- extraction: read a saved `.adg` back out as DSL source
 
 A variation is a vector over grammar slots in macro space, so it renders
 through every engine without being written per engine, and it may select
@@ -151,7 +152,25 @@ Bindings are outer slot to inner slot, and default to identity when both
 racks share a grammar. So one knob reaches through however many levels are
 between it and the parameter, and the spec says only where it should not.
 
-`uv run pytest tests/ -q` runs 47 tests asserting the library still
+`patchbay extract` runs the compiler backwards, printing a `Rack(...)`
+declaration for a saved rack: chains, device types, macro mappings with
+their ranges, chain zones, samples, macro positions, labels, variations and
+nesting to any depth.
+
+```
+patchbay extract build/DR1.adg > dr1.py
+patchbay build dr1.py -o build/rt/
+patchbay diff build/DR1.adg build/rt/DR1.adg      # identical
+```
+
+That round trip is exact for a rack patchbay built, and a test holds it
+there. For a rack Live built it recovers the skeleton and not the sound:
+the emitted source fills each device from a donor, so parameter values, a
+chain's second and third device, and per-rack cosmetics do not survive.
+Slot names never survive either - they are intent, and the emitted grammar
+is positional, `Macro_1` through `Macro_N`, for you to rename.
+
+`uv run pytest tests/ -q` runs 59 tests asserting the library still
 agrees with every recorded finding. One of them clears the variations Live
 wrote in `racks/s8_c.adg`, writes them back through `patchbay`, and requires
 the diff to be empty.
@@ -192,6 +211,7 @@ was an editable install still pointing at the folder's old name.
 | `patchbay mappings SRC` | list macro mappings |
 | `patchbay variations SRC` | list macro variations |
 | `patchbay clone SRC DEST -n N` | duplicate a chain |
+| `patchbay extract SRC` | emit DSL source for a saved rack |
 | `patchbay check SRC` | would Live accept this file? |
 | `patchbay roundtrip SRC` | prove load-then-save is lossless |
 | `patchbay ids SRC` | id census and collision report |

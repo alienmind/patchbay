@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from patchbay import io, find, params, clone, mappings, ids, variations  # noqa: E402
+from patchbay import io, find, params, clone, diff, mappings, ids, variations  # noqa: E402
 from patchbay.dsl import Grammar, Rack, RackKind, Variation   # noqa: E402
 
 RACKS = Path(__file__).resolve().parent.parent / "racks"
@@ -537,6 +537,35 @@ def test_pads_are_exempt_from_zone_distribution():
             "Min": "0", "Max": "0", "CrossfadeMin": "0", "CrossfadeMax": "0"}
 
 
+def test_declared_zones_override_the_even_share():
+    """A hand built rack divides its selector however it likes."""
+    rack = Rack("PD1", Grammar("Cutoff"), kind=RackKind.INSTRUMENT)
+    with rack.engine("A", "OriginalSimpler") as e:
+        e.zone(0, 99)
+    with rack.engine("B", "OriginalSimpler") as e:
+        e.zone(100, 127)
+
+    got = [{c.tag: c.get("Value") for c in find.zone(b)}
+           for b in find.branches(find.preset(rack.build()))]
+    assert [(z["Min"], z["Max"]) for z in got] == [("0", "99"), ("100", "127")]
+    assert [(z["CrossfadeMin"], z["CrossfadeMax"]) for z in got] == [
+        ("0", "99"), ("100", "127")]
+
+
+def test_a_half_declared_zone_set_is_refused():
+    """The other chain would take an even share of a scale it does not own."""
+    rack = Rack("PD1", Grammar("Cutoff"), kind=RackKind.INSTRUMENT)
+    with rack.engine("A", "OriginalSimpler") as e:
+        e.zone(0, 99)
+    rack.engine("B", "OriginalSimpler")
+    try:
+        rack.build()
+    except ValueError as e:
+        assert "has no zone" in str(e)
+    else:
+        raise AssertionError("a partly zoned rack must not reach a file")
+
+
 def test_a_pad_may_hold_a_device_or_a_whole_rack():
     branches = find.branches(find.preset(_kit().build()))
     assert [d.tag for d in find.devices(branches[0])] == ["GroupDevicePreset"]
@@ -825,10 +854,13 @@ def _structure(root):
 def test_extract_round_trips_structure(tmp_path=None):
     """Extract a rack, rebuild from the emitted source, compare.
 
-    Structure, NOT bytes. Rebuilding a spec fills devices from the donor
-    library, so parameter values come from the donor rather than the
-    original. A full `patchbay diff` can never be empty here, and demanding
-    one would be demanding the wrong thing.
+    Exact, over every fact `flatten` can see, not merely structural. A rack
+    that patchbay built is rebuilt from the same donors, so anything left
+    over is the extractor failing to say something the rack contains. This
+    caught missing ranges, missing variations and invented chain names.
+
+    A rack Live built is a different question and does not pass this: its
+    devices carry values no DSL declaration holds. See DSL.md.
     """
     from patchbay import extract
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
@@ -849,6 +881,14 @@ def test_extract_round_trips_structure(tmp_path=None):
         assert a[1] == b[1], f"{rack.name}: mappings differ"
         assert a[2] == b[2], f"{rack.name}: macro positions differ"
         assert a[3] == b[3], f"{rack.name}: macro labels differ"
+
+        back = out.with_suffix(".rebuilt.adg")
+        io.save(rebuilt, back)
+        changed, lost, invented = diff.compare(out, back, show_all=True)
+        assert not (changed or lost or invented), (
+            f"{rack.name}: {len(changed)} changed, {len(lost)} lost, "
+            f"{len(invented)} invented. First: "
+            f"{sorted(changed or lost or invented)[:3]}")
 
 
 # --- house style ----------------------------------------------------------

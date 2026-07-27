@@ -229,6 +229,8 @@ class Engine:
     note: int | None = None
     #: Sample file this chain's device plays. None leaves the donor's own.
     sample_path: Path | None = None
+    #: Explicit chain-select bounds, or None to take an even share. See zone.
+    zone_bounds: tuple[int, int] | None = None
 
     def bind(self, **slots: Binding | list[Binding]) -> "Engine":
         """Bind grammar slots to this device's parameters.
@@ -256,6 +258,28 @@ class Engine:
             return BoundParam(slot, spec)
         path, lo, hi = spec
         return BoundParam(slot, path, float(lo), float(hi))
+
+    def zone(self, lo: int, hi: int) -> "Engine":
+        """Where on the 0..127 selector this chain answers.
+
+        The default is an even share of the scale among the chains that are
+        not pads, which is what a generated rack wants. This is for the rack
+        that was not generated: a hand built one whose chains overlap, or
+        divide unevenly, or leave a dead band.
+
+        Declaring it on ONE chain switches the whole rack to explicit, so a
+        half declared rack cannot mix a stated bound with a share computed
+        from a different chain count. Bounds only, crossfades collapsed onto
+        them - ARCHITECTURE.md section 7.
+        """
+        lo, hi = int(lo), int(hi)
+        if not 0 <= lo <= hi <= MACRO_MAX:
+            raise ValueError(
+                f"{self.name}: zone {lo}..{hi} is not within 0..{MACRO_MAX} "
+                f"with Min <= Max. Live's invariant is "
+                f"Min <= XfMin <= XfMax <= Max (Q7).")
+        self.zone_bounds = (lo, hi)
+        return self
 
     def sample(self, path: Path | str) -> "Engine":
         """Point this chain's device at a sample file.
@@ -301,6 +325,13 @@ class Nest:
     bindings: dict[str, str] = field(default_factory=dict)
     #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
     note: int | None = None
+    #: Explicit chain-select bounds, or None to take an even share.
+    zone_bounds: tuple[int, int] | None = None
+
+    def zone(self, lo: int, hi: int) -> "Nest":
+        """Where on the 0..127 selector this chain answers. See Engine.zone."""
+        Engine.zone(self, lo, hi)
+        return self
 
     def bind(self, **slots: str) -> "Nest":
         """Bind outer grammar slots to inner ones. `cutoff="cutoff"`.
@@ -762,12 +793,26 @@ class Rack:
         Pads are skipped. A pad is selected by its note, and Live leaves
         every pad's zone at 0/0/0/0 - slicing the selector across them
         would express a choice a drum rack does not make.
+
+        Any engine carrying explicit bounds turns the whole rack explicit;
+        see Engine.zone.
         """
-        spread = [b for i, b in enumerate(branches)
-                  if self.engines[i].note is None]
-        n = len(spread)
-        for i, branch in enumerate(spread):
-            lo, hi = self._zone_bounds(i, n)
+        pairs = [(b, self.engines[i]) for i, b in enumerate(branches)
+                 if self.engines[i].note is None]
+        explicit = any(e.zone_bounds is not None for _, e in pairs)
+        n = len(pairs)
+        for i, (branch, engine) in enumerate(pairs):
+            if explicit:
+                if engine.zone_bounds is None:
+                    raise ValueError(
+                        f"{self.name}: chain {engine.name!r} has no zone while "
+                        f"another chain declares one. Mixing a stated bound "
+                        f"with an even share computed from a different chain "
+                        f"count produces overlaps nobody wrote. Give every "
+                        f"chain a zone, or none.")
+                lo, hi = engine.zone_bounds
+            else:
+                lo, hi = self._zone_bounds(i, n)
             zone = find.zone(branch)
             if zone is None:
                 continue
