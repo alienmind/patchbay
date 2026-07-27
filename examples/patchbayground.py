@@ -133,16 +133,30 @@ KIT = Grammar(
 PAD = Grammar(*PATCHBAYGROUND.slots, selector="Sound",
               start=dict(PATCHBAYGROUND.start))
 
-# General MIDI-ish pad layout, and the folder each pad draws from. The names
-# are the ones samples/README.md documents, not a vendor's.
+# Pad layout, and the folder each pad draws from. The names are the ones
+# samples/README.md documents, not a vendor's.
+#
+# The reference is Live's own 808 Core Kit, because a Push player reads the
+# 4x4 grid by position before reading any label. That kit lays out:
+#
+#   48..51  maracas   cymbal    cow bell   claves
+#   44..47  low tom   mid tom   OPEN HAT   hi tom
+#   40..43  low conga mid conga CLOSED HAT hi conga
+#   36..39  kick      rim       snare      clap
+#
+# so the bottom row is the backbeat, hats stack in column 3, percussion sits
+# on row 2 and toms on row 3. Eight sounds fill the bottom row plus the two
+# hats in their column, PERC on the conga row and TOM on the tom row.
+# Putting TOM at 41 instead, which is a conga slot in every kit Live ships,
+# read as wrong on the grid.
 PADS = (
     ("KICK", 36, "kick"),
     ("RIM", 37, "rim"),
     ("SNARE", 38, "snare"),
     ("CLAP", 39, "clap"),
-    ("TOM", 41, "tom"),
+    ("PERC", 41, "perc"),
     ("HAT", 42, "hat"),
-    ("PERC", 43, "perc"),
+    ("TOM", 44, "tom"),
     ("OHAT", 46, "ohat"),
 )
 
