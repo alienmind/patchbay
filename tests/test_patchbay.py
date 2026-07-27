@@ -686,6 +686,34 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
     assert all(Path(p).is_file() for p in paths), "no chain points at nothing"
 
 
+def test_one_slot_can_drive_several_parameters():
+    """Meld is two engines behind one device; binding A alone filters half.
+
+    Gated in Live 12.4.3 as C2: Macro 3 moved the A side and left B wide
+    open, audibly, on a rack where every id, every mapping and every range
+    checked out.
+    """
+    g = Grammar("Engine", "Filter", selector="Engine")
+    rack = Rack("X", g)
+    with rack.engine("M", "InstrumentMeld") as e:
+        e.bind(filter=[("MeldVoice_EngineA_Filter_Frequency", 30.0, 18500.0),
+                       ("MeldVoice_EngineB_Filter_Frequency", 30.0, 18500.0)])
+    root = rack.build()
+    on_two = sorted(m["target"] for m in mappings.find(root) if m["macro"] == 2)
+    assert on_two == ["MeldVoice_EngineA_Filter_Frequency",
+                      "MeldVoice_EngineB_Filter_Frequency"]
+
+
+def test_binding_a_slot_twice_replaces_rather_than_accumulates():
+    g = Grammar("Engine", "Filter", selector="Engine")
+    rack = Rack("X", g)
+    with rack.engine("M", "InstrumentMeld") as e:
+        e.bind(filter="MeldVoice_EngineA_Filter_Frequency")
+        e.bind(filter="MeldVoice_EngineB_Filter_Frequency")
+    on_two = [m["target"] for m in mappings.find(rack.build()) if m["macro"] == 2]
+    assert on_two == ["MeldVoice_EngineB_Filter_Frequency"]
+
+
 # --- T6a: extraction ------------------------------------------------------
 
 def _structure(root):

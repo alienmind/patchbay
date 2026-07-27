@@ -124,6 +124,27 @@ the cost of one knob reaching every engine, and it is not
 `ForceDisplayGenericValue` (S10), which forces the same display on a
 SINGLY mapped macro and cannot undo this.
 
+## A slot may drive more than one parameter
+
+```python
+e.bind(filter=[("MeldVoice_EngineA_Filter_Frequency", *CUTOFF),
+               ("MeldVoice_EngineB_Filter_Frequency", *CUTOFF)])
+```
+
+Meld is two synthesis engines behind one device, and every A-side path has
+a B twin. Binding only A produced a rack in which Macro 3 filtered half
+the sound and left the other half wide open. Every id was unique, every
+mapping resolved, every range was right, and the whole thing was audibly
+broken.
+
+So a slot maps to a LIST of parameters, and a single path is the one-item
+case. Binding a slot twice replaces rather than accumulates, so a repeated
+`bind` call reads as the edit it looks like.
+
+What this is not is a second axis. Both Meld engines move together because
+the grammar has one Filter knob; an A knob and a B knob would be two slots
+out of eight, and a Push page has no room for that.
+
 ## A chain may be another rack
 
 DR1 is three levels deep and VA1 nests a rack per chain, so a chain has to

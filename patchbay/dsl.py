@@ -179,27 +179,42 @@ class Engine:
     rack: "Rack"
     name: str
     device_tag: str
-    bindings: dict[str, BoundParam] = field(default_factory=dict)
+    #: Slot -> the parameters it drives. A list because one macro driving
+    #: several parameters is normal, not exotic: Meld is two synthesis
+    #: engines behind one device and binding only the A side filters half
+    #: the sound, which is audible and passes every structural check.
+    bindings: dict[str, list[BoundParam]] = field(default_factory=dict)
     #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
     note: int | None = None
     #: Sample file this chain's device plays. None leaves the donor's own.
     sample_path: Path | None = None
 
-    def bind(self, **slots: Binding) -> "Engine":
+    def bind(self, **slots: Binding | list[Binding]) -> "Engine":
         """Bind grammar slots to this device's parameters.
 
         Each value is a parameter path, or a (path, lo, hi) tuple to also
         narrow the range the macro drives it across. Live 12.4.3 has no UI
         for that range, so it is only reachable this way.
+
+        A list of either drives several parameters from the one macro:
+
+            e.bind(filter=[("MeldVoice_EngineA_Filter_Frequency", *CUTOFF),
+                           ("MeldVoice_EngineB_Filter_Frequency", *CUTOFF)])
+
+        Binding the same slot twice REPLACES rather than accumulates, so a
+        repeated `bind` call is an edit and not a silent second mapping.
         """
         for slot, spec in slots.items():
             self.rack.grammar.macro_of(slot)  # fail early on a typo
-            if isinstance(spec, str):
-                self.bindings[slot] = BoundParam(slot, spec)
-            else:
-                path, lo, hi = spec
-                self.bindings[slot] = BoundParam(slot, path, float(lo), float(hi))
+            specs = spec if isinstance(spec, list) else [spec]
+            self.bindings[slot] = [self._bound(slot, s) for s in specs]
         return self
+
+    def _bound(self, slot: str, spec: Binding) -> BoundParam:
+        if isinstance(spec, str):
+            return BoundParam(slot, spec)
+        path, lo, hi = spec
+        return BoundParam(slot, path, float(lo), float(hi))
 
     def sample(self, path: Path | str) -> "Engine":
         """Point this chain's device at a sample file.
@@ -389,7 +404,8 @@ class Rack:
             if isinstance(chain, Nest):
                 out |= {s.lower() for s in chain.resolved()}
             else:
-                out |= {b.slot.lower() for b in chain.bindings.values()}
+                out |= {slot.lower() for slot, bound in chain.bindings.items()
+                        if bound}
         if self.grammar.selector is not None:
             out.add(self.grammar.selector.lower())
         return out
@@ -731,7 +747,7 @@ class Rack:
             raise ValueError(f"{engine.name}: chain has no device")
         device = devices[0]
 
-        for bound in engine.bindings.values():
+        for bound in [b for group in engine.bindings.values() for b in group]:
             param = find.param(device, bound.path)
             if param is None:
                 leaf = bound.path.rsplit("/", 1)[-1]

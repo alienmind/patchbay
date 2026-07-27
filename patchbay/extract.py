@@ -67,15 +67,20 @@ def _macro_count(preset_el, rack_dev) -> int:
     return max(highest, 1)
 
 
-def _bindings_for(branch, device, rack_dev) -> dict[int, str]:
-    """Macro number -> parameter path, for one chain's first device."""
-    out: dict[int, str] = {}
+def _bindings_for(branch, device, rack_dev) -> dict[int, list[str]]:
+    """Macro number -> the parameter paths it drives, on one chain's device.
+
+    A list, because one macro driving several parameters is ordinary: Meld
+    binds each slot to both its A and B engines. Keeping only the last would
+    emit a rack that filters half the sound.
+    """
+    out: dict[int, list[str]] = {}
     for m in mappings.find(device):
         if not m["macro"]:
             continue
         path = find.param_path(m["element"].getparent(), device)
         if path:
-            out[m["macro"]] = path
+            out.setdefault(m["macro"], []).append(path)
     return out
 
 
@@ -207,7 +212,9 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
 
         binds = _bindings_for(branch, device, rack_dev)
         if binds:
-            args = ", ".join(f'macro_{k}={v!r}' for k, v in sorted(binds.items()))
+            args = ", ".join(
+                f'macro_{k}={(v[0] if len(v) == 1 else v)!r}'
+                for k, v in sorted(binds.items()))
             lines.append(f'    e.bind({args})')
         else:
             lines.append('    pass  # no macro drives this chain')
