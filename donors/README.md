@@ -1,47 +1,48 @@
 # Donors
 
-Real device instances harvested from Live, used as source material for
-composition. Never generate device XML from scratch.
+Real device instances, used as source material for composition. Never
+generate device XML from scratch.
 
-Each donor needs a line here recording what it contains and which Live
-version produced it, because the schema is version specific.
+A donor is wanted for its parameter list and each parameter's native range,
+not for anybody's settings. Paths, names and annotations are stripped on
+harvest, so a donor names no file and shows no name of its own in Live.
 
-| File | Contains | Params | Configured | Live version |
-|---|---|---|---|---|
-| `Wavetable Rack.adg` | `InstrumentVector` | 93 | no, stock | 12.4.3 |
-| `Drift Rack.adg` | `Drift` | 66 | no, stock | 12.4.3 |
-| `Meld Rack.adg` | `InstrumentMeld` | 129 | no, stock | 12.4.3 |
+## One file, one device, named after it
 
-`Operator`, `OriginalSimpler`, `MidiPitcher`, `Reverb` and `Saturator` are
-not here. They are harvested from `racks/`, which is spike evidence that
-happens to contain them. `Library.default()` reads `donors/` first and
-`racks/` second, so a donor added here shadows the spike copy.
+`AutoFilter.adg` carries `AutoFilter`. That is the whole convention, and it
+is load bearing in two places:
 
-## `spikes/` is not harvested, on purpose
+- **`Library.harvest` breaks a TIE in favour of the file named after the
+  device.** A one-change probe is the same device with the same parameter
+  count as the donor it was cut from, so it ties every time. Without the
+  rule the winner is filename order, which is case-insensitive on Windows
+  and case-sensitive elsewhere: the same repo would build different racks
+  on different machines. It already happened once, silently, giving every
+  generated rack a Wavetable with `Resonance = 0.4` instead of `0`.
+- **`Rack._find_skeleton` prefers a file named after a device it indexes.**
+  Otherwise the skeleton is whichever rack of the right kind sorts first,
+  so adding a file with an unrelated name rebuilds every rack. Also
+  observed, on a rename.
 
-| File | Derived from | One change | Evidence for |
+Three files break the convention on purpose, and their names say why:
+
+| File | Holds | The one change | Evidence for |
 |---|---|---|---|
-| `spikes/q10_a.adg` | `Meld Rack.adg` | Engine A filter Q to `8.0` | Q10 |
-| `spikes/q11_a.adg` | `Wavetable Rack.adg` | Filter 1 Res to `40` | Q11 |
-| `spikes/q12_a.adg` | `Drift Rack.adg` | Filter Res to `1.01` | Q12 |
+| `InstrumentMeld filter Q 8.adg` | `InstrumentMeld` | Engine A filter Q to `8.0` | Q10 |
+| `InstrumentVector filter 1 resonance 40.adg` | `InstrumentVector` | Filter 1 Res to `40` | Q11 |
+| `Drift filter resonance 1.01.adg` | `Drift` | Filter Res to `1.01` | Q12 |
 
-These are the second half of a one change diff, kept next to the donor
-each was cut from so the pair stays legible. They are NOT donors, and the
-subfolder is what stops them being treated as such.
+Each is the second half of a one-change diff, kept beside the donor it was
+cut from so the pair stays legible. They are evidence, not donors, and the
+two rules above are what stop them being used as one.
 
-`Library.default()` globs `donors/*.adg` without recursing, so anything in
-`spikes/` is invisible to it. That is load bearing, not tidiness:
+`Operator`, `OriginalSimpler` and `MidiPitcher` are not here. They come
+from `racks/`, which is spike evidence that happens to contain them.
+`Library.default()` reads `donors/` first, so a file added here shadows the
+spike copy.
 
-**A tie is broken by filename order, and filename order is
-case-insensitive on Windows.** `harvest()` keeps whichever instance has
-MORE parameters and, on a tie, whichever it saw first. A probe file is the
-same device with the same parameter count as the donor it came from, so it
-ties every time. Sitting alongside, `q11_a.adg` sorted before
-`Wavetable Rack.adg` (lowercased `q` before `w`, not ASCII `W` before `q`)
-and won. Every generated rack would have carried a Wavetable with
-`Resonance = 0.4` instead of `0`, with nothing reporting it.
-
-So: probe files never share a directory with the donor they were cut from.
+Every file here was produced by Live 12.4.3. The schema is version
+specific, so if `SchemaChangeCount` moves, re-harvest.
 
 ## Configured or not
 
@@ -58,18 +59,25 @@ needed for two other things, and they come apart:
 - **Sound.** Absent in a stock donor. A rack built from one arrives at
   Live's defaults and sounds like the device's init patch.
 
-The three above are stock. That is enough to write and verify every
-binding, and not enough to ship a rack anyone wants to play. Re-harvesting
-with configured devices is worth doing before sound design starts, and
-costs nothing already spent: replacing a file here changes no code.
+A stock donor is enough to write and verify every binding, and not enough
+to ship a rack anyone wants to play. Re-harvesting from configured devices
+is worth doing before sound design starts, and costs nothing already spent:
+replacing a file here changes no code.
 
-## How to harvest
+## Adding more
 
-1. Build the device in Live, inside a rack. Configure it to sound like
-   something you want if the donor is meant to carry sound.
-2. Save the rack to User Library
-3. Copy the .adg here and document it above, including whether it is
-   configured
+```
+patchbay harvest "path/to/a Project"
+```
+
+Reads `.adg`, `.adv` and `.als`, writes one file per device, and skips any
+tag the library already indexes. That last part is not politeness: a fuller
+copy of a device already here would win on parameter count and rebuild
+racks that were gated in Live against the old one.
+
+For a donor meant to carry SOUND rather than only paths and ranges, build
+the device in Live inside a rack, save it, and harvest that file. Replacing
+a donor changes no code.
 
 ## Verified parameter paths
 
@@ -93,8 +101,8 @@ Notes worth having before writing bindings:
   conclusion is that Meld has none. It has one. The whole filter is
   `FilterType`, `Frequency`, `Macro1`, `Macro2`.
 - **`Macro1` is Q, `Macro2` is L-B-H-N.** Verified by one change diff,
-  `donors/Meld Rack.adg` against `donors/spikes/q10_a.adg`. See Q10 in
-  `SCHEMA.md`.
+  `donors/InstrumentMeld.adg` against
+  `donors/InstrumentMeld filter Q 8.adg`. See Q10 in `SCHEMA.md`.
 - **Displayed units are not stored units, and there is no conversion
   rule.** See the measured ranges below.
 - **`Macro1`/`Macro2` change meaning with `FilterType`.** They are the two
@@ -121,6 +129,11 @@ change diff: Q10, Q11 and Q12 in `SCHEMA.md`.
 | `InstrumentMeld` | Filter Q | 0..100 | 0..1 | UI/100 |
 | `Drift` | Filter Res | 0..1.01 | 0..1.01 | 1:1 |
 | all three | Envelope times | ms | s | UI/1000 |
+
+Operator and Simpler are the exception and store envelope times in
+MILLISECONDS, 1..60000 against Wavetable's 0.0015..20. See
+`ARCHITECTURE.md` section 4: the unit belongs to the parameter, and nothing
+in the file marks it.
 
 Four families, three relationships, and no rule that converts one to
 another. A range is measured or it is wrong.

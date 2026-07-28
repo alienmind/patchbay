@@ -1,41 +1,56 @@
 # patchbay
 
-Build Ableton Live racks and Sets from code.
+Author Ableton Live racks and Sets in code instead of by clicking.
 
-## Why this project?
+## What this is
 
-Live already exposes a programming interface. The Live Object Model
-drives a session that is **open and running**: create a track, name it,
-set its routing, fire a clip, move a parameter. Anything you can script
-against a live Set, script through the LOM.
+A DSL and a toolchain for writing Live racks as source. You declare what a
+rack is - engines, macro grammar, bindings, ranges, zones, variations,
+nesting - and `patchbay build` produces the `.adg` Live opens. It also runs
+backwards: `patchbay extract` reads a saved rack and prints the declaration
+that rebuilds it.
 
-The LOM stops short in two ways. Parts of it are undocumented, and parts
-of what the Set contains simply has no API at all. Grouping devices into
-a rack, creating a macro mapping, setting a chain zone: none of these are
-in the Object Model. Verified against Live's own model, not assumed, see
-`doc/MCP.md`.
+If you know [strudel.cc](https://strudel.cc) or TidalCycles, the family
+resemblance is real and the aim is not. Those are live coding languages:
+you type, and sound changes under your hands, on stage. patchbay is
+**offline authoring**. Nothing here makes a sound. It produces the
+instrument you will then go and play, so the pass that would have been an
+afternoon of dragging becomes an edit and a rebuild.
+
+The unit of reuse is a PATTERN, not a preset. Once "one grammar, engines as
+chains, macros chaining into nested racks" is written down, it applies to
+the next rack for free, and to the one after that.
+
+## Why files rather than the API
+
+Live already exposes a programming interface. The Live Object Model drives
+a session that is **open and running**: create a track, name it, set its
+routing, fire a clip, move a parameter. Anything you can script against a
+live Set, script through the LOM.
+
+The LOM stops short in two ways. Parts of it are undocumented, and parts of
+what a Set contains have no API at all. Grouping devices into a rack,
+creating a macro mapping, setting a chain zone: none of these are in the
+Object Model. Verified against Live's own model, not assumed, see
+[`doc/MCP.md`](doc/MCP.md).
 
 patchbay covers the other half by writing the **files**. An `.adg` is a
 gzipped XML document, so is an `.als`, so is an `.adv`. What the API will
-not build, the file format will, and patchbay writes and reads that XML
-directly.
+not build, the file format will.
 
-That changes what maintenance costs. A rack or a project kept current by
-hand is hands on work: every mapping clicked, every variation dialled,
-every fix repeated in each copy that inherited it, and all of it held
-together by the author's discipline. Nothing records what changed or why,
-and nothing carries a correction forward.
+That changes what maintenance costs. A rack kept current by hand is hands
+on work: every mapping clicked, every variation dialled, every fix repeated
+in each copy that inherited it, held together by the author's discipline.
+Nothing records what changed or why, and nothing carries a correction
+forward.
 
 Declared as code, a rack gets the tools ordinary software already has. It
 lives in version control, it diffs, it reviews, it rebuilds. A new Live
-version, a renamed parameter, or a change of taste by whoever authored
-the racks is an edit to a spec and one `patchbay build`, not an afternoon
-of mousing. The source of truth is the spec, and the `.adg` is output.
+version, a renamed parameter, or a change of taste is an edit to a spec and
+one `patchbay build`.
 
 A patchbay routes signals between things. This one routes macros to
-parameters, chains to zones, and racks onto tracks - so that building a
-large hyper-mapped Push template does not mean thousands of manual macro
-mappings.
+parameters, chains to zones, and racks onto tracks.
 
 ```python
 PATCHBAYGROUND = Grammar("Instrument", "Sound", "Filter", "Drive",
@@ -46,45 +61,59 @@ rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
 
 with rack.engine("FM", "Operator") as e:
     e.bind(filter="Filter/Frequency",
-           release="Operator.0/Envelope/ReleaseTime")
+           release=("Operator.0/Envelope/ReleaseTime", 10, 20000))
 
 with rack.engine("Sample", "OriginalSimpler") as e:
     e.bind(filter="Filter/Slot/Value/SimplerFilter/Freq",
-           release="VolumeAndPan/Envelope/ReleaseTime")
-```
-
-```
-patchbay build examples/patchbayground.py -o build/
+           release=("VolumeAndPan/Envelope/ReleaseTime", 10, 20000))
 ```
 
 Both engines bind the same grammar slots to their own parameters, so one
-knob moves the same musical idea through different synthesis. That is the
-sound family constraint from [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md),
-structural rather than a matter of discipline.
+knob moves the same musical idea through different synthesis.
 
-## Inspired by PLAYGRND
+## Nothing here is guessed
 
-The idea came from **PLAYGRND**, an Ableton Live Set by **Andri Soren**:
-https://www.youtube.com/watch?v=plQ9F-0RmDw
+Ableton publishes no schema, and its element names are not the GUI labels:
+Saturator's Drive knob is `PreDrive`, Simpler's cutoff is
+`Filter/Slot/Value/SimplerFilter/Freq`. So every claim this tool rests on
+was established the same way - change ONE thing in Live, save, diff the
+two files, write down what moved. The findings are in
+[`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md), each marked verified or
+inferred, with the evidence in [`doc/SCHEMA.md`](doc/SCHEMA.md).
 
-What that Set demonstrates is an architecture worth taking: one macro
-grammar repeated across every rack, engines as chains, a sound addressed by
-TWO knobs rather than one, a fixed channel strip on every track, and racks
-nested inside racks so one instrument reaches all the others.
+`donors/` is the other half of that. It holds real device instances,
+harvested from racks and Sets built by hand, and they are what the DSL is
+learned FROM: a device's parameter list, the path to each parameter, and
+the native range each one spans. A binding is written against a donor and
+checked, never written from memory. `patchbay harvest` adds more from any
+file you already own.
+
+## PLAYGRND, and the example that chases it
+
+The architecture came from **PLAYGRND**, an Ableton Live Set by **Andri
+Soren**: https://www.youtube.com/watch?v=plQ9F-0RmDw
+
+What that Set demonstrates is worth taking: one macro grammar repeated
+across every rack, engines as chains, a sound addressed by TWO knobs rather
+than one, a fixed channel strip on every track, and racks nested inside
+racks so one instrument reaches all the others.
 
 A sound is `(instrument, sound)`: one macro picks the engine, a second
 steps a chain selector within it. Both are macros, so both are playable
 while a clip runs. Variations then carry a whole vector of macro values at
 once, which makes them right for presets and wrong for a sound browser.
 
-Assembling that by hand is thousands of macro mappings and tens of thousands
-of variation values, all clicked in one at a time. patchbay generates it from
-a declaration instead. Same architecture, our own taste, in a spec that
-diffs.
+[`examples/patchbayground.py`](examples/patchbayground.py) is this
+project's attempt at rebuilding that, from what is publicly visible of it
+plus everything harvesting the devices has taught us. It is not what the
+library is for and the library knows nothing about it: it is **one big
+example, and the end-to-end test**. Six racks, three levels of nesting, 96
+variations, eight drum pads - if a change breaks something real, it breaks
+there first. The musical target is spelled out in
+[`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md).
 
-The target is spelled out in [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md)
-and declared in code in
-[`examples/patchbayground.py`](examples/patchbayground.py).
+Write your own instead. The grammar, the slot names and the engines are all
+arguments.
 
 ## Two halves, because Live splits this way
 
@@ -175,14 +204,15 @@ A device can only be used if the library has a donor for it, and donors
 come from files you already own:
 
 ```
-patchbay harvest "path/to/Project" -o donors_local/
+patchbay harvest "path/to/Project"
 ```
 
 Indexing a device never looks at preset structure, so a `.als` donates its
 devices exactly as a rack does and one Set is usually worth dozens of
 hand-saved racks. Paths and names are stripped on the way out, and a tag
-the library already indexes is left alone so a fuller copy of a device
-cannot silently rebuild racks that were gated against the old one.
+the library already indexes is left alone: a fuller copy of a device would
+win on parameter count and silently rebuild racks that were gated against
+the old one.
 
 `uv run pytest tests/ -q` runs 59 tests asserting the library still
 agrees with every recorded finding. One of them clears the variations Live

@@ -83,8 +83,8 @@ def _main():
 
     hv = sub.add_parser("harvest", help="lift donors out of saved files or Sets")
     hv.add_argument("src", nargs="+", help="files or directories, .adg/.adv/.als")
-    hv.add_argument("-o", "--out", default="donors_local",
-                    help="where to write, default donors_local/")
+    hv.add_argument("-o", "--out", default="donors",
+                    help="where to write, default donors/")
     hv.add_argument("--keep-known", action="store_true",
                     help="also write tags the library already indexes")
 

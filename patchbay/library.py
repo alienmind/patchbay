@@ -32,10 +32,12 @@ NOT_A_DEVICE = {
 class Device:
     """One harvested device node, plus what it can be asked to do."""
 
-    def __init__(self, tag, element, source):
+    def __init__(self, tag, element, source, named=False):
         self.tag = tag
         self._element = element
         self.source = source
+        #: True when the file is named after the device, which breaks ties.
+        self.named = named
 
     @property
     def params(self):
@@ -78,20 +80,13 @@ class Library:
 
     @classmethod
     def default(cls, root=None):
-        """Harvest donors/, donors_local/ and racks/.
+        """Harvest donors/ and racks/, in that order of preference.
 
         donors/ is the curated asset; racks/ is spike evidence that happens
         to contain usable devices, which is why it comes second.
-
-        donors_local/ is gitignored and machine-specific: devices lifted out
-        of projects that are not ours to publish. Nothing tracked may depend
-        on it, so a donor there never displaces one in donors/ - see
-        `harvest`, where the richer copy wins, and the harvest script, which
-        refuses to write a tag donors/ already holds.
         """
         root = Path(root or Path(__file__).resolve().parent.parent)
-        return cls.from_paths(root / "donors", root / "donors_local",
-                              root / "racks")
+        return cls.from_paths(root / "donors", root / "racks")
 
     def harvest_all(self, path):
         """Index one file, or every Ableton file in one directory.
@@ -110,7 +105,16 @@ class Library:
         return self
 
     def harvest(self, path):
-        """Index every device node in one file."""
+        """Index every device node in one file.
+
+        A fuller copy wins, and a TIE goes to the file named after the
+        device. That second rule is load bearing. A one-change probe is the
+        same device with the same parameter count as the donor it was cut
+        from, so it ties every time, and without the rule the winner is
+        decided by filename order - which is case-insensitive on Windows and
+        case-sensitive elsewhere, so the same repo builds different racks on
+        different machines.
+        """
         try:
             root = io.load(path)
         except Exception:
@@ -123,9 +127,11 @@ class Library:
             n = len(find.all_params(el))
             if n < 2:
                 continue
+            named = Path(path).stem == el.tag
             best = self._devices.get(el.tag)
-            if best is None or n > len(best.params):
-                self._devices[el.tag] = Device(el.tag, el, Path(path).name)
+            if best is None or (n, named) > (len(best.params), best.named):
+                self._devices[el.tag] = Device(el.tag, el, Path(path).name,
+                                               named=named)
         return self
 
     def __contains__(self, tag):

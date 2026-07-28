@@ -1,9 +1,17 @@
 # CLAUDE.md - working rules for agents in this repo
 
-This repo builds Ableton Live racks from Python, and Live Sets through the
-`ableton-mcp` submodule. Start with `doc/TODO.md` for what to work on, then
-`doc/ARCHITECTURE.md` for how the file format works. This file is only the
-house rules, the things not derivable from the code.
+This repo is a DSL and toolchain for AUTHORING Ableton Live racks and Sets
+in code: racks by writing the `.adg` XML directly, Sets by driving the
+`ableton-mcp` submodule. Offline authoring, not live coding - nothing here
+makes a sound, it produces the instrument.
+
+`examples/patchbayground.py` is ONE example and the end-to-end test. It is
+not what the library is for, and per rule 6 the library knows nothing about
+it.
+
+Start with `doc/TODO.md` for what to work on, then `doc/ARCHITECTURE.md`
+for how the file format works. This file is only the house rules, the
+things not derivable from the code.
 
 ## The backlog is `doc/TODO.md`
 

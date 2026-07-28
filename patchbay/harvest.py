@@ -6,10 +6,9 @@ as a `.adg` does, and one Live Set is worth dozens of hand-saved racks.
 
 A donor is wanted for its parameter list and each parameter's native range,
 not for anybody's settings, so what is written is scrubbed: sample paths,
-device names and annotations go. That matters because the file it came from
-may not be ours to redistribute. Where it lands is the caller's choice and
-this module does not have an opinion; the repo keeps `donors/` tracked and
-`donors_local/` gitignored, and `Library.default` reads both.
+device names and annotations go. A donor carrying a path also carries a
+sample that will not exist on another machine, and one carrying a name
+shows that name in Live instead of the device's own.
 """
 
 from __future__ import annotations
@@ -32,10 +31,13 @@ NOT_A_DONOR = NOT_A_DEVICE | {
     "PluginDevice", "AuPluginDevice",
 }
 
-#: Emptied on the way out. Paths and names are the licensed half of somebody
-#: else's project and say nothing about what the device can do.
+#: Emptied on the way out. None of it says anything about what the device
+#: can do, and it travels badly: a path points at a file this machine has.
+#: `BrowserContentPath` is the one that hides - it is not a FileRef, it sits
+#: under SourceContext, and it spells a browser location in URL escaping.
 SCRUBBED = ("Path", "RelativePath", "Name", "UserName", "Annotation",
-            "MemberName")
+            "MemberName", "BrowserContentPath", "SearchHint",
+            "OriginalFileSize", "OriginalCrc")
 
 EXTENSIONS = ("*.adg", "*.adv", "*.als")
 

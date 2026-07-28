@@ -15,7 +15,8 @@ Phase 0 discovery is closed: 12 spikes answered, 1 retired, both kill
 criteria passed. What the format does is in `ARCHITECTURE.md`, each claim
 marked verified, inferred or open and traced to a file in `racks/`.
 
-Six racks compile from `examples/patchbayground.py`. Five have been loaded
+`examples/patchbayground.py` is the end-to-end test: one example large
+enough that a regression shows up there first. Six racks compile from it. Five have been loaded
 into Live 12.4.3, played, and corrected on what playing them found: PD1,
 PD1W, BS1, LD1 and DR1, with VA1 exercising nesting. Three levels of
 nesting, macros chaining into whichever sub-rack is selected, 96 variations
@@ -32,21 +33,21 @@ on Operator and Simpler are NOT: they are the current round.
 **Awaiting a human in Live.** Tooling verification proves a file is well
 formed; it has never once proved a rack sounds right.
 
-The first three rounds are spent. A, B and C all ran: every rack loads and
-plays, macros open where they should, DR1's pads follow the 808 Core Kit
-grid, Drift's `Envelope1` is confirmed as its amp envelope, and Meld's B
-side is bound alongside its A side after Macro 3 was heard filtering half
-the sound. What is left of those rounds is `Q16` below.
+Rounds A, B and C are spent: every rack loads and plays, macros open where
+they should, DR1's pads follow the 808 Core Kit grid, Drift's `Envelope1`
+is confirmed as its amp envelope, and Meld's B side is bound alongside its
+A side. `Q16` is what is left of them.
 
-**`patchbayground.py` has since changed shape, and every check below is
-against the new build.** Three changes, all from the reconstruction in
-`PATCHBAYGROUND.md`:
+**`patchbayground.py` has changed shape since, and every check below is
+against the new build.** Three changes, from the reconstruction in
+`PATCHBAYGROUND.md`, plus a fourth from measuring release ranges:
 
 | | old | new |
 |---|---|---|
 | slot 3 | cutoff | cutoff AND resonance, one knob |
 | slot 6 | resonance on every rack | per rack: attack, glide or morph |
 | labels | grammar name on every rack | local per rack |
+| slot 7 | unranged on Operator and Simpler | the shared range, in ms |
 
 BS1's slot 6 moving on Meld ALONE is the rule working: only Meld can serve
 morph, so Wavetable and Drift leave it empty rather than binding three
@@ -54,11 +55,52 @@ different ideas to one knob.
 
 Rebuild before anything below: `patchbay build examples/patchbayground.py`
 
+### The order to do it in
+
+Ordered by what unblocks the most. Report by check number.
+
+| Round | What | Why here |
+|---|---|---|
+| **Q16** | One diff, Drift's LFO routing | Unblocks Macro 5 on every rack. Nothing else does |
+| **K** | Two donor racks, one load check | Widens the vocabulary and gates 54 donors nothing has loaded yet |
+| **H** | The new slots 3 and 6 | The reshape has never been heard |
+| **I** | Labels on Push | I1 and I2 decide whether a label can carry a phrase at all |
+| **J** | Release, now ranged on all five engines | Cheap, and it is the newest change |
+| **D** | DR1 in depth | Unaffected by the reshape except D3 |
+| **E** | Five one-change spikes | Each unblocks a separate feature. No hurry, no order |
+| **F1** | One deliberately broken zone | A refusal is a result |
+| **G1** | The MCP handlers | Blocks the whole Set-building half |
+
+### K. Donors: two racks to save, one file to load
+
+`patchbay harvest` took the library from 8 devices to 56 out of files you
+already had. What is missing is missing everywhere, and K3 is the one that
+can fail.
+
+Defaults are wanted in K1 and K2, not settings: a donor is for the
+parameter list and each parameter's native range.
+
+| # | Do this | Save as |
+|---|---|---|
+| K1 | New Audio Effect Rack. One each of Channel EQ, Tuner, Spectrum, Auto Shift into ONE chain, all at defaults | `donors/AM_fx.adg` |
+| K2 | New MIDI Effect Rack. One each of Arpeggiator, Note Length, all at defaults | `donors/AM_midi.adg` |
+
+| # | Do this | Should happen |
+|---|---|---|
+| K3 | Drag in `build/K3_als_donor.adg`. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+
+K3 is a real risk, not a formality. Every harvested donor was lifted out of
+a `.als`, and whether a device node is serialised identically in Set form
+and preset form is Q9, which is open. Id checks pass and say nothing about
+it. If K3 refuses or half-loads, all 51 harvested donors are suspect and
+the harvest has to go through preset form instead. Nothing depends on them
+yet, which is why this is cheap now and expensive later.
+
 ### H. The new slot 3, and the new slot 6
 
-Everything the old B round proved about slots 3 and 6 is void; those two
-knobs drive different parameters now. Slots 1, 2, 4, 7 and 8 are unchanged
-and are not re-checked.
+Everything round B proved about slots 3 and 6 is void; those two knobs
+drive different parameters now. Slots 1, 2, 4 and 8 are unchanged and are
+not re-checked. Slot 7 is round J.
 
 | # | Rack | Do this | Should happen |
 |---|---|---|---|
@@ -100,36 +142,6 @@ audible from the file; it is one knob position meaning one length, or not.
 | J3 | LD1 | Macro 7 at its 30 default, FM then Meld | Short and comparable. Report if either is too short to play |
 
 Expected still broken: Macro 5 on every rack, until Q16.
-
-### K. The donors we still lack are all stock devices
-
-`patchbay harvest` took the tracked library from 8 devices to 32, out of
-the AM_RADIAN template. What is still missing is missing everywhere, or is
-only available in projects that are not ours to redistribute, so it stays
-in the gitignored `donors_local/` and a clone cannot build with it.
-
-One rack, one save, and the tracked library covers the whole
-`PATCHBAYGROUND.md` device chain. Defaults are wanted here, not settings:
-a donor is for the parameter list and each parameter's native range.
-
-| # | Do this | Save as |
-|---|---|---|
-| K1 | New Audio Effect Rack. Drop one each of Channel EQ, Roar, Redux, Overdrive, Corpus, Gate, Auto Shift, Utility into ONE chain, all at defaults | `donors/AM_FX_donors.adg` |
-| K2 | New MIDI Effect Rack. One each of Arpeggiator, Velocity, Note Length, Chord, all at defaults | `donors/AM_MIDI_donors.adg` |
-
-K3 is the one that can fail. Every donor above came out of a `.als`, and
-whether a device node is serialised identically in Set form and preset form
-is Q9, which is open. Id checks pass and say nothing about it.
-
-| # | Do this | Should happen |
-|---|---|---|
-| K3 | Drag in `build/K3_als_donor.adg`. Three chains: Auto Filter, EQ Eight, Echo, all built from Set-harvested donors | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
-
-If K3 refuses or half-loads, every `donors/h_*.adg` is suspect and the
-harvest needs to go through preset form instead. Nothing else depends on
-them yet.
-
-Expected still broken: nothing. This only widens the vocabulary.
 
 ### Q16. Drift's LFO reaches nothing
 
@@ -343,6 +355,12 @@ culling (generated names encoding parameter values make culling informed).
 opens in Live 12, with eight correctly named and routed tracks, racks whose
 macros follow the grammar in `PATCHBAYGROUND.md`, playable from Push 3
 without touching a mouse.
+
+That is the END-TO-END TEST passing, not the point of the project. What it
+proves is that the DSL reaches far enough to author a whole Set of this
+size in code. `PATCHBAYGROUND.md` is our reconstruction of PLAYGRND from
+what is publicly visible of it, and the library stays ignorant of it
+throughout: rule 6.
 
 ## The routine
 

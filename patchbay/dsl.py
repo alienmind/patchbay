@@ -662,15 +662,27 @@ class Rack:
         if named.exists():
             return named
 
+        # A plain donor first, meaning a file named after the single device
+        # it carries. Without that preference the skeleton is whichever rack
+        # of the right kind sorts first, so adding a file with an unrelated
+        # name silently rebuilds every rack - a one-change probe cut from a
+        # donor sorts next to it and did exactly that.
         checked: list[str] = []
+        fallback: Path | None = None
         for folder in ("donors", "racks"):
             for candidate in sorted((root / folder).glob("*.adg")):
                 checked.append(candidate.name)
                 try:
-                    if self._preset_of_kind(io.load(candidate)) is not None:
-                        return candidate
+                    if self._preset_of_kind(io.load(candidate)) is None:
+                        continue
                 except Exception:
                     continue
+                if candidate.stem in self.library:
+                    return candidate
+                if fallback is None:
+                    fallback = candidate
+        if fallback is not None:
+            return fallback
 
         raise FileNotFoundError(
             f"no {self.kind.value} to use as a skeleton.\n"

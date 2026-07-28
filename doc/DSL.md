@@ -462,8 +462,10 @@ a human edit, and every binding follows the rename.
 
 ## Deliberate limits
 
-**Not a general graph DSL.** It expresses the racks in
-`PATCHBAYGROUND.md`. Generality can come later, from real second cases.
+**Not a general graph DSL.** Every shape here was pulled out by building
+`examples/patchbayground.py`, which is one big example and the end-to-end
+test rather than the point of the library. Generality comes from real
+second cases, not from anticipating them.
 
 **Racks only, not Sets.** Per `MCP.md`, Live's API *does* expose track
 creation and routing, so Sets are built by driving `ableton-mcp`, not by
@@ -478,4 +480,4 @@ readily as `.adg`, because indexing a device never looks at preset
 structure, so one Live Set donates whatever it happens to contain. What a
 donor is wanted for is the parameter list and each parameter's native
 range, not anybody's settings, so paths and names are stripped on the way
-out.
+out. 56 devices are indexed today, from 8 before it existed.
