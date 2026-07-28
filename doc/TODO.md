@@ -30,8 +30,16 @@ on Operator and Simpler are NOT: they are the current round.
 
 ## In progress
 
-**Awaiting a human in Live.** Tooling verification proves a file is well
-formed; it has never once proved a rack sounds right.
+**Awaiting a human in Live.** Tooling proves a file is well formed and, as
+of `tests/golden.txt`, that a change moved nothing. It has never once
+proved a rack sounds right.
+
+Everything below has been triaged per `CLAUDE.md`. Six checks came off the
+list because they asserted facts about the file rather than facts about the
+sound, and are now tests: slot 3 driving a pair on every chain, slot 6
+reaching only the engines that offer it, and slot 7 being one interval in
+two units. What is left is perception, plus the spikes, which need Live to
+PRODUCE a file rather than to judge one.
 
 Rounds A, B and C are spent: every rack loads and plays, macros open where
 they should, DR1's pads follow the 808 Core Kit grid, Drift's `Envelope1`
@@ -63,9 +71,9 @@ Ordered by what unblocks the most. Report by check number.
 |---|---|---|
 | **Q16** | One diff, Drift's LFO routing | Unblocks Macro 5 on every rack. Nothing else does |
 | **K** | Two donor racks, one load check | Widens the vocabulary and gates 54 donors nothing has loaded yet |
-| **H** | The new slots 3 and 6 | The reshape has never been heard |
-| **I** | Labels on Push | I1 and I2 decide whether a label can carry a phrase at all |
-| **J** | Release, now ranged on all five engines | Cheap, and it is the newest change |
+| **H** | The new slots 3 and 6 | The reshape has never been HEARD. Its structure is now a test |
+| **I** | Labels on Push | Eyes only. Nothing about a display is in the file |
+| **J** | Release, one check left | Whether 20 s is the right ceiling |
 | **D** | DR1 in depth | Unaffected by the reshape except D3 |
 | **E** | Five one-change spikes | Each unblocks a separate feature. No hurry, no order |
 | **F1** | One deliberately broken zone | A refusal is a result |
@@ -102,14 +110,23 @@ Everything round B proved about slots 3 and 6 is void; those two knobs
 drive different parameters now. Slots 1, 2, 4 and 8 are unchanged and are
 not re-checked. Slot 7 is round J.
 
+**The structural half is now a test and is not asked for here.** That slot
+3 drives a pair on every chain, that slot 6 reaches Meld and neither
+Wavetable nor Drift on BS1, and that it reaches both chains on PD1W and
+LD1, are all asserted in `tests/test_patchbay.py`. What is left is whether
+those mappings SOUND like what they are called, which nothing but ears
+answers.
+
 | # | Rack | Do this | Should happen |
 |---|---|---|---|
-| H1 | BS1 | Macro 3 across all three engines | Cutoff AND resonance move together, comparable on all three |
-| H2 | BS1 | Macro 3 at 127 | Fully open with resonance at maximum. Confirm this is playable, not a scream. If it is, slot 3's resonance half wants a narrower range |
-| H3 | PD1W | Macro 6 | Attack softens on Wave and Drift both |
-| H4 | LD1 | Macro 6 | Glide on FM and Meld both |
-| H5 | BS1 | Macro 6 on Meld, then Wave, then Drift | Filter morphs on Meld. NOTHING on the other two, by design |
-| H6 | LD1 | Macro 5 | NOTHING, until Q16 |
+| H1 | BS1 | Macro 3 across all three engines | The sweep is comparable on all three. Report an engine that is obviously wider or narrower than the others |
+| H2 | BS1 | Macro 3 at 127 | Playable, not a scream. If it screams, slot 3's resonance half wants a narrower range |
+| H3 | PD1W, LD1 | Macro 6 on each chain | Attack softens on PD1W, glide on LD1. This is whether the role is the RIGHT parameter, not whether it is mapped |
+| H6 | LD1 | Macro 5 on FM | `Lfo/LfoAmount` is bound on Operator and its routing is Q16's question one device over. Anything at all, or nothing? |
+
+H6 is not covered by the test above and is the one that surprised: LD1's
+macro 5 IS mapped, on Operator, so "nothing until Q16" was only ever true
+of Wavetable and Meld.
 
 ### I. Do the labels read right on the hardware
 
@@ -129,19 +146,19 @@ different word rather than a longer one.
 
 ### J. Release, now that Operator and Simpler are ranged
 
-Macro 7 bound through the full 1 ms..60 s on Operator and Simpler and
-through 0.01..20 s everywhere else. Both now go through the same
-intersection, expressed twice because the two devices keep envelope times
-in milliseconds and the other three in seconds. Nothing about this is
-audible from the file; it is one knob position meaning one length, or not.
+**That the two spellings are one interval is a test, not a check.** Exactly
+two device ranges carry slot 7 across the five racks, `0.01..20` and
+`10..20000`, one being the other times 1000, and
+`tests/test_patchbay.py` fails if that stops being true. J1 and J2 as
+written asked a person to confirm arithmetic.
+
+What a test cannot say is whether 20 s is the right ceiling.
 
 | # | Rack | Do this | Should happen |
 |---|---|---|---|
-| J1 | PD1 | Macro 7 full right, hold a note on FM, then on Sample | Tail sounds the same length on both, about 20 s |
-| J2 | PD1W | Same, Wave then Drift | Same length again, and the same as J1 |
-| J3 | LD1 | Macro 7 at its 30 default, FM then Meld | Short and comparable. Report if either is too short to play |
+| J3 | LD1 | Macro 7 at its 30 default, then full right | Playable at 30, and the long end is long enough to be worth having. Report if either end is useless |
 
-Expected still broken: Macro 5 on every rack, until Q16.
+Expected still broken: Macro 5 on Wavetable and Meld, until Q16.
 
 ### Q16. Drift's LFO reaches nothing
 
@@ -166,12 +183,21 @@ LFO depth is not in the parameter list at all, and Meld has no equivalent.
 
 Unaffected by the reshape except D3, which now moves a pair.
 
+D4 is a pure absence claim and D1 to D3 each have a structural half, so all
+four are largely answerable by the mapping matrix test. They are not yet,
+because DR1 needs `samples/` and this machine's checkout has none, so the
+test would be asserting nothing. **Extend
+`test_the_wildcard_slot_reaches_only_the_engines_that_offer_it` to DR1 on
+a machine that has the audio, and D4 goes away entirely.**
+
+What stays is whether the chaining does what its name says three levels
+down, which is the part the matrix cannot reach.
+
 | # | Do this | Should happen |
 |---------|---------|---------------|
-| D1 | Kit Macro 1 (Sound), slowly, while playing a pad | Sample changes on EVERY pad at once |
+| D1 | Kit Macro 1 (Sound), slowly, while playing a pad | Sample changes on EVERY pad at once, and lands on a sample rather than between two |
 | D2 | Dive into KICK on Push, turn its Sound knob | Only the kick's sample changes |
-| D3 | Kit Macro 3 (Filter + Res) | Cutoff and resonance on all pads |
-| D4 | Kit Macros 5, 6, 7 (Send A, Send B, Send Vol) | NOTHING. Sends are not wired: needs Q6 |
+| D3 | Kit Macro 3 (Filter + Res) | Cutoff and resonance on all pads, comparable across pads |
 
 ### E. Spikes, each a one change diff
 
@@ -241,25 +267,27 @@ values carrying their own start, label and selector flag; an engine profile
 becomes a value with `drives` and `offers`; `bind` splits into one verb per
 relation; ranges become a `Range` with a unit and methods.
 
-Not a format change. A prototype front end declared PD1, PD1W, BS1, LD1 and
-VA1, plus a drum rack holding a nested pad, and every one diffed identical
-against what the current syntax builds. So the migration is mechanical and
-its gate already exists.
+**Class 1 throughout: NO LIVE CHECK, at any step.** Not a format change. A
+prototype front end declared PD1, PD1W, BS1, LD1 and VA1, plus a drum rack
+holding a nested pad, and every one diffed identical against what the
+current syntax builds. `tests/golden.txt` holds the digests, so every step
+below proves itself by `uv run pytest`. If a step needs the goldens
+regenerated, that step has moved the output and is wrong.
 
 Order matters, because the round trip test is what holds the rest honest.
 
 **T9a. The types, beside the current ones.** `Slot`, `Range`, `Layout`,
 `Engine`, `Rack` in `patchbay/dsl.py`, with the current classes still
 exported and still passing their tests. Nothing else moves yet.
-*Gate: the prototype's five racks, declared in the new types, diff clean
-against `build/` from the current `examples/patchbayground.py`.*
+*Gate: the prototype's five racks, declared in the new types, digest equal
+to `tests/golden.txt`.*
 
 **T9b. Move `examples/patchbayground.py`.** Six racks including DR1 at
 three levels, which is where `spends`, `pad` and `deriving` are actually
 exercised. Deletes `_bind`, the `character=` parameter on five engine
 functions, and the `fm(sampler(rack))` nesting.
-*Gate: all six racks diff clean against the same six built from the current
-file, DR1 included, which needs `samples/`.*
+*Gate: `tests/golden.txt` unchanged. DR1 is not in it and needs a machine
+with `samples/`; add its digest there while you are on one.*
 
 **T9c. Move `patchbay/extract.py`.** The emitter writes DSL source, so it
 writes the new syntax or the round trip breaks. This is the step that
@@ -273,8 +301,10 @@ the classes. The proposal section at the end of that file folds into the
 body once it is no longer a proposal.
 
 One rule reverses on the way: `.drives` on the same slot twice accumulates,
-where a second `bind` of a slot replaces. `DSL.md` says why. Check no
-caller relied on replacement before T9b lands; today none does.
+where a second `bind` of a slot replaces.  `DSL.md` says why.
+`test_binding_a_slot_twice_replaces_rather_than_accumulates` asserts the
+old behaviour and is the one test that must change rather than pass; no
+other caller relies on it.
 
 *Wants nothing. Blocks nothing. It is worth doing before T1 and T6c add
 callers to a surface that is going to move.*
@@ -387,7 +417,11 @@ fails.
 - Gain staging and mix balance.
 - Sidechain source. Absent from the LOM and not found in the file format.
   One setting per track, not a system. See `THE_BASEMENT.md`.
-- Confirming macros are mapped correctly. No API reads mappings.
+- Confirming a mapped macro DOES something. WHICH mappings exist is not
+  manual: `patchbay mappings` reads them out of the file and the matrix is
+  asserted in tests. Whether one reaches anything is Q16's lesson, and
+  Live's API exposes no `mapped_parameter` either, so ears are the only
+  instrument for it.
 
 Semi-automated, worth designing well: sample assignment (curation manual,
 wiring automatic, a pad-to-path manifest between them) and variation
