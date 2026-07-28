@@ -504,3 +504,175 @@ structure, so one Live Set donates whatever it happens to contain. What a
 donor is wanted for is the parameter list and each parameter's native
 range, not anybody's settings, so paths and names are stripped on the way
 out. 56 devices are indexed today, from 8 before it existed.
+
+## The surface this should grow into
+
+Not built. This section is the shape the next version of the syntax takes,
+and `T9` in `TODO.md` is the migration. What is written here compiles: the
+five sample-free racks of `examples/patchbayground.py`, plus a drum rack
+with a nested pad, were declared through a prototype front end and diff
+clean against the racks the current syntax builds.
+
+### What the current surface costs
+
+**`bind` is four relations under one name.** `e.bind(filter="Filter/Frequency")`
+maps a slot to a device parameter. `n.bind(filter="filter")` maps an outer
+slot to an inner one. The value is `str`, or `(path, lo, hi)`, or a list of
+either. All four are the same shape at the call site, and which one a line
+means depends on whether its receiver came from `engine()` or `nest()`.
+
+**A slot name is a string in four places.** `selector=`, `start={}`,
+`labels={}` and every `bind` keyword each name the slot again, and each
+does its own `macro_of` typo check. A layout that declares
+`start={"Filter": 127}` states "Filter" twice within three lines. Slots
+that are not Python identifiers are worse off: `KIT` declares `Send A`,
+`Send B` and `Send Vol`, and none can be written as a keyword. Nothing has
+bound them yet, so it has not bitten.
+
+**There is no value for "how a device answers to the layout."** That is the
+thing this project is about, and `examples/patchbayground.py` has to
+express it as five functions that take a rack, mutate it and return it.
+`meld(drift(wavetable(rack)))` is a rack read inside out, and the profile
+cannot be shared, extended or inspected.
+
+**The wildcard role is threaded by hand.** Five engine functions carry a
+`character: str | None` parameter, a module-level `WILDCARD` table maps
+role to path per device, and `_bind` filters the misses. The role is then
+stated two to four times per rack: once in `labels=paired("attack")` and
+once per engine call. `pd1()` says "attack" three times.
+
+**Ranges are anonymous tuples doing arithmetic.** `("Filter/Frequency",
+*CUTOFF)` splats a pair into a triple, `RELEASE_MS = tuple(v * 1000.0 for v
+in RELEASE)` rebuilds one by comprehension, and `trimmed()` returns another
+to be splatted again.
+
+**Deriving a layout copies dicts by hand.** `PAD = Layout(*PATCHBAYGROUND.slots,
+selector="Sound", start=dict(PATCHBAYGROUND.start), labels=...)`. A
+derivation that forgets `start=` produces a rack that loads silent, and
+nothing says so.
+
+### The shape
+
+A slot carries everything about itself, so it is named once:
+
+```python
+PATCHBAYGROUND = Layout(
+    Slot("Instrument", label="> Instrument", selects=True),
+    Slot("Sound"),
+    Slot("Filter", start=127),
+    Slot("Drive"),
+    Slot("Movement"),
+    Slot("Character"),
+    Slot("Release", start=30),
+    Slot("Volume", start=127),
+)
+```
+
+`PATCHBAYGROUND.filter` is that slot. `Send A` answers to `send_a`, because
+the word on the hardware and the Python name are already two things and
+this only finishes the split. A typo raises at the layout, listing the
+slots.
+
+An engine profile is a value:
+
+```python
+PB = PATCHBAYGROUND
+
+FM = (Engine("Operator")
+      .drives(PB.filter, "Filter/Frequency", over=CUTOFF)
+      .drives(PB.filter, "Filter/Resonance", over=RESONANCE)
+      .drives(PB.release, "Operator.0/Envelope/ReleaseTime", over=RELEASE_MS)
+      .drives(PB.volume, "Globals/Volume", over=trimmed("Operator", UNITY))
+      .offers("attack", "Operator.0/Envelope/AttackTime")
+      .offers("glide", "Globals/PortamentoTime")
+      .offers("saturation", "Shaper/Drive"))
+```
+
+`offers` is what this engine can serve when a rack spends its wildcard slot
+on a role. The `WILDCARD` table, the `character=` parameter on five
+functions and `_bind` all collapse into it.
+
+A rack states the role once and lists its chains:
+
+```python
+LD1 = (Rack.instrument("LD1", PB)
+       .spends(PB.character, "glide")
+       .label(PB.filter, "Filter + Res")
+       .chain("FM", FM)
+       .chain("Meld", MELD))
+```
+
+Engines that do not offer `glide` leave the slot empty, which is the
+current rule with nothing to thread it through.
+
+One verb per relation. Nesting cannot be misread as parameter binding, and
+`chain` takes a device profile or a rack, because the outer rack does not
+care which:
+
+```python
+VA1 = (Rack.instrument("VA1", PB)
+       .chain("PADS", PADS.chaining(PB.filter, PB.release, PB.volume))
+       .chain("KEYS", KEYS.chaining(PB.character.to(INNER.movement))))
+
+DR1 = (Rack.drum("DR1", KIT)
+       .pad("KICK", 36, KICK.chaining(KIT.sound, KIT.filter)))
+```
+
+A bare slot chains to the inner slot of the same name, `Slot.to` names one
+that differs, and no arguments keeps the identity default.
+
+A range is a value, so the unit is stated and the arithmetic is a method:
+
+```python
+CUTOFF = Range(30.0, 18500.0, "Hz")
+RELEASE = Range(0.01, 20.0, "s")
+RELEASE_MS = RELEASE.scaled(1000.0)
+```
+
+Nothing reads `unit`, because nothing can: the format records none, and the
+same slot is Hz on one engine and dB on the next. It is there so the
+constant says which it is, which is the fact Q14 cost a rack to find.
+
+Deriving a layout moves what changed and keeps the rest:
+
+```python
+PAD = PATCHBAYGROUND.deriving(selects=PATCHBAYGROUND.sound,
+                              relabel={PATCHBAYGROUND.sound: "> Sound"})
+```
+
+Builders return new objects. A profile or a sub-rack can sit in two racks
+without one build reaching the other.
+
+### One rule reverses
+
+`.drives` on the same slot twice ACCUMULATES. Today a second `bind` of a
+slot replaces the first, and that rule exists because `bind` is a bulk
+keyword call where a second call reads as an edit. A per-slot fluent call
+reads as a second mapping, which is what the Meld case wants, so the
+reading and the behaviour agree instead of the docstring having to say
+which won.
+
+### What was verified
+
+A prototype front end over the current `patchbay.dsl`, declaring PD1, PD1W,
+BS1, LD1 and VA1, and separately a drum rack holding a nested pad rack.
+Every one diffs identical against the rack the current syntax builds. So
+this is a surface change and not a format change, which is what makes the
+migration mechanical.
+
+One near-miss is worth keeping. The drum rack diff did not come out clean
+first time, because the hand written `Layout(*KIT.slots, selector="Sound")`
+dropped the kit's starts and labels while `deriving` carried them. That is
+the failure mode the derivation argument above predicts, produced by
+accident while testing something else.
+
+### What it costs
+
+`patchbay extract` emits DSL source and a test rebuilds six racks from it
+and diffs them, so the emitter moves with the syntax or the round trip
+breaks. That gate is also the reason the migration is safe to attempt: it
+is a complete enumeration of what the syntax has to express.
+
+`examples/patchbayground.py`, `tests/test_patchbay.py` and every code block
+in this document move too. `compile.py` picks racks out of a spec by
+`isinstance`, so it takes the new type.
