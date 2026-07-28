@@ -234,6 +234,19 @@ one destroys a finding.
 A probe that answered its question is deleted once the answer is written
 down. The finding has value; the scaffolding that produced it is noise.
 
+## A prototype waiting on a decision goes in `experimental/`
+
+`build/` is for what gets deleted. A module that has been PROVED against
+the shipping code and is waiting on a call in `TODO.md` is not scratch, and
+losing it means re-deriving it: `patchbay/experimental/` and
+`examples/experimental/` are tracked for that case. `patchbay/experimental/`
+is still under rule 6, so a spec with rack names in it goes in the examples
+half.
+
+Nothing in `patchbay/` imports from `experimental/`. A module leaves in one
+of two directions, never by accumulating: into the library when the
+decision is yes, deleted with a note in `THE_BASEMENT.md` when it is no.
+
 ## This is an LF repo
 
 Every tracked text file ends its lines with `\n`, on Windows too.

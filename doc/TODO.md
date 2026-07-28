@@ -282,7 +282,9 @@ becomes a value with `drives` and `offers`; `bind` splits into one verb per
 relation; ranges become a `Range` with a unit and methods.
 
 **Class 1 throughout: NO LIVE CHECK, at any step.** Not a format change. A
-prototype front end declared PD1, PD1W, BS1, LD1 and VA1, plus a drum rack
+prototype front end, `patchbay/experimental/dsl2.py` driven by
+`examples/experimental/patchbayground2.py`, declared PD1, PD1W, BS1, LD1
+and VA1, plus a drum rack
 holding a nested pad, and every one diffed identical against what the
 current syntax builds. `tests/golden.txt` holds the digests, so every step
 below proves itself by `uv run pytest`. If a step needs the goldens

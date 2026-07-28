@@ -510,8 +510,9 @@ out. 56 devices are indexed today, from 8 before it existed.
 Not built. This section is the shape the next version of the syntax takes,
 and `T9` in `TODO.md` is the migration. What is written here compiles: the
 five sample-free racks of `examples/patchbayground.py`, plus a drum rack
-with a nested pad, were declared through a prototype front end and diff
-clean against the racks the current syntax builds.
+with a nested pad, were declared through
+`patchbay/experimental/dsl2.py` and diff clean against the racks the
+current syntax builds.
 
 ### What the current surface costs
 
@@ -654,11 +655,18 @@ which won.
 
 ### What was verified
 
-A prototype front end over the current `patchbay.dsl`, declaring PD1, PD1W,
-BS1, LD1 and VA1, and separately a drum rack holding a nested pad rack.
-Every one diffs identical against the rack the current syntax builds. So
-this is a surface change and not a format change, which is what makes the
-migration mechanical.
+`patchbay/experimental/dsl2.py` is a front end over the current
+`patchbay.dsl`, and `examples/experimental/patchbayground2.py` declares
+PD1, PD1W, BS1, LD1 and VA1 through it. Every one diffs identical against
+the rack the current syntax builds, and a drum rack holding a nested pad
+rack was checked the same way. So this is a surface change and not a format
+change, which is what makes the migration mechanical.
+
+Rebuild both sides and compare:
+
+    uv run patchbay build examples/patchbayground.py -o build/old
+    uv run python examples/experimental/patchbayground2.py build/new
+    patchbay diff build/old/PD1.adg build/new/PD1.adg
 
 One near-miss is worth keeping. The drum rack diff did not come out clean
 first time, because the hand written `Layout(*KIT.slots, selector="Sound")`
