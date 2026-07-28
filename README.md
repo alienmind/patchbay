@@ -100,13 +100,12 @@ made of.
 that slot 3 is macro 3, everywhere. A rack does not *have* those macros, it
 BINDS its own parameters to them. Reuse the grammar across racks and one
 knob means one musical idea on every one of them, structurally rather than
-by discipline. That is the pattern worth carrying between projects; the
-racks themselves are disposable.
+by discipline.
 
 **A binding names a parameter, and parameter names are not the GUI
 labels.** `Filter/Slot/Value/SimplerFilter/Freq` is Simpler's cutoff. This
 is why `donors/` exists and why a binding is written against one, never
-from memory: see [Nothing here is guessed](#nothing-here-is-guessed).
+from memory: see [Everything here is guessed from empirical evidence](#everything-here-is-guessed-from-empirical-evidence).
 
 **A range is what makes a slot mean the same thing twice.** Two engines can
 bind the same slot to the right parameter each and still disagree, because
@@ -133,7 +132,7 @@ rack.nest("PADS", pd1())
 rack.nest("KEYS", ld1()).bind(filter="filter", release="release")
 ```
 
-## Nothing here is guessed
+## Everything here is guessed from empirical evidence
 
 Ableton publishes no schema, and its element names are not the GUI labels:
 Saturator's Drive knob is `PreDrive`, Simpler's cutoff is
@@ -164,8 +163,7 @@ and racks nested inside racks so one instrument reaches all the others.
 
 [`examples/patchbayground.py`](examples/patchbayground.py) is this
 project's attempt at rebuilding that, from what is publicly visible of it
-plus everything harvesting the devices has taught us. It is not what the
-library is for and the library knows nothing about it: it is **one big
+plus everything harvesting the devices has taught us. It serves as **one big
 example, and the end-to-end test**. Six racks, three levels of nesting, 96
 variations, eight drum pads - if a change breaks something real, it breaks
 there first. The musical target is spelled out in
