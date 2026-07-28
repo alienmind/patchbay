@@ -62,8 +62,65 @@ feature rests on a guess about the format.
 
 ## Asking for a test in Live
 
-No unit test proves Live will load a file. A change lands as a file to be
-dragged in by hand. Make that request SCHEMATIC:
+Live is the only thing that proves a file loads, and the only thing that
+hears a rack. It is also the slowest instrument here and the only one that
+needs a person. Spend it on what nothing else can answer.
+
+### Triage before writing a check table
+
+Classify the change first. Most changes are class 1 and cost a human
+nothing.
+
+**Class 1: the output does not move.** A refactor, a rename, a DSL surface
+change. `tests/golden.txt` holds a digest per rack in
+`examples/patchbayground.py`; if it still passes, nothing moved. NO Live
+check, and no asking for one. The passing gate is the claim, not "it is
+only a refactor".
+
+**Class 2: values move inside constructs Live already loads.** A range, a
+start position, a label, a different parameter path on a device a shipped
+rack already carries. The shape of the file is unchanged, so it loads. Ask
+only where a human PERCEIVES the difference: an ear for a range, an eye for
+a label. Regenerate the goldens, say which racks moved, and keep the table
+to the perceptible part.
+
+**Class 3: the file carries a construct never loaded before.** A new
+element, a nesting depth never reached, a device tag no rack has held, a
+rack kind never dropped. Live may refuse it. One load check, and the answer
+is binary.
+
+**Sound judgement is not a class.** Whether a kick is good, whether -8 dBFS
+is right, whether a sweep is musical. Always human, never gated, and listed
+under Standing manual work in `TODO.md`.
+
+### A claim about the FILE is a test, not a check
+
+Many checks worth writing are structural claims wearing a listening test.
+"Macro 6 moves on Meld and NOTHING on the other two" is two claims, and the
+second is a statement about which mappings exist that `patchbay mappings`
+answers with no Live open. "Release means the same length on both engines"
+is a claim that two ranges are one interval in two units, which a test
+asserts by arithmetic.
+
+Before writing a row into a check table, ask what would falsify it. If the
+answer is a fact in the file, write the test instead. Send a human only
+what a human can perceive: loudness, timbre, whether a word fits on the
+display, whether a knob is playable.
+
+**An ABSENCE is provable, an EFFECT is not.** That a slot reaches no
+parameter is in the file. That a mapped slot does something is not, and
+assuming otherwise is exactly Q16: Drift's `Lfo_Amount` is bound, resolves,
+carries the right range, and moves nothing, because the routing is not a
+parameter. So a structural test may assert which mappings exist and must
+never be read as saying a knob works.
+
+### Do not spend a human on a design that is still moving
+
+Round B was spent on slots 3 and 6 and voided entirely by the next reshape.
+A check costs a session and is worth only what the design under it is
+worth. Batch checks behind a decision, not in front of one.
+
+### Make the request SCHEMATIC
 
 1. Name the EXACT file - `build/PD1.adg`, not "the output".
 2. A table and little else: check number, what to do, what should happen.
