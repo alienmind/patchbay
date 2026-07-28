@@ -18,6 +18,7 @@ from patchbay import io, find, params, clone, diff, mappings, ids, variations  #
 from patchbay.dsl import Layout, Rack, RackKind, Variation   # noqa: E402
 
 RACKS = Path(__file__).resolve().parent.parent / "racks"
+GOLDEN = Path(__file__).resolve().parent / "golden.txt"
 
 
 # --- S1: round trip -------------------------------------------------------
@@ -713,6 +714,146 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
         paths.update(S.targets(dev))
     assert paths, "every pad chain carries a sample"
     assert all(Path(p).is_file() for p in paths), "no chain points at nothing"
+
+
+def _mapping_matrix(rack):
+    """{chain name: {macro: [target tags]}} for one built rack."""
+    out = {}
+    for branch in find.branches(find.preset(rack.build())):
+        name = branch.find("Name").get("Value")
+        per_macro = {}
+        for km in branch.iter("KeyMidi"):
+            cc = int(km.find("NoteOrController").get("Value")) + 1
+            per_macro.setdefault(cc, []).append(km.getparent().tag)
+        out[name] = {k: sorted(v) for k, v in per_macro.items()}
+    return out
+
+
+def test_the_wildcard_slot_reaches_only_the_engines_that_offer_it():
+    """Slot 6 is a per rack role, and an engine without it stays empty.
+
+    An ABSENCE is what a file can prove. That a knob is mapped says nothing
+    about whether it is audible, which is the whole of Q16: Drift's
+    `Lfo_Amount` is bound, resolves, and reaches nothing, because the
+    routing is not a parameter. So this asserts which mappings exist and
+    stops there.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    by_name = {r.name: r for r in patchbayground.RACKS}
+    slot = patchbayground.PATCHBAYGROUND.macro_of("Character")
+
+    # BS1 asks for morph and only Meld has one.
+    bs1 = _mapping_matrix(by_name["BS1"])
+    assert slot in bs1["Meld"]
+    for chain in ("Wave", "Drift"):
+        assert slot not in bs1[chain], (
+            f"BS1 {chain} answers slot 6, which no Wavetable or Drift "
+            f"parameter can serve; it should be left empty")
+
+    # Where every engine offers the role, every chain answers.
+    for name, chains in (("PD1W", ("Wave", "Drift")), ("LD1", ("FM", "Meld"))):
+        matrix = _mapping_matrix(by_name[name])
+        for chain in chains:
+            assert slot in matrix[chain], f"{name} {chain} does not answer slot 6"
+
+
+def test_the_filter_slot_drives_a_pair_on_every_engine():
+    """Slot 3 is cutoff AND resonance, which is what frees slot 6."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    slot = patchbayground.PATCHBAYGROUND.macro_of("Filter")
+    for rack in patchbayground.RACKS:
+        if rack.layout is not patchbayground.PATCHBAYGROUND:
+            continue
+        for chain, per_macro in _mapping_matrix(rack).items():
+            targets = per_macro.get(slot, [])
+            assert len(targets) >= 2, (
+                f"{rack.name} {chain}: slot 3 drives {targets}, not a pair")
+
+
+def test_release_is_one_interval_however_an_engine_spells_it():
+    """Operator and Simpler keep envelope times in ms, the others in seconds.
+
+    So one knob position means one length only if the two ranges are the
+    same interval scaled by 1000. That is arithmetic, and it used to be
+    three people-minutes of holding notes and comparing tails.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    slot = patchbayground.PATCHBAYGROUND.macro_of("Release")
+    found = set()
+    for rack in patchbayground.RACKS:
+        if rack.layout is not patchbayground.PATCHBAYGROUND:
+            continue
+        for branch in find.branches(find.preset(rack.build())):
+            for km in branch.iter("KeyMidi"):
+                if int(km.find("NoteOrController").get("Value")) + 1 != slot:
+                    continue
+                target = km.getparent()
+                # Macro-to-macro chaining is 0..127 and not a device range.
+                if target.tag.startswith("MacroControls"):
+                    continue
+                found.add(params.range_of(target))
+
+    assert len(found) == 2, f"expected seconds and milliseconds, got {found}"
+    lo, hi = sorted(found, key=lambda r: r[1])
+    assert hi == (lo[0] * 1000.0, lo[1] * 1000.0), (
+        f"{hi} is not {lo} in milliseconds, so slot 7 means two different "
+        f"lengths depending on the engine")
+
+
+def test_the_example_racks_still_build_the_same_bytes():
+    """The output-identity gate. A refactor that moves no output proves it here.
+
+    Live tells you a file loads; it never tells you a file is UNCHANGED, and
+    a human dragging in a rack cannot see that 14,823 facts are the same
+    14,823 facts. So a change that is not supposed to move the output says so
+    against this, and nobody opens Live for it.
+
+    A digest rather than the facts themselves: the five racks flatten to
+    9.5 MB, and a hash per rack fits in a file whose git diff is readable.
+    When one fails, build the rack before and after and run `patchbay diff`
+    for the detail.
+
+    This also catches a hazard nothing else does. Skeleton and donor
+    selection reads `donors/` and `racks/` by name, so adding a file can
+    silently rebuild every rack. That shows up here as five failures.
+
+    Regenerate deliberately, never to make a red test green:
+        PATCHBAY_REGOLD=1 uv run pytest tests/ -k same_bytes
+    """
+    import hashlib
+    import os
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    def digest(rack):
+        facts = diff.flatten(rack.build())
+        text = "\n".join(f"{k}={v}" for k, v in sorted(facts.items()))
+        return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+    built = {rack.name: digest(rack) for rack in patchbayground.RACKS}
+
+    if os.environ.get("PATCHBAY_REGOLD"):
+        GOLDEN.write_text(
+            "".join(f"{n} {built[n]}\n" for n in sorted(built)), newline="\n")
+        return
+
+    golden = dict(line.split() for line in
+                  GOLDEN.read_text().splitlines() if line.strip())
+
+    # DR1 needs samples/, which is never committed, so it is absent on a
+    # machine that has the repo and not the audio. The other five are not.
+    for name in ("PD1", "PD1W", "BS1", "LD1", "VA1"):
+        assert name in built, f"{name} did not build"
+        assert built[name] == golden[name], (
+            f"{name} changed. If that was intended, rebuild the goldens; "
+            f"if not, `patchbay diff` it against a build from before.")
 
 
 def test_bound_macros_do_not_open_at_zero():
