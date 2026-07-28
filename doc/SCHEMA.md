@@ -561,7 +561,7 @@ at all, so it must carry no `Id` rather than a unique one.
 
 `Rack._load_skeleton` strips the `Id` when a nested rack is used as a
 skeleton, and `Rack._nested_preset` sets one when a rack is written into a
-chain. `build/VA1.adg`, two levels deep and built entirely by patchbay,
+chain. `build/VA1.adg`, two levels deep and built entirely by PatchBay,
 loads and its macro-to-macro mappings drive.
 
 ## S12. Minimal device viability - ANSWERED

@@ -251,7 +251,7 @@ tracks, returns, routing, tempo and starter clips, loading each generated
 rack by browser URI. See `MCP.md`.
 
 **T6. Decompile a saved rack into DSL source.** `patchbay extract` emits
-DSL for a `.adg` and round-trips patchbay's own racks exactly; see `DSL.md`.
+DSL for a `.adg` and round-trips PatchBay's own racks exactly; see `DSL.md`.
 What is left is finding racks inside a Set, and putting names on the slots.
 
 **T6b tail. Match extracted mappings against a known grammar.**

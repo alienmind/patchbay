@@ -1,17 +1,23 @@
-# patchbay
+# PatchBay
 
 Author Ableton Live racks and Sets in code instead of by clicking.
 
 ## What this is
 
-A DSL and a toolchain for writing Live racks as source. You declare what a
-rack is - engines, macro grammar, bindings, ranges, zones, variations,
-nesting - and `patchbay build` produces the `.adg` Live opens. It also runs
-backwards: `patchbay extract` reads a saved rack and prints the declaration
-that rebuilds it.
+A Python DSL and a toolchain for writing Live racks as source. You declare
+what a rack is - engines, macro grammar, bindings, ranges, zones,
+variations, nesting - and `patchbay build` produces the `.adg` Live opens.
+It also runs backwards: `patchbay extract` reads a saved rack and prints
+the declaration that rebuilds it.
+
+A spec is an ordinary Python module. It imports from `patchbay.dsl`, and
+the racks it declares are values, so anything Python does - a loop, a
+function, a list comprehension - is available for describing them. That is
+the point of a DSL embedded in a language rather than a config format: 96
+variations are a `product()` over a few lists, not 96 stanzas.
 
 Inspired in ideas from [strudel.cc](https://strudel.cc) and TidalCycles,
-but instead of targetting live coding of music, patchbay is about
+but instead of targetting live coding of music, PatchBay is about
 **offline authoring**. Nothing here makes a sound. It produces the
 assets you will load in your DAW.
 
@@ -43,9 +49,11 @@ The LOM stops short in two ways. Parts of it are undocumented, and parts of
 what a Set contains have no API at all. Grouping devices into a rack,
 creating a macro mapping, setting a chain zone: none of these are in the
 Object Model. Or at least that I've been slowly digging while looking into
-other examples, like ableton-mcp (see [`doc/MCP.md`](doc/MCP.md)).
+other examples, like ableton-mcp (see [`doc/MCP.md`](doc/MCP.md) and
+[On MCP and potential way forward](#on-mcp-and-potential-way-forward)
+at the end).
 
-patchbay covers the other half by writing the **files**. An `.adg` is a
+PatchBay covers the other half by writing the **files**. An `.adg` is a
 gzipped XML document, so is an `.als`, so is an `.adv`. What the API will
 not build, the file format will.
 
@@ -87,14 +95,14 @@ made of.
 | **zone** | Live | the span of 0..127 over which one chain answers the selector |
 | **pad** | Live | a drum rack chain, chosen by a MIDI note instead of a zone |
 | **variation** | Live | a stored position for every macro, recalled as one. Live's UI says Variations, the XML says Snapshots |
-| **engine** | patchbay | one chain and the device in it, treated as one way of making the sound |
-| **slot** | patchbay | one position in the grammar. Slot N is macro N |
-| **grammar** | patchbay | the ordered list of slot NAMES, shared by every rack that uses it |
-| **binding** | patchbay | one slot pointed at one parameter of one device |
-| **range** | patchbay | the span of that parameter the macro drives, in the parameter's own units |
-| **label** | patchbay | what a knob is CALLED on this rack, which is not what it is keyed by |
-| **donor** | patchbay | a real device instance to copy a device from |
-| **spec** | patchbay | a Python module declaring racks, the input to `patchbay build` |
+| **engine** | PatchBay | one chain and the device in it, treated as one way of making the sound |
+| **slot** | PatchBay | one position in the grammar. Slot N is macro N |
+| **grammar** | PatchBay | the ordered list of slot NAMES, shared by every rack that uses it |
+| **binding** | PatchBay | one slot pointed at one parameter of one device |
+| **range** | PatchBay | the span of that parameter the macro drives, in the parameter's own units |
+| **label** | PatchBay | what a knob is CALLED on this rack, which is not what it is keyed by |
+| **donor** | PatchBay | a real device instance to copy a device from |
+| **spec** | PatchBay | a Python module declaring racks, the input to `patchbay build` |
 
 **A grammar is a contract, not a template.** It says slot 3 is `Filter` and
 that slot 3 is macro 3, everywhere. A rack does not *have* those macros, it
@@ -153,10 +161,10 @@ file you already own.
 
 ## PATCHBAYGRND - The ultimate end-to-end test
 
-The idea and inspiration of this project came from the amazing **PLAYGRND**, an Ableton Live Set
-by **Andri Soren**: https://www.youtube.com/watch?v=plQ9F-0RmDw
+Some inspiration of this project came while trying to recreate the amazing **PLAYGRND**, an Ableton Live Set
+by **Andri Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw (please support the author and buy his product).
 
-Based on the information publicly made available from the author, what that Set demonstrates
+Based on the information publicly made available from him, what that Set demonstrates
 is worth taking: one macro grammar repeated across every rack, engines as chains,
 using knobs to quickly switch between instruments, a semi fixed channel strip on every track,
 and racks nested inside racks so one instrument reaches all the others.
@@ -168,33 +176,6 @@ example, and the end-to-end test**. Six racks, three levels of nesting, 96
 variations, eight drum pads - if a change breaks something real, it breaks
 there first. The musical target is spelled out in
 [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md).
-
-## Potential way forward - authoring of Ableton assets via MCP
-
-`ableton-mcp` is vendored within this project as well and a potential
-future scope.
-
-It is one worked example of driving the LOM, and it inherits every
-limit the LOM has.
-
-This project aims to complement where Live's API falls short.
-
-**Racks are built as files.** Racks, macro mappings and chain zones are
-outside the Object Model, so patchbay writes the gzipped XML of the
-`.adg` itself.
-
-**Sets can still be built through the API.** Track creation, naming, routing and
-clips *are* scriptable, so those go through the LOM via the `ableton-mcp`
-submodule rather than generating `.als`. Sidechain source is missing from
-both, and stays manual.
-
-For now, ableton-mcp is the test harness. A file that passes
-`patchbay check` is still only a file, and no unit test proves Live will
-load it. MCP is how a build gets tested **live**: drive a running Live,
-put the device we just wrote onto a track, read back what Live made of
-it, and do that programmatically rather than by hand. That makes
-integration tests possible against the real application, and it is the
-only way patchbay ever confirms a device actually deploys.
 
 ## What works today
 
@@ -222,7 +203,7 @@ patchbay build dr1.py -o build/rt/
 patchbay diff build/DR1.adg build/rt/DR1.adg      # identical
 ```
 
-That round trip is exact for a rack patchbay built, and a test holds it
+That round trip is exact for a rack PatchBay built, and a test holds it
 there. For a rack Live built it recovers the skeleton and not the sound:
 each device is refilled from a donor, so parameter values, a chain's second
 and third device, and per-rack cosmetics do not survive. Slot names never
@@ -338,3 +319,20 @@ The file format is version specific. Everything here was established
 against Live **12.4.3**, and a major Live update may need the findings
 rechecked. How that checking is done is `CLAUDE.md` and `doc/SPIKES.md`,
 which are written for whoever, or whatever, does the work.
+
+
+## On MCP and potential way forward
+
+`ableton-mcp` is vendored within this project for testing purposes as well
+and a potential future scope (maybe a more complete MCP server?)
+
+While being one working example of driving the LOM, it inherits every
+limit the LOM has. This project aims to complement where Live's API falls short.
+
+For now, ableton-mcp is the test harness. A file that passes
+`patchbay check` is still only a file, and no unit test proves Live will
+load it. MCP is how a build gets tested **live**: drive a running Live,
+put the device we just wrote onto a track, read back what Live made of
+it, and do that programmatically rather than by hand. That makes
+integration tests possible against the real application, and it is the
+only way PatchBay ever confirms a device actually deploys.

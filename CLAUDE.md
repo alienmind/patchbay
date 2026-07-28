@@ -1,8 +1,9 @@
 # CLAUDE.md - working rules for agents in this repo
 
-This repo is a DSL and toolchain for AUTHORING Ableton Live racks and Sets
-in code: racks by writing the `.adg` XML directly, Sets by driving the
-`ableton-mcp` submodule. Offline authoring, not live coding - nothing here
+This repo is a Python DSL and toolchain for AUTHORING Ableton Live racks
+and Sets in code: racks by writing the `.adg` XML directly, Sets by driving
+the `ableton-mcp` submodule. A spec is an ordinary Python module importing
+from `patchbay.dsl`. Offline authoring, not live coding - nothing here
 makes a sound, it produces the instrument.
 
 `examples/patchbayground.py` is ONE example and the end-to-end test. It is

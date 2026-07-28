@@ -149,7 +149,7 @@ pattern is load bearing.
 Each phase ends with a manual gate: generate, drag into Live, confirm
 behaviour. There is no automated test that proves Live will load a file.
 
-~~**Phase 1. patchbay core.**~~ **DONE.** `find.py` locates nodes, `params.py`
+~~**Phase 1. PatchBay core.**~~ **DONE.** `find.py` locates nodes, `params.py`
 reads and writes values, ranges and mappings.
 
 **Phase 2. Clone with id remapping.**

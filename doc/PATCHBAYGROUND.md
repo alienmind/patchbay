@@ -7,7 +7,7 @@ which covers the tooling.
 ## Inspired by PLAYGRND
 
 The idea came from **PLAYGRND**, an Ableton Live Set for Push by **Andri
-Soren**: https://www.youtube.com/watch?v=plQ9F-0RmDw
+Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw
 
 What that Set demonstrates is an ARCHITECTURE, and the architecture is the
 part worth taking: one macro grammar repeated across every rack, engines as

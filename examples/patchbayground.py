@@ -3,7 +3,7 @@
 `doc/PATCHBAYGROUND.md` describes the musical target. This file is the
 machine-readable half: the same intent, in a form the compiler can realise.
 
-Inspired by PLAYGRND, an Ableton Live Set by Andri Soren:
+Inspired by PLAYGRND, an Ableton Live Set by Andri Sören:
 https://www.youtube.com/watch?v=plQ9F-0RmDw
 
 The architecture that Set demonstrates: one macro grammar across every rack,

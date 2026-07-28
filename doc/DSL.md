@@ -1,5 +1,9 @@
 # The rack DSL
 
+Embedded in Python. A spec is a module that imports from `patchbay.dsl` and
+declares racks as values, so a loop or a comprehension describes them as
+readily as a literal does.
+
 ## Why a DSL rather than a config file
 
 `PATCHBAYGROUND.md` line 60: *"This consistency is the actual product, more
@@ -412,7 +416,7 @@ than the template needs - 256 loaded without truncation.
 Nesting passed too. `build/VA1.adg` is two levels written from scratch:
 Macro 1 swaps sub-rack, Macros 2 to 4 chain into whichever is selected,
 and its variations recall through that chain. So a rack Live never saved
-survives being nested, and a macro-to-macro mapping written by patchbay
+survives being nested, and a macro-to-macro mapping written by PatchBay
 drives exactly like one Live wrote.
 
 One thing the exercise caught, and it took two passes. The DSL originally
@@ -430,7 +434,7 @@ with its range, chain zones, samples, macro resting positions, macro
 labels, variations, and nesting to any depth with the macro-to-macro
 chaining intact.
 
-For a rack patchbay built, extracting and rebuilding is EXACT. All six
+For a rack PatchBay built, extracting and rebuilding is EXACT. All six
 racks in `examples/patchbayground.py`, including DR1 at three levels with
 64 sample chains, diff clean against the original, and a test holds them
 there. That gate is what found the gaps: ranges were not being emitted at
