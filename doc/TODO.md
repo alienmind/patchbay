@@ -261,6 +261,20 @@ memory half.
 *Wants Q6 either way: the kit-level sends are FX selectors, not send
 levels, and nothing wires them yet.*
 
+**T10. DECIDE WHETHER TO PORT TO TYPESCRIPT.** A design call, not a task.
+`TS-PORT.md` is the analysis: the XML layer round trips losslessly in
+`@xmldom/xmldom` at 70 ms, the donors fit a browser at 300 KB, and three of
+the arguments on both sides turned out to be void. What survives is that
+the only reason to switch is a browser-hosted version, and the strongest
+objection to it is samples, which a browser cannot stat.
+
+Nothing is blocked on this. It is here so it does not get decided by
+drift.
+
+*One cheap thing first: Pyodide ships lxml, so the existing compiler may
+run in a browser unchanged. Twenty minutes to find out, and it would make
+the whole question moot.*
+
 **T9. Migrate to the proposed DSL surface.** The shape, the argument for
 it and what was verified are the last section of `DSL.md`. Slots become
 values carrying their own start, label and selector flag; an engine profile
