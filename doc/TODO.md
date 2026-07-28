@@ -235,6 +235,50 @@ memory half.
 *Wants Q6 either way: the kit-level sends are FX selectors, not send
 levels, and nothing wires them yet.*
 
+**T9. Migrate to the proposed DSL surface.** The shape, the argument for
+it and what was verified are the last section of `DSL.md`. Slots become
+values carrying their own start, label and selector flag; an engine profile
+becomes a value with `drives` and `offers`; `bind` splits into one verb per
+relation; ranges become a `Range` with a unit and methods.
+
+Not a format change. A prototype front end declared PD1, PD1W, BS1, LD1 and
+VA1, plus a drum rack holding a nested pad, and every one diffed identical
+against what the current syntax builds. So the migration is mechanical and
+its gate already exists.
+
+Order matters, because the round trip test is what holds the rest honest.
+
+**T9a. The types, beside the current ones.** `Slot`, `Range`, `Layout`,
+`Engine`, `Rack` in `patchbay/dsl.py`, with the current classes still
+exported and still passing their tests. Nothing else moves yet.
+*Gate: the prototype's five racks, declared in the new types, diff clean
+against `build/` from the current `examples/patchbayground.py`.*
+
+**T9b. Move `examples/patchbayground.py`.** Six racks including DR1 at
+three levels, which is where `spends`, `pad` and `deriving` are actually
+exercised. Deletes `_bind`, the `character=` parameter on five engine
+functions, and the `fm(sampler(rack))` nesting.
+*Gate: all six racks diff clean against the same six built from the current
+file, DR1 included, which needs `samples/`.*
+
+**T9c. Move `patchbay/extract.py`.** The emitter writes DSL source, so it
+writes the new syntax or the round trip breaks. This is the step that
+proves the new surface expresses everything the old one did, because the
+extractor is a complete enumeration of it.
+*Gate: `test_extract_round_trips_structure` passes unchanged in what it
+asserts.*
+
+**T9d. Delete the old surface.** Tests, then `DSL.md`'s code blocks, then
+the classes. The proposal section at the end of that file folds into the
+body once it is no longer a proposal.
+
+One rule reverses on the way: `.drives` on the same slot twice accumulates,
+where a second `bind` of a slot replaces. `DSL.md` says why. Check no
+caller relied on replacement before T9b lands; today none does.
+
+*Wants nothing. Blocks nothing. It is worth doing before T1 and T6c add
+callers to a surface that is going to move.*
+
 **T1. Drum rack pads in the DSL.** What DR1 still needs now that nesting
 is done. `clone.py` already sets `ReceivingNote` and allocates free notes,
 and `Rack.nest` already puts a rack inside a chain; nothing joins them up.
