@@ -6,7 +6,7 @@ machine-readable half: the same intent, in a form the compiler can realise.
 Inspired by PLAYGRND, an Ableton Live Set by Andri Sören:
 https://www.youtube.com/watch?v=plQ9F-0RmDw
 
-The architecture that Set demonstrates: one macro grammar across every rack,
+The architecture that Set demonstrates: one macro layout across every rack,
 engines as chains, a sound addressed by two knobs. Rebuilt here to our own
 taste, from a declaration, because doing it by hand is thousands of macro
 mappings entered by mouse.
@@ -33,7 +33,7 @@ earns its place inside a drum pad, where it walks eight samples.
 
 Blocked: SR1, on samples.
 
-## Three things this file decides that the grammar does not
+## Three things this file decides that the layout does not
 
 **Slot 3 drives cutoff AND resonance.** One knob, two parameters that
 belong together, which is what frees slot 6 to be a real wildcard instead
@@ -59,10 +59,10 @@ from __future__ import annotations
 from itertools import product
 from pathlib import Path
 
-from patchbay.dsl import Grammar, Rack, RackKind, Variation
+from patchbay.dsl import Layout, Rack, RackKind, Variation
 
 # ===========================================================================
-# The grammar
+# The layout
 # ===========================================================================
 
 # Identical across every instrument rack, so muscle memory transfers. This
@@ -72,7 +72,7 @@ from patchbay.dsl import Grammar, Rack, RackKind, Variation
 # Eight slots, one Push page. A rack has 16 macros and Push will show a
 # second page, but a page flip mid-jam costs more than the extra knobs are
 # worth. Slots 1, 2, 7 and 8 are fixed on every rack; 3 to 6 are character.
-PATCHBAYGROUND = Grammar(
+PATCHBAYGROUND = Layout(
     "Instrument",  # 1  chain selector: which engine
     "Sound",       # 2  chain selector: which sound within that engine
     "Filter",      # 3  cutoff
@@ -104,7 +104,7 @@ PATCHBAYGROUND = Grammar(
 
 # Slot 3 drives cutoff AND resonance, and slot 4 drives drive; a knob whose
 # label under-describes what it moves is the thing labels exist to stop.
-# Applied per rack rather than declared on the grammar because a rack that
+# Applied per rack rather than declared on the layout because a rack that
 # spends slot 6 on resonance instead would not pair, and then the plain
 # name is the true one.
 #
@@ -116,7 +116,7 @@ PAIRED = {"Filter": "Filter + Res"}
 def paired(role: str | None = None) -> dict[str, str]:
     """Labels for a rack: the pairing on slot 3, and slot 6's actual role.
 
-    Slot 6 is called Character in the grammar because that is what the
+    Slot 6 is called Character in the layout because that is what the
     CONTRACT is; on the hardware it says which wildcard this rack spent it
     on. A rack that leaves the slot empty for some of its engines still
     names the role, because the knob does work on the engines that have it.
@@ -228,14 +228,14 @@ def trimmed(tag: str, lo: float, hi: float) -> tuple[float, float]:
     return (lo, hi * 10.0 ** ((TARGET_PEAK_DB - PEAK_DB[tag]) / 20.0))
 
 
-# The drum rack's top level is NOT the instrument grammar. Eight pads times
+# The drum rack's top level is NOT the instrument layout. Eight pads times
 # eight parameters cannot fit eight knobs, so the top level is kit-wide
 # moves only and per-pad control is reached by diving into the pad on Push.
 #
 # selector=None because a drum rack has no chain selector to drive: a pad is
 # chosen by its ReceivingNote, and Live leaves every pad's zone at 0/0/0/0.
 # Macro 1 here chains into each pad's own Sound knob instead.
-KIT = Grammar(
+KIT = Layout(
     "Sound", "Pitch", "Filter", "Drive", "Send A", "Send B", "Send Vol",
     "Volume", selector=None,
     # Same reasoning as PATCHBAYGROUND, and it matters twice over here: a
@@ -252,7 +252,7 @@ KIT = Grammar(
 # Inside a pad the axis is WHICH SAMPLE, so the selector slot is Sound
 # rather than Instrument. Same eight names as PATCHBAYGROUND so the kit can
 # chain slot to slot by identity; only which slot drives the selector moves.
-PAD = Grammar(*PATCHBAYGROUND.slots, selector="Sound",
+PAD = Layout(*PATCHBAYGROUND.slots, selector="Sound",
               start=dict(PATCHBAYGROUND.start),
               # The selector mark moves with the selector: inside a pad it
               # is Sound that steps, and Instrument is not bound at all.
@@ -307,7 +307,7 @@ SAMPLES_PER_PAD = 8
 #   glide       everywhere, under four different names.
 #
 # Meld's entries are pairs, driven together for the same reason its filter
-# is: this grammar has one knob, not an A knob and a B knob.
+# is: this layout has one knob, not an A knob and a B knob.
 WILDCARD: dict[str, dict[str, object]] = {
     "Operator": {
         "attack": "Operator.0/Envelope/AttackTime",
@@ -353,7 +353,7 @@ def _bind(e, tag: str, paths: dict, role: str | None) -> None:
 
 
 def fm(rack: Rack, name: str = "FM", character: str | None = None) -> Rack:
-    """An Operator chain bound to the grammar."""
+    """An Operator chain bound to the layout."""
     with rack.engine(name, "Operator") as e:
         _bind(e, "Operator", dict(
             filter=[("Filter/Frequency", *CUTOFF),
@@ -372,7 +372,7 @@ def fm(rack: Rack, name: str = "FM", character: str | None = None) -> Rack:
 
 def sampler(rack: Rack, name: str = "Sample",
             character: str | None = None) -> Rack:
-    """A Simpler chain bound to the SAME grammar slots as `fm`.
+    """A Simpler chain bound to the SAME layout slots as `fm`.
 
     That correspondence is the sound family constraint: one knob moves the
     same musical idea through different synthesis.
@@ -444,7 +444,7 @@ def meld(rack: Rack, name: str = "Meld",
     exactly as suspected: Macro 3 filtered half the sound and left the
     other half open, which passes every structural check there is.
 
-    Both sides move together because this grammar has one Filter knob, not
+    Both sides move together because this layout has one Filter knob, not
     an A knob and a B knob. Splitting them would be a second axis, and a
     Push page has no room for one.
 
@@ -473,7 +473,7 @@ def pd1() -> Rack:
     """Pads. Operator and Simpler, the pair gated in Live 12.4.3.
 
     Kept as the verified slice: 96 variations, both engines answering one
-    grammar. `pd1_wave` below is what the spec actually calls for.
+    layout. `pd1_wave` below is what the spec actually calls for.
     """
     rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
                 labels=paired("attack"))
@@ -493,7 +493,7 @@ def pd1_wave() -> Rack:
 
 
 def bs1() -> Rack:
-    """Multi engine bass. Three syntheses, one grammar. Slot 6 is MORPH.
+    """Multi engine bass. Three syntheses, one layout. Slot 6 is MORPH.
 
     Only Meld can serve morph, so Wavetable and Drift leave slot 6 empty.
     That is the rule working, not a hole: the alternative is binding three
@@ -535,7 +535,7 @@ def pad_samples(sound: str, n: int = SAMPLES_PER_PAD) -> list[Path]:
     return sorted(folder.glob(f"{sound}_*.wav"))[:n]
 
 
-# What a pad calls its knobs, over the shared PAIRED labels. The grammar is
+# What a pad calls its knobs, over the shared PAIRED labels. The layout is
 # positional: same slot, same chaining, different word, which is the drum
 # rack form of the slot 6 wildcard. A kick's slot 4 is where its snap
 # lives, so it says so; a hat's is plain drive.
@@ -683,7 +683,7 @@ RACKS: list[Rack] = [r for r in (pd1(), pd1_wave(), bs1(), ld1(), dr1(), va1())
 # ---------------------------------------------------------------------------
 #
 # `sound_family` above grids over the four slots PD1 drives today. Drive and
-# Movement are in the grammar but nothing binds them, and a variation may
+# Movement are in the layout but nothing binds them, and a variation may
 # only set a slot something answers to - the DSL refuses the rest rather
 # than writing a knob wired to nothing. Adding those bindings widens the
 # grid with no change to the variation code.
@@ -804,7 +804,7 @@ RACKS: list[Rack] = [r for r in (pd1(), pd1_wave(), bs1(), ld1(), dr1(), va1())
 #     return rack
 #
 # def ld1() -> Rack:
-#     """FM leads, mono with glide. Glide is grammar slot 9."""
+#     """FM leads, mono with glide. Glide is layout slot 9."""
 #     rack = Rack("LD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
 #     with rack.engine("FM", "Operator") as e:
 #         e.bind(glide="PortamentoTime", detune="Detune", ...)

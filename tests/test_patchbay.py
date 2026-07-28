@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from patchbay import io, find, params, clone, diff, mappings, ids, variations  # noqa: E402
-from patchbay.dsl import Grammar, Rack, RackKind, Variation   # noqa: E402
+from patchbay.dsl import Layout, Rack, RackKind, Variation   # noqa: E402
 
 RACKS = Path(__file__).resolve().parent.parent / "racks"
 
@@ -304,7 +304,7 @@ def test_out_of_range_position_is_refused():
 # --- Phase 5: variations through the DSL ----------------------------------
 
 def _pd1():
-    g = Grammar("Engine", "Cutoff", "Resonance", "Decay", "Drive")
+    g = Layout("Engine", "Cutoff", "Resonance", "Decay", "Drive")
     rack = Rack("PD1", g, kind=RackKind.INSTRUMENT)
     with rack.engine("FM", "Operator") as e:
         e.bind(cutoff=("Filter/Frequency", 200, 8000),
@@ -318,7 +318,7 @@ def _pd1():
 def test_one_vector_renders_through_every_engine():
     """The sound family constraint, as a structural fact.
 
-    A variation names grammar slots, never a device parameter, so there is
+    A variation names layout slots, never a device parameter, so there is
     nothing per engine to keep aligned. Both engines bind cutoff, so one
     variation is one sound in each.
     """
@@ -330,7 +330,7 @@ def test_one_vector_renders_through_every_engine():
 
     got = variations.read(dev)
     assert [v["name"] for v in got] == ["dark", "open"]
-    cutoff = rack.grammar.macro_of("cutoff")
+    cutoff = rack.layout.macro_of("cutoff")
     assert got[0]["values"][cutoff] == 30
 
     # One macro, one mapping per engine, which is what makes that work.
@@ -350,7 +350,7 @@ def test_engine_choice_is_a_variation_slot():
     preset = find.preset(root)
     dev = find.rack_device(preset)
 
-    slot = rack.grammar.macro_of("engine")
+    slot = rack.layout.macro_of("engine")
     got = variations.read(dev)
     assert got[0]["values"][slot] == fm and got[1]["values"][slot] == sample
 
@@ -409,7 +409,7 @@ def test_the_patchbayground_grid_builds():
     assert len(got) == 96
     assert len({v["name"] for v in got}) == 96, "names must be distinguishable"
     for v in got:
-        assert set(v["values"]) == {rack.grammar.macro_of(s)
+        assert set(v["values"]) == {rack.layout.macro_of(s)
                                     for s in ("instrument", "filter",
                                               "release", "character")}
 
@@ -418,7 +418,7 @@ def test_the_patchbayground_grid_builds():
 
 def _nested_pair():
     """An outer rack with one chain holding an inner rack."""
-    g = Grammar("Engine", "Cutoff")
+    g = Layout("Engine", "Cutoff")
     inner = Rack("INNER", g, kind=RackKind.INSTRUMENT)
     with inner.engine("FM", "Operator") as e:
         e.bind(cutoff="Filter/Frequency")
@@ -444,7 +444,7 @@ def test_live_saved_racks_agree_on_that():
 
 def test_a_nested_skeleton_loses_its_id():
     """s1_source's inner rack is usable as a skeleton once the Id is gone."""
-    g = Grammar("Engine", "Cutoff")
+    g = Layout("Engine", "Cutoff")
     rack = Rack("FROM_NESTED", g, kind=RackKind.INSTRUMENT,
                 skeleton=RACKS / "s1_source.adg")
     with rack.engine("FM", "Operator") as e:
@@ -464,7 +464,7 @@ def test_nesting_chains_macro_to_macro():
     assert target.find("KeyMidi/Channel").get("Value") == "16"
 
 
-def test_nest_defaults_to_identity_over_the_shared_grammar():
+def test_nest_defaults_to_identity_over_the_shared_layout():
     outer = _nested_pair()
     assert outer.engines[0].resolved() == {"Engine": "Engine", "Cutoff": "Cutoff"}
 
@@ -485,7 +485,7 @@ def test_a_nested_slot_counts_as_driven():
 
 
 def test_an_instrument_rack_is_refused_in_an_audio_effect_chain():
-    g = Grammar("Cutoff")
+    g = Layout("Cutoff")
     inner = Rack("I", g, kind=RackKind.INSTRUMENT)
     outer = Rack("A", g, kind=RackKind.AUDIO_EFFECT)
     try:
@@ -512,10 +512,10 @@ def test_va1_builds_two_levels():
 # --- drum pads ------------------------------------------------------------
 
 def _kit():
-    inner = Rack("KICK", Grammar("Engine", "Cutoff"))
+    inner = Rack("KICK", Layout("Engine", "Cutoff"))
     inner.engine("S1", "OriginalSimpler").bind(
         cutoff="Filter/Slot/Value/SimplerFilter/Freq")
-    kit = Rack("DR1", Grammar("Tune", "Decay"), kind=RackKind.DRUM)
+    kit = Rack("DR1", Layout("Tune", "Decay"), kind=RackKind.DRUM)
     kit.pad("KICK", 36, rack=inner)
     kit.pad("RIM", 37, device="OriginalSimpler")
     return kit
@@ -539,7 +539,7 @@ def test_pads_are_exempt_from_zone_distribution():
 
 def test_declared_zones_override_the_even_share():
     """A hand built rack divides its selector however it likes."""
-    rack = Rack("PD1", Grammar("Cutoff"), kind=RackKind.INSTRUMENT)
+    rack = Rack("PD1", Layout("Cutoff"), kind=RackKind.INSTRUMENT)
     with rack.engine("A", "OriginalSimpler") as e:
         e.zone(0, 99)
     with rack.engine("B", "OriginalSimpler") as e:
@@ -554,7 +554,7 @@ def test_declared_zones_override_the_even_share():
 
 def test_a_half_declared_zone_set_is_refused():
     """The other chain would take an even share of a scale it does not own."""
-    rack = Rack("PD1", Grammar("Cutoff"), kind=RackKind.INSTRUMENT)
+    rack = Rack("PD1", Layout("Cutoff"), kind=RackKind.INSTRUMENT)
     with rack.engine("A", "OriginalSimpler") as e:
         e.zone(0, 99)
     rack.engine("B", "OriginalSimpler")
@@ -575,7 +575,7 @@ def test_a_pad_may_hold_a_device_or_a_whole_rack():
 def test_two_pads_on_one_note_is_refused():
     """Legal and loadable, and almost never what anyone means: they fire
     together."""
-    kit = Rack("DR1", Grammar("Tune"), kind=RackKind.DRUM)
+    kit = Rack("DR1", Layout("Tune"), kind=RackKind.DRUM)
     kit.pad("KICK", 36, device="OriginalSimpler")
     try:
         kit.pad("SNARE", 36, device="OriginalSimpler")
@@ -586,7 +586,7 @@ def test_two_pads_on_one_note_is_refused():
 
 
 def test_pads_need_a_drum_rack():
-    rack = Rack("PD1", Grammar("Cutoff"), kind=RackKind.INSTRUMENT)
+    rack = Rack("PD1", Layout("Cutoff"), kind=RackKind.INSTRUMENT)
     try:
         rack.pad("KICK", 36, device="OriginalSimpler")
     except ValueError as e:
@@ -596,8 +596,8 @@ def test_pads_need_a_drum_rack():
 
 
 def test_a_pad_holds_exactly_one_thing():
-    kit = Rack("DR1", Grammar("Tune"), kind=RackKind.DRUM)
-    for kwargs in ({}, {"device": "OriginalSimpler", "rack": Rack("X", Grammar("A"))}):
+    kit = Rack("DR1", Layout("Tune"), kind=RackKind.DRUM)
+    for kwargs in ({}, {"device": "OriginalSimpler", "rack": Rack("X", Layout("A"))}):
         try:
             kit.pad("KICK", 36, **kwargs)
         except ValueError as e:
@@ -648,7 +648,7 @@ def test_sample_retargets_both_filerefs(tmp_path=None):
     out.mkdir(exist_ok=True)
     wav = _a_wav(out)
 
-    rack = Rack("SR", Grammar("Instrument", "Filter"), kind=RackKind.INSTRUMENT)
+    rack = Rack("SR", Layout("Instrument", "Filter"), kind=RackKind.INSTRUMENT)
     with rack.engine("S", "OriginalSimpler") as e:
         e.sample(wav)
 
@@ -663,7 +663,7 @@ def test_sample_retargets_both_filerefs(tmp_path=None):
 
 
 def test_sample_refuses_a_missing_file():
-    rack = Rack("SR", Grammar("Instrument"), kind=RackKind.INSTRUMENT)
+    rack = Rack("SR", Layout("Instrument"), kind=RackKind.INSTRUMENT)
     with rack.engine("S", "OriginalSimpler") as e:
         try:
             e.sample("no/such/file.wav")
@@ -677,7 +677,7 @@ def test_sample_refuses_a_device_with_no_sampleref(tmp_path=None):
     out.mkdir(exist_ok=True)
     wav = _a_wav(out)
 
-    rack = Rack("X", Grammar("Instrument"), kind=RackKind.INSTRUMENT)
+    rack = Rack("X", Layout("Instrument"), kind=RackKind.INSTRUMENT)
     with rack.engine("FM", "Operator") as e:
         e.sample(wav)
     try:
@@ -732,7 +732,7 @@ def test_bound_macros_do_not_open_at_zero():
         for slot in ("Filter", "Volume"):
             if slot.lower() not in rack.driven_slots():
                 continue
-            got = params.value(find.macro(dev, rack.grammar.macro_of(slot)))
+            got = params.value(find.macro(dev, rack.layout.macro_of(slot)))
             assert got, f"{rack.name}: {slot} opens at {got}"
 
 
@@ -743,7 +743,7 @@ def test_one_slot_can_drive_several_parameters():
     open, audibly, on a rack where every id, every mapping and every range
     checked out.
     """
-    g = Grammar("Engine", "Filter", selector="Engine")
+    g = Layout("Engine", "Filter", selector="Engine")
     rack = Rack("X", g)
     with rack.engine("M", "InstrumentMeld") as e:
         e.bind(filter=[("MeldVoice_EngineA_Filter_Frequency", 30.0, 18500.0),
@@ -755,7 +755,7 @@ def test_one_slot_can_drive_several_parameters():
 
 
 def test_binding_a_slot_twice_replaces_rather_than_accumulates():
-    g = Grammar("Engine", "Filter", selector="Engine")
+    g = Layout("Engine", "Filter", selector="Engine")
     rack = Rack("X", g)
     with rack.engine("M", "InstrumentMeld") as e:
         e.bind(filter="MeldVoice_EngineA_Filter_Frequency")
@@ -767,7 +767,7 @@ def test_binding_a_slot_twice_replaces_rather_than_accumulates():
 def _labels(rack):
     dev = find.rack_device(find.preset(rack.build()))
     return [dev.find(f"MacroDisplayNames.{i}").get("Value")
-            for i in range(len(rack.grammar))]
+            for i in range(len(rack.layout))]
 
 
 def test_a_label_overrides_the_slot_name_without_moving_the_slot():
@@ -777,7 +777,7 @@ def test_a_label_overrides_the_slot_name_without_moving_the_slot():
     and nothing in the format marks a selector as stepping rather than
     sweeping. Both are display problems with no other place to live.
     """
-    g = Grammar("Engine", "Filter", selector="Engine",
+    g = Layout("Engine", "Filter", selector="Engine",
                 labels={"Engine": "> Engine"})
     rack = Rack("X", g, labels={"Filter": "Filter + Res"})
     with rack.engine("A", "Operator") as e:
@@ -787,8 +787,8 @@ def test_a_label_overrides_the_slot_name_without_moving_the_slot():
     assert g.macro_of("filter") == 2
 
 
-def test_two_racks_on_one_grammar_may_label_differently():
-    g = Grammar("Engine", "Drive", selector="Engine")
+def test_two_racks_on_one_layout_may_label_differently():
+    g = Layout("Engine", "Drive", selector="Engine")
     a = Rack("KICK", g, labels={"Drive": "Drive + Snap"})
     b = Rack("HAT", g)
     for r in (a, b):
@@ -799,7 +799,7 @@ def test_two_racks_on_one_grammar_may_label_differently():
 
 
 def test_a_label_for_a_slot_that_does_not_exist_is_refused():
-    g = Grammar("Engine", "Filter", selector="Engine")
+    g = Layout("Engine", "Filter", selector="Engine")
     for bad in ({"Cutoff": "x"},):
         try:
             Rack("X", g, labels=bad)
@@ -809,7 +809,7 @@ def test_a_label_for_a_slot_that_does_not_exist_is_refused():
 
 
 def test_start_refuses_a_position_off_the_macro_scale():
-    g = Grammar("Engine", "Volume", selector="Engine")
+    g = Layout("Engine", "Volume", selector="Engine")
     rack = Rack("X", g)
     for bad in (-1, 128, 200):
         try:
@@ -821,7 +821,7 @@ def test_start_refuses_a_position_off_the_macro_scale():
 
 def test_start_is_not_written_for_a_slot_nothing_drives():
     """A knob parked somewhere meaningful that moves nothing reads as a bug."""
-    g = Grammar("Engine", "Filter", "Volume", selector="Engine",
+    g = Layout("Engine", "Filter", "Volume", selector="Engine",
                 start={"Filter": 127, "Volume": 127})
     rack = Rack("X", g)
     with rack.engine("A", "Operator") as e:

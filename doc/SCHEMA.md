@@ -1105,7 +1105,7 @@ This is the useful direction: mapping ranges are **writable from XML with
 no UI involved**, which matters because Live 12.4.3 exposes no range
 editor at all. A generator has a capability the GUI does not.
 
-For the macro grammar in `PATCHBAYGROUND.md` this means a macro can be
+For the macro layout in `PATCHBAYGROUND.md` this means a macro can be
 scoped per mapping, per engine. What that scoping is FOR is settled by
 Q15: not to concentrate a knob's travel, which the parameter's own taper
 already handles, but to make one knob position mean the same thing on
@@ -1290,7 +1290,7 @@ one offers.
 The ceilings diverge too. Operator reaches 1.995, about +6 dB; Simpler
 reaches +36 dB. That is the clipping.
 
-### Why the grammar did not catch it
+### Why the layout did not catch it
 
 The sound family constraint in `PATCHBAYGROUND.md` says one knob should
 move the same musical idea through different synthesis. Both engines bound
@@ -1325,7 +1325,7 @@ differing from stored units within one parameter. This finds two
 parameters, bound to one slot, whose stored units differ from each other.
 
 The rule that covers both: **a range is measured, per parameter, and a
-grammar slot needs its ranges reconciled across every engine that binds
+layout slot needs its ranges reconciled across every engine that binds
 it.** `Device.range_of()` answers the first part without touching Live.
 Only ears answer the second.
 

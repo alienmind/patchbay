@@ -1,12 +1,12 @@
 """A declarative way to say what a rack is.
 
 The design follows one line of PATCHBAYGROUND.md: "This consistency is the
-actual product, more than any individual rack." The macro grammar is
+actual product, more than any individual rack." The macro layout is
 identical across every instrument rack, so the thing worth expressing is
 not "build a rack" but "bind this engine's parameters to the standard
-grammar".
+layout".
 
-    PUSH = Grammar("Engine", "Cutoff", "Resonance", "Decay",
+    PUSH = Layout("Engine", "Cutoff", "Resonance", "Decay",
                    "Drive", "Movement", "Space", "Character")
 
     rack = Rack("PD1", PUSH, kind=RackKind.INSTRUMENT)
@@ -26,14 +26,14 @@ grammar".
 Three things fall out of that shape rather than being programmed:
 
   The sound family constraint. Every engine binds its own parameters to
-  the same grammar slots, so one macro moves the same musical idea through
+  the same layout slots, so one macro moves the same musical idea through
   every synthesis method. Variation index N means the same thing across
-  engines because the grammar is what they share.
+  engines because the layout is what they share.
 
   Engine select. Macro 1 drives the chain selector and zones are
   distributed evenly across 0..127, so that knob sweeps engines.
 
-  Variations. A variation is a vector over grammar slots, in macro space,
+  Variations. A variation is a vector over layout slots, in macro space,
   so it renders through every engine without being written per engine.
   A sound is a variation, not a chain - which is what makes ~692 of them
   tractable.
@@ -100,7 +100,7 @@ class RackKind(str, Enum):
         }[self]
 
 
-class Grammar:
+class Layout:
     """An ordered list of macro slots, shared by every rack that uses it.
 
     Slot 1 is macro 1. Lookup is case insensitive, so `cutoff` finds the
@@ -120,14 +120,14 @@ class Grammar:
         if len(slots) > MAX_MACROS:
             raise ValueError(f"a rack has {MAX_MACROS} macros; got {len(slots)} slots")
         if len(slots) != len({s.lower() for s in slots}):
-            raise ValueError("grammar slot names must be unique")
+            raise ValueError("layout slot names must be unique")
         self.slots: tuple[str, ...] = tuple(slots)
         self._index: dict[str, int] = {s.lower(): i + 1 for i, s in enumerate(slots)}
         # Where each knob sits on a fresh drop. A macro Live has never been
         # told about reads 0, and 0 through a binding is the BOTTOM of the
         # parameter's range: silent volume, shut filter, instant release. So
         # a rack that binds a slot and does not place it loads mute. The
-        # position belongs to the grammar rather than the rack, for the same
+        # position belongs to the layout rather than the rack, for the same
         # reason the slot names do: one knob means one thing everywhere.
         self.start: dict[str, float] = {}
         for slot, pos in (start or {}).items():
@@ -144,7 +144,7 @@ class Grammar:
                     f"Slots: {', '.join(self.slots)}")
             self.labels[slot.lower()] = text
         # Which slot drives the chain selector. Named rather than fixed at
-        # slot 1, because a drum rack's macro 1 is not a selector. A grammar
+        # slot 1, because a drum rack's macro 1 is not a selector. A layout
         # that declares no such slot passes selector=None and gets no
         # selector mapping at all.
         if selector is not None and selector.lower() not in self._index:
@@ -156,7 +156,7 @@ class Grammar:
         n = self._index.get(slot.lower())
         if n is None:
             raise KeyError(
-                f"{slot!r} is not in this grammar. Slots: {', '.join(self.slots)}")
+                f"{slot!r} is not in this layout. Slots: {', '.join(self.slots)}")
         return n
 
     def __contains__(self, slot: object) -> bool:
@@ -169,12 +169,12 @@ class Grammar:
         return iter(self.slots)
 
     def __repr__(self) -> str:
-        return f"<Grammar {len(self.slots)} slots: {', '.join(self.slots)}>"
+        return f"<Layout {len(self.slots)} slots: {', '.join(self.slots)}>"
 
 
 @dataclass(slots=True)
 class BoundParam:
-    """One grammar slot bound to one parameter, optionally range-scoped."""
+    """One layout slot bound to one parameter, optionally range-scoped."""
 
     slot: str
     path: str
@@ -187,7 +187,7 @@ class BoundParam:
 
 
 class Variation:
-    """One sound, as a position for each grammar slot it cares about.
+    """One sound, as a position for each layout slot it cares about.
 
     Values are macro positions, 0..127, because that is the only scale a
     variation has (ARCHITECTURE.md section 11). A slot left out is left
@@ -215,7 +215,7 @@ class Variation:
 
 @dataclass(slots=True)
 class Engine:
-    """One chain, and the bindings from its parameters to grammar slots."""
+    """One chain, and the bindings from its parameters to layout slots."""
 
     rack: "Rack"
     name: str
@@ -233,7 +233,7 @@ class Engine:
     zone_bounds: tuple[int, int] | None = None
 
     def bind(self, **slots: Binding | list[Binding]) -> "Engine":
-        """Bind grammar slots to this device's parameters.
+        """Bind layout slots to this device's parameters.
 
         Each value is a parameter path, or a (path, lo, hi) tuple to also
         narrow the range the macro drives it across. Live 12.4.3 has no UI
@@ -248,7 +248,7 @@ class Engine:
         repeated `bind` call is an edit and not a silent second mapping.
         """
         for slot, spec in slots.items():
-            self.rack.grammar.macro_of(slot)  # fail early on a typo
+            self.rack.layout.macro_of(slot)  # fail early on a typo
             specs = spec if isinstance(spec, list) else [spec]
             self.bindings[slot] = [self._bound(slot, s) for s in specs]
         return self
@@ -315,8 +315,8 @@ class Nest:
     MacroControls.N is an ordinary parameter node and takes a KeyMidi like
     any other, with Channel 16 at every depth (ARCHITECTURE.md section 5).
     So the bindings here are outer slot -> inner slot, and the default is
-    identity across the shared grammar, which is the whole point of one
-    grammar.
+    identity across the shared layout, which is the whole point of one
+    layout.
     """
 
     rack: "Rack"
@@ -334,14 +334,14 @@ class Nest:
         return self
 
     def bind(self, **slots: str) -> "Nest":
-        """Bind outer grammar slots to inner ones. `cutoff="cutoff"`.
+        """Bind outer layout slots to inner ones. `cutoff="cutoff"`.
 
         Calling this at all replaces the identity default, so a partial
         binding means only what is named is driven.
         """
         for outer, inner in slots.items():
-            self.rack.grammar.macro_of(outer)     # fail early on a typo
-            self.inner.grammar.macro_of(inner)
+            self.rack.layout.macro_of(outer)     # fail early on a typo
+            self.inner.layout.macro_of(inner)
             self.bindings[outer] = inner
         return self
 
@@ -350,8 +350,8 @@ class Nest:
         if self.bindings:
             return dict(self.bindings)
         driven = self.inner.driven_slots()
-        return {s: s for s in self.rack.grammar if s.lower() in driven
-                and s in self.inner.grammar}
+        return {s: s for s in self.rack.layout if s.lower() in driven
+                and s in self.inner.layout}
 
     def __enter__(self) -> "Nest":
         return self
@@ -364,27 +364,27 @@ Chain = Union[Engine, Nest]
 
 
 class Rack:
-    """A rack described by its engines and their grammar bindings."""
+    """A rack described by its engines and their layout bindings."""
 
     def __init__(
         self,
         name: str,
-        grammar: Grammar,
+        layout: Layout,
         kind: RackKind = RackKind.INSTRUMENT,
         library: Library | None = None,
         skeleton: Path | str | None = None,
         labels: Mapping[str, str] | None = None,
     ) -> None:
         self.name = name
-        self.grammar = grammar
+        self.layout = layout
         self.kind = kind
         self.library: Library = library or Library.default()
         self.engines: list[Chain] = []
         self.variation_set: list[Variation] = []
-        self.starts: dict[str, float] = dict(grammar.start)
-        self.display: dict[str, str] = dict(grammar.labels)
+        self.starts: dict[str, float] = dict(layout.start)
+        self.display: dict[str, str] = dict(layout.labels)
         for slot, text in (labels or {}).items():
-            grammar.macro_of(slot)               # fail early on a typo
+            layout.macro_of(slot)               # fail early on a typo
             self.display[slot.lower()] = text
         self._skeleton = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
@@ -460,26 +460,26 @@ class Rack:
         steps rather than declared in one call.
         """
         for slot, text in slots.items():
-            self.grammar.macro_of(slot)          # fail early on a typo
+            self.layout.macro_of(slot)          # fail early on a typo
             self.display[slot.lower()] = text
         return self
 
     def start(self, **slots: float) -> "Rack":
-        """Move this rack's knobs off the grammar's opening position.
+        """Move this rack's knobs off the layout's opening position.
 
-        The grammar sets where a slot opens; this is for the rack that
+        The layout sets where a slot opens; this is for the rack that
         needs a different one, and it overrides slot by slot rather than
         replacing the set.
         """
         for slot, pos in slots.items():
-            self.grammar.macro_of(slot)          # fail early on a typo
+            self.layout.macro_of(slot)          # fail early on a typo
             self.starts[slot.lower()] = _macro_pos(slot, pos)
         return self
 
     # --- variations -------------------------------------------------------
 
     def variations(self, *added: Variation) -> "Rack":
-        """Add variations. Slots are checked against the grammar at once.
+        """Add variations. Slots are checked against the layout at once.
 
         Whether the slot is actually *driven* by anything is checked at
         build time, when the bindings are known.
@@ -488,12 +488,12 @@ class Rack:
             if not isinstance(v, Variation):
                 raise TypeError(f"expected a Variation, got {type(v).__name__}")
             for slot in v.values:
-                self.grammar.macro_of(slot)      # fail early on a typo
+                self.layout.macro_of(slot)      # fail early on a typo
             self.variation_set.append(v)
         return self
 
     def driven_slots(self) -> set[str]:
-        """Grammar slots something in this rack actually answers to.
+        """Layout slots something in this rack actually answers to.
 
         A variation may only name these. Live accepts a participation flag
         on an unmapped macro and then does nothing with it on recall, so the
@@ -507,8 +507,8 @@ class Rack:
             else:
                 out |= {slot.lower() for slot, bound in chain.bindings.items()
                         if bound}
-        if self.grammar.selector is not None:
-            out.add(self.grammar.selector.lower())
+        if self.layout.selector is not None:
+            out.add(self.layout.selector.lower())
         return out
 
     def engine_macro(self, engine: str | int) -> float:
@@ -693,34 +693,34 @@ class Rack:
     def _name_macros(self, rack_dev: Element) -> None:
         """Write what each knob is CALLED, which is not what it is keyed by.
 
-        The grammar's slot name is the default and a label overrides it.
+        The layout's slot name is the default and a label overrides it.
         Position is the contract; the word is local. A kick reading
         "Drive & Snap" where a hat reads "Drive" is the same slot, the same
         chaining and the same muscle memory, and it is the only way a slot
         that drives a pair can say so on the hardware.
         """
-        for i, slot in enumerate(self.grammar):
+        for i, slot in enumerate(self.layout):
             el = rack_dev.find(f"MacroDisplayNames.{i}")
             if el is not None:
                 el.set("Value", self.display.get(slot.lower(), slot))
         vis = rack_dev.find("NumVisibleMacroControls")
         if vis is not None:
             # All 16 slots always exist; this only sets how many show.
-            vis.set("Value", "16" if len(self.grammar) > 8 else "8")
+            vis.set("Value", "16" if len(self.layout) > 8 else "8")
 
     def _write_starts(self, rack_dev: Element) -> None:
         """Place the knobs, for the slots this rack actually drives.
 
         Only driven slots. A start written on a slot no engine binds shows a
         knob parked somewhere meaningful and moving nothing, which reads as
-        a mapping that broke. A grammar declares starts for all its slots
+        a mapping that broke. A layout declares starts for all its slots
         because it does not know which rack binds what.
         """
         driven = self.driven_slots()
         for slot, pos in self.starts.items():
             if slot not in driven:
                 continue
-            macro = find.macro(rack_dev, self.grammar.macro_of(slot))
+            macro = find.macro(rack_dev, self.layout.macro_of(slot))
             if macro is not None:
                 params.set_value(macro, pos)
 
@@ -835,17 +835,17 @@ class Rack:
                     el.set("Value", str(val))
 
     def _map_engine_selector(self, rack_dev: Element) -> None:
-        """The grammar's selector slot drives the chain selector.
+        """The layout's selector slot drives the chain selector.
 
-        Which slot that is comes from the grammar, not from a fixed name.
+        Which slot that is comes from the layout, not from a fixed name.
         Hardcoding one meant renaming the slot silently produced a rack that
         loaded and whose first macro moved nothing.
         """
-        if self.grammar.selector is None:
+        if self.layout.selector is None:
             return
         selector = find.chain_selector(rack_dev)
         if selector is not None:
-            params.map_to_macro(selector, self.grammar.macro_of(self.grammar.selector))
+            params.map_to_macro(selector, self.layout.macro_of(self.layout.selector))
 
     def _write_variations(self, rack_dev: Element) -> None:
         """Realise the variation set in macro space.
@@ -866,7 +866,7 @@ class Rack:
                     f"{', '.join(sorted(driven)) or 'none'}. Either bind it on "
                     f"an engine or drop it from the variation.")
             snapshots.append(
-                (v.name, {self.grammar.macro_of(s): p for s, p in v.values.items()}))
+                (v.name, {self.layout.macro_of(s): p for s, p in v.values.items()}))
         variations.write(rack_dev, snapshots)
 
     def _apply_nest(self, nest: Nest, branch: Element) -> None:
@@ -886,11 +886,11 @@ class Rack:
             raise ValueError(f"{nest.name}: nested rack has no rack device")
 
         for outer, inner in nest.resolved().items():
-            target = find.macro(inner_dev, nest.inner.grammar.macro_of(inner))
+            target = find.macro(inner_dev, nest.inner.layout.macro_of(inner))
             if target is None:
                 raise ValueError(
                     f"{nest.name}: nested rack has no macro for slot {inner!r}")
-            params.map_to_macro(target, self.grammar.macro_of(outer))
+            params.map_to_macro(target, self.layout.macro_of(outer))
 
     def _apply_bindings(self, engine: Engine, branch: Element) -> None:
         devices = find.devices(branch)
@@ -907,7 +907,7 @@ class Rack:
                 raise KeyError(
                     f"{engine.name}: {engine.device_tag} has no parameter "
                     f"{bound.path!r}.{hint}")
-            params.map_to_macro(param, self.grammar.macro_of(bound.slot))
+            params.map_to_macro(param, self.layout.macro_of(bound.slot))
             if bound.has_range:
                 assert bound.lo is not None and bound.hi is not None
                 params.set_range(param, bound.lo, bound.hi)

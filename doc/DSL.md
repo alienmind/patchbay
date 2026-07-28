@@ -7,9 +7,9 @@ readily as a literal does.
 ## Why a DSL rather than a config file
 
 `PATCHBAYGROUND.md` line 60: *"This consistency is the actual product, more
-than any individual rack."* The macro grammar is identical across every
-instrument rack. Six racks sharing one grammar is a program, not a
-document - in YAML you would copy the grammar six times and watch it
+than any individual rack."* The macro layout is identical across every
+instrument rack. Six racks sharing one layout is a program, not a
+document - in YAML you would copy the layout six times and watch it
 drift.
 
 Three further pressures point the same way:
@@ -26,12 +26,12 @@ by permuting macro values. That is a loop, not a list.
 
 **The sound family constraint is a function.** Variation index N must mean
 the same musical idea across every engine. Expressed as data that is a
-promise; expressed through a shared grammar it is structural.
+promise; expressed through a shared layout it is structural.
 
 ## The shape
 
 ```python
-PUSH = Grammar("Instrument", "Sound", "Filter", "Drive",
+PUSH = Layout("Instrument", "Sound", "Filter", "Drive",
                "Movement", "Character", "Release", "Volume",
                selector="Instrument")
 
@@ -56,24 +56,43 @@ rack.save("build/PD1.adg")
 ```
 
 The declaration is not "build a rack". It is **"bind this engine's
-parameters to the standard grammar"**. Everything else follows:
+parameters to the standard layout"**. Everything else follows:
 
 - one engine is one chain
 - chain-select zones are distributed evenly across 0..127
-- the grammar's `selector` slot drives the chain selector
-- the same grammar slot means the same macro in every engine, which *is*
+- the layout's `selector` slot drives the chain selector
+- the same layout slot means the same macro in every engine, which *is*
   the sound family constraint
+
+## Why it is called a Layout
+
+The object is an ordered list of named slots, plus which one drives the
+chain selector, plus where each knob rests. A rack takes one as an argument
+and binds its own parameters to it.
+
+QWERTY is the analogy and it is exact. A keyboard layout is shared across
+many different physical keyboards precisely so the skill transfers, the
+position carries the meaning, and the keycap is local paint. That is this
+object, slot for slot, and it is what `PATCHBAYGROUND.md` has claimed from
+its first draft: "identical across every instrument rack so muscle memory
+transfers".
+
+It was called a Grammar until it was not. A grammar has production rules,
+composition and a notion of well-formedness, and this has none of the
+three: nothing is parsed and nothing is generated. In a project that
+describes itself as a Python DSL the word also reads as the grammar OF the
+language, which it never was. See `THE_BASEMENT.md`.
 
 ## The selector slot is named, not fixed
 
-`Grammar(..., selector="Instrument")` says which slot drives the chain
-selector. It defaults to `"engine"` and may be `None` for a grammar with
+`Layout(..., selector="Instrument")` says which slot drives the chain
+selector. It defaults to `"engine"` and may be `None` for a layout with
 no selector at all, such as a drum kit whose macro 1 is Tune.
 
 This was hardcoded to `"engine"` once. Renaming the slot then produced a
 rack that compiled, passed every check the tooling has, loaded in Live,
 and whose first macro moved nothing, because the code silently found no
-slot to map. A grammar is a contract the caller writes; the library must
+slot to map. A layout is a contract the caller writes; the library must
 not also assume one of its words.
 
 ## A chain may name its own sample
@@ -146,7 +165,7 @@ when they do not, and assume they do not until checked.
 
 **A shared slot reads 0..127, never Hz.** A macro driving more than one
 parameter has no single unit to show, so Live displays the raw macro
-position. Every slot in this grammar is multiply mapped by design, one
+position. Every slot in this layout is multiply mapped by design, one
 target per engine, so no instrument knob will ever show a unit. That is
 the cost of one knob reaching every engine, and it is not
 `ForceDisplayGenericValue` (S10), which forces the same display on a
@@ -170,7 +189,7 @@ case. Binding a slot twice replaces rather than accumulates, so a repeated
 `bind` call reads as the edit it looks like.
 
 What this is not is a second axis. Both Meld engines move together because
-the grammar has one Filter knob; an A knob and a B knob would be two slots
+the layout has one Filter knob; an A knob and a B knob would be two slots
 out of eight, and a Push page has no room for that.
 
 ## A range equalises settings, not loudness
@@ -234,7 +253,7 @@ few dB without a repeatable signal instead of a played note.
 
 A slot name is doing two jobs that pull apart: it is the KEY a rack binds
 against, and it is the WORD on the hardware. `_name_macros` wrote the
-grammar's name onto every rack, so every rack sharing a grammar showed
+layout's name onto every rack, so every rack sharing a layout showed
 identical words.
 
 Two cases break that, and neither is cosmetic:
@@ -245,11 +264,11 @@ Two cases break that, and neither is cosmetic:
 - **A selector steps where every other knob sweeps**, and nothing in the
   format marks it. That is a property of the rack, not of the parameter.
 
-So labels are separate, declared on the grammar and overridable per rack,
+So labels are separate, declared on the layout and overridable per rack,
 exactly as start positions are:
 
 ```python
-PATCHBAYGROUND = Grammar(..., labels={"Instrument": "> Instrument"})
+PATCHBAYGROUND = Layout(..., labels={"Instrument": "> Instrument"})
 
 Rack("KICK", PAD, labels={"Drive": "Drive + Snap"})
 ```
@@ -258,9 +277,9 @@ Rack("KICK", PAD, labels={"Drive": "Drive + Snap"})
 "Drive + Snap" where a hat reads "Drive" is the same slot, the same
 chaining and the same muscle memory. Nothing about what the knob DOES
 changes, which is what makes this safe: a label cannot move a mapping, and
-a label for a slot that is not in the grammar raises.
+a label for a slot that is not in the layout raises.
 
-## A grammar says where the knobs open
+## A layout says where the knobs open
 
 Binding a slot is half the job. The other half is where the knob sits when
 the rack is dropped, and the default answer is the worst one available: an
@@ -274,7 +293,7 @@ also one thing on every rack, and a per-rack answer is a chance to get it
 wrong per rack:
 
 ```python
-PATCHBAYGROUND = Grammar(
+PATCHBAYGROUND = Layout(
     "Instrument", "Sound", "Filter", "Drive",
     "Movement", "Character", "Release", "Volume",
     selector="Instrument",
@@ -315,7 +334,7 @@ parameter does. So the outer rack does not know or care which kind of
 chain it has, and a variation reaches into a sub-rack without saying so.
 
 **Bindings are outer slot to inner slot, and the default is identity.**
-That default is the whole argument for one grammar: when both racks share
+That default is the whole argument for one layout: when both racks share
 it, `outer.nest(name, inner)` with no arguments chains every slot the
 inner rack drives into the matching outer knob. Naming the exceptions is
 the only work, as VA1 does by binding around `engine` so the outer knob
@@ -334,7 +353,7 @@ racks look intractable - see `THE_BASEMENT.md`.
 
 ## A variation is a vector, not a sound
 
-A `Variation` is a vector over grammar slots, in macro space 0..127 - the
+A `Variation` is a vector over layout slots, in macro space 0..127 - the
 only scale a variation has, since Live applies each target's own
 `MidiControllerRange` at recall. It names slots, never device parameters:
 
@@ -353,9 +372,9 @@ knob to a variation, so a variation cannot be dialled in while a clip
 plays; a sound is `(instrument, sound)`, two macros driving two chain
 selectors. What a variation carries that a selector position cannot is the
 WHOLE vector at once, which makes it the right mechanism for a preset
-across the entire grammar. See `PATCHBAYGROUND.md`.
+across the entire layout. See `PATCHBAYGROUND.md`.
 
-Instrument choice is itself a slot, because the grammar's selector slot
+Instrument choice is itself a slot, because the layout's selector slot
 drives the chain selector and a selector is an ordinary parameter:
 
 ```python
@@ -368,7 +387,7 @@ which is what makes a sound a variation rather than a chain.
 
 Two refusals, both loud:
 
-- a slot not in the grammar fails at declaration, so a typo never reaches a
+- a slot not in the layout fails at declaration, so a typo never reaches a
   file
 - a slot **no engine binds** fails at build, and the message lists the slots
   that are driven. Live accepts such an entry and moves nothing on recall
@@ -403,7 +422,7 @@ Macro 3 drives Operator's `Filter/Frequency` and Simpler's
 `Filter/Slot/Value/SimplerFilter/Freq`, both scoped to the declared
 30-18500 Hz range.
 
-That is the whole claim of this document demonstrated: one grammar, two
+That is the whole claim of this document demonstrated: one layout, two
 synthesis methods, the same knob meaning the same thing in both.
 
 Variations passed the same way. `build/PD1.adg` carries 96, all named and all
@@ -458,7 +477,7 @@ Closing that gap means a DSL that can carry an arbitrary parameter dump,
 which is a different tool: at that point the declaration is the rack rather
 than a description of one, and the donor stops being the vocabulary.
 
-**Slot names never survive, from either source.** The emitted grammar is
+**Slot names never survive, from either source.** The emitted layout is
 positional, `Macro_1` through `Macro_N`. That a macro drives
 `Filter/Frequency` on every chain is in the file; that its author called
 the slot `Filter` is not, and guessing it is inventing intent. Renaming is

@@ -52,7 +52,7 @@ and pitch on every sound, excluding drum pads. Nothing is known about how
 that is stored. It is probably a sibling of the `KeyMidi` mechanism, since
 that already encodes MIDI, but that is a guess.
 Diff a rack before and after mapping aftertouch to one parameter.
-*Blocks: the macro grammar being complete.*
+*Blocks: the macro layout being complete.*
 
 **Q3. Key and velocity zones.** S5 settled chain-select zones. Key and
 velocity zones are Instrument Rack only and are PRESUMED siblings of

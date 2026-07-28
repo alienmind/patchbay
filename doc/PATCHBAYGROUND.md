@@ -10,7 +10,7 @@ The idea came from **PLAYGRND**, an Ableton Live Set for Push by **Andri
 Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw
 
 What that Set demonstrates is an ARCHITECTURE, and the architecture is the
-part worth taking: one macro grammar repeated across every rack, engines as
+part worth taking: one macro layout repeated across every rack, engines as
 chains, sounds as selector positions, a fixed channel strip on every track,
 and racks nested inside racks so one instrument can reach all the others.
 
@@ -78,7 +78,7 @@ so this is the difference between choosing a send by ear and choosing it by
 counting. Two reverbs and two delays of contrasting length is the minimum
 useful spread; the remaining two returns are ours to spend.
 
-## Macro grammar
+## Macro layout
 
 Identical across every instrument rack so muscle memory transfers. This
 consistency is the actual product, more than any individual rack.
@@ -137,7 +137,7 @@ Slot 1 is the selector on every rack that has something to select between,
 and it is worth marking as such on the display so a glance tells you which
 knob steps rather than sweeps.
 
-The grammar is a CONTRACT, not a template. A rack does not "have" these
+The layout is a CONTRACT, not a template. A rack does not "have" these
 macros, it BINDS its own parameters to these slots:
 
 ```python
@@ -185,7 +185,7 @@ carries both axes. Two knobs do.
 **Variations remain useful, for something else.** A variation carries a
 whole VECTOR of macro values at once, where a selector position carries
 one. That makes variations the right mechanism for presets and snapshots
-across the entire grammar, and the wrong one for a sound browser. We use
+across the entire layout, and the wrong one for a sound browser. We use
 them for the former.
 
 ## Sound families
@@ -245,7 +245,7 @@ Eight pads, eight families:
 
 ### Pad slot names are local
 
-The grammar is positional. A pad LABELS its own slots for what they
+The layout is positional. A pad LABELS its own slots for what they
 actually drive, so a kick can read "Filter and Envelope" and "Drive and
 Snap" where a hat reads plain "Filter" and "Drive". Same knob positions,
 same chaining, different words on the display.
@@ -272,18 +272,18 @@ should be usable as a bassline.
 
 ### What a slot means may depend on depth
 
-Our grammar fixes a slot's meaning for a whole rack. Inside a drum pad that
+Our layout fixes a slot's meaning for a whole rack. Inside a drum pad that
 may be too rigid: the useful controls at the pad level are the two sends,
 and the useful controls one level down are the FM pair, and there are only
 eight knobs at either level.
 
 Letting slots 5 and 6 mean sends at the pad level and FM inside the sound
 buys four controls without a page flip, at the cost of the one property the
-grammar exists to guarantee. Muscle memory is the product, and a knob that
+layout exists to guarantee. Muscle memory is the product, and a knob that
 changes meaning as you dive is the thing muscle memory cannot absorb.
 
 Undecided. It is the sharpest open question in the DR1 design, and the
-answer decides whether the grammar is a contract per rack or per level.
+answer decides whether the layout is a contract per rack or per level.
 
 ## AFX1
 
@@ -333,17 +333,17 @@ is for:
 
 **In code, `examples/patchbayground.py`:**
 
-- The grammar, PD1 as a two engine slice, and VA1 as a two level nest.
+- The layout, PD1 as a two engine slice, and VA1 as a two level nest.
   Compiles and loads in Live 12.4.3.
 - 96 variations on PD1 over engine, cutoff, decay and resonance. All 96
   recall in Live.
 
-The eight slot grammar above IS what the code declares. Slot 2, `Sound`,
+The eight slot layout above IS what the code declares. Slot 2, `Sound`,
 binds nothing yet, because neither rack has sound chains to select between.
-A grammar slot that nothing drives writes no mapping, which is the intended
+A layout slot that nothing drives writes no mapping, which is the intended
 behaviour rather than a gap.
 
-**Both racks are gated in Live 12.4.3 under this grammar.** PD1 sweeps
+**Both racks are gated in Live 12.4.3 under this layout.** PD1 sweeps
 engines, filter, release and volume, and its variations recall and select
 their own engine. VA1 switches sub-racks with macro 1 and chains the rest
 into whichever is selected.
@@ -406,4 +406,4 @@ rather than by accident:
   confirmation that these files are gzipped XML and that samples live in
   `FileRef` elements.
 
-The 13 slot grammar this document used to specify is in `THE_BASEMENT.md`.
+The 13 slot layout this document used to specify is in `THE_BASEMENT.md`.

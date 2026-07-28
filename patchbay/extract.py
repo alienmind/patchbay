@@ -7,7 +7,7 @@ What this recovers is STRUCTURE: chains, device types, which parameter each
 macro drives, chain zones, nesting, variations. What it cannot recover is
 INTENT. It can see that macro 3 drives `Filter/Frequency` on every chain;
 it cannot know that the author calls slot 3 `Filter`. So the emitted
-grammar is positional by default, `Grammar("Macro 1", ...)`, which is
+layout is positional by default, `Layout("Macro 1", ...)`, which is
 honest and compiles. Renaming is a human edit.
 
 Guessing a slot name from a parameter path would be inventing intent, which
@@ -227,8 +227,8 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
 
     n = _macro_count(preset_el, rack_dev)
     # Underscore, not a space: the emitted `e.bind(macro_1=...)` has to be a
-    # keyword argument, and Grammar lookup is case insensitive on the exact
-    # string. "Macro 1" would emit code that cannot address its own grammar.
+    # keyword argument, and Layout lookup is case insensitive on the exact
+    # string. "Macro 1" would emit code that cannot address its own layout.
     slots = ", ".join(f'"Macro_{i + 1}"' for i in range(n))
     sel = _selector_slot(rack_dev)
     sel_arg = f', selector="Macro_{sel}"' if sel else ", selector=None"
@@ -246,9 +246,9 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             hint = hint if hint != "" else f"{name}_{i}"
             children[i] = _emit_rack(nested[0], hint, used, lines, depth + 1)
 
-    lines.append(f'{var} = Rack({name!r}, Grammar({slots}{sel_arg}), kind={kind})')
+    lines.append(f'{var} = Rack({name!r}, Layout({slots}{sel_arg}), kind={kind})')
 
-    # The emitted grammar is positional, so a label that matches its own
+    # The emitted layout is positional, so a label that matches its own
     # slot name carries nothing. One that does not is the only record of
     # what this rack called the knob.
     shown = {}
@@ -371,7 +371,7 @@ def source(path: Path | str) -> str:
         "slots to whatever this rack means, and the bindings follow.",
         '"""',
         "",
-        "from patchbay.dsl import Grammar, Rack, RackKind, Variation",
+        "from patchbay.dsl import Layout, Rack, RackKind, Variation",
         "",
     ]
     used: set[str] = set()

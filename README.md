@@ -5,7 +5,7 @@ Author Ableton Live racks and Sets in code instead of by clicking.
 ## What this is
 
 A Python DSL and a toolchain for writing Live racks as source. You declare
-what a rack is - engines, macro grammar, bindings, ranges, zones,
+what a rack is - engines, macro layout, bindings, ranges, zones,
 variations, nesting - and `patchbay build` produces the `.adg` Live opens.
 It also runs backwards: `patchbay extract` reads a saved rack and prints
 the declaration that rebuilds it.
@@ -17,19 +17,20 @@ the point of a DSL embedded in a language rather than a config format: 96
 variations are a `product()` over a few lists, not 96 stanzas.
 
 Inspired in ideas from [strudel.cc](https://strudel.cc) and TidalCycles,
-but instead of targetting live coding of music, PatchBay is about
-**offline authoring**. Nothing here makes a sound. It produces the
-assets you will load in your DAW.
+but PatchBay is about **offline authoring** and not live coding of music.
+Nothing here makes a sound. It produces the assets you will load in your DAW.
 
 ## Motivation
 
 Instead of spending an afternoon dragging, dropping, patching
-and connecting macros, you just do an edit and a rebuild from well-known
-patterns.
+and connecting macros, you just do an edit and a rebuild from a layout you
+already trust.
 
-That changes what maintenance costs. A rack kept current by hand is hands
-on work: every mapping clicked, every variation dialled, every fix repeated
-in each copy that inherited it, held together by the author's discipline.
+That changes what maintenance costs of a large number of racks, which can be useful
+for music producers and developers of audio tools.
+
+A rack kept current by hand is hands on work: every mapping clicked, every variation dialled,
+every fix repeated in each copy that inherited it, held together by the author's discipline.
 Nothing records what changed or why, and nothing carries a correction
 forward.
 
@@ -59,11 +60,11 @@ not build, the file format will.
 
 ## Basic Concepts
 
-Similar to a real patchbay in a music studio - routing signals between things.
-This tool routes macros to parameters, chains to zones, and racks onto tracks.
+Similar to a real patchbay in a music studio - routing signals between studio equipment - 
+this tool routes macros to parameters, chains to zones, and racks onto tracks.
 
 ```python
-PATCHBAYGROUND = Grammar("Instrument", "Sound", "Filter", "Drive",
+PATCHBAYGROUND = Layout("Instrument", "Sound", "Filter", "Drive",
                          "Movement", "Character", "Release", "Volume",
                          selector="Instrument")
 
@@ -78,12 +79,10 @@ with rack.engine("Sample", "OriginalSimpler") as e:
            release=("VolumeAndPan/Envelope/ReleaseTime", 10, 20000))
 ```
 
-Both engines bind the same grammar slots to their own parameters, so one
+Both engines bind the same layout slots to their own parameters, so one
 knob moves the same musical idea through different synthesis.
 
-Most of the vocabulary is Live's. A few terms are this project's own, and
-those are the ones worth pinning down, because they are what the DSL is
-made of.
+Most of the vocabulary is Live's. A few terms are this project's own:
 
 | term | from | what it means |
 |---|---|---|
@@ -96,17 +95,18 @@ made of.
 | **pad** | Live | a drum rack chain, chosen by a MIDI note instead of a zone |
 | **variation** | Live | a stored position for every macro, recalled as one. Live's UI says Variations, the XML says Snapshots |
 | **engine** | PatchBay | one chain and the device in it, treated as one way of making the sound |
-| **slot** | PatchBay | one position in the grammar. Slot N is macro N |
-| **grammar** | PatchBay | the ordered list of slot NAMES, shared by every rack that uses it |
+| **slot** | PatchBay | one position in the layout. Slot N is macro N |
+| **layout** | PatchBay | the ordered list of slot NAMES, shared by every rack that uses it |
+| **mapping** | Live | the stored link from a macro to a parameter. What a binding compiles INTO |
 | **binding** | PatchBay | one slot pointed at one parameter of one device |
 | **range** | PatchBay | the span of that parameter the macro drives, in the parameter's own units |
 | **label** | PatchBay | what a knob is CALLED on this rack, which is not what it is keyed by |
 | **donor** | PatchBay | a real device instance to copy a device from |
 | **spec** | PatchBay | a Python module declaring racks, the input to `patchbay build` |
 
-**A grammar is a contract, not a template.** It says slot 3 is `Filter` and
+**A layout is a contract, not a template.** It says slot 3 is `Filter` and
 that slot 3 is macro 3, everywhere. A rack does not *have* those macros, it
-BINDS its own parameters to them. Reuse the grammar across racks and one
+BINDS its own parameters to them. Reuse the layout across racks and one
 knob means one musical idea on every one of them, structurally rather than
 by discipline.
 
@@ -132,7 +132,7 @@ rack.variations(Variation("dark", instrument=rack.engine_macro("FM"),
 
 **A chain may hold a rack instead of a device.** Bindings are then outer
 slot to inner slot, defaulting to identity where both racks share a
-grammar, so one knob reaches through however many levels lie between it and
+layout, so one knob reaches through however many levels lie between it and
 the parameter:
 
 ```python
@@ -147,35 +147,32 @@ Saturator's Drive knob is `PreDrive`, Simpler's cutoff is
 `Filter/Slot/Value/SimplerFilter/Freq`.
 
 So I've had to guess some stuff, but following a strict methodology:
-Change ONE thing in Live, save, diff the two files, write down what moved.
+Change one thing in Live, save, diff the two files, write down what moved.
 
 The findings are in [`doc/ARCHITECTURE.md`](doc/ARCHITECTURE.md), each marked verified or
 inferred, with the evidence in [`doc/SCHEMA.md`](doc/SCHEMA.md).
 
-`donors/` contains real device instances,
-harvested from racks and Sets hand crafted, and they are what the DSL is
-learned FROM: a device's parameter list, the path to each parameter, and
+`donors/` contains real device instances, harvested from racks and Sets hand crafted,
+and they are what the DSL is learned from: a device's parameter list, the path to each parameter, and
 the native range each one spans. A binding is written against a donor and
-checked. `patchbay harvest` adds more from any
-file you already own.
+checked. `patchbay harvest` adds more from any file you already own.
 
 ## PATCHBAYGRND - The ultimate end-to-end test
 
 Some inspiration of this project came while trying to recreate the amazing **PLAYGRND**, an Ableton Live Set
-by **Andri Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw (please support the author and buy his product).
+by **Andri Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw (please support the author and buy his product!).
 
 Based on the information publicly made available from him, what that Set demonstrates
-is worth taking: one macro grammar repeated across every rack, engines as chains,
+is worth taking: one macro layout repeated across every rack, engines as chains,
 using knobs to quickly switch between instruments, a semi fixed channel strip on every track,
 and racks nested inside racks so one instrument reaches all the others.
 
 [`examples/patchbayground.py`](examples/patchbayground.py) is this
 project's attempt at rebuilding that, from what is publicly visible of it
-plus everything harvesting the devices has taught us. It serves as **one big
+plus everything harvesting my own devices. It serves as **one big
 example, and the end-to-end test**. Six racks, three levels of nesting, 96
 variations, eight drum pads - if a change breaks something real, it breaks
-there first. The musical target is spelled out in
-[`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md).
+there first. Check [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md) for more details.
 
 ## What works today
 
@@ -203,13 +200,6 @@ patchbay build dr1.py -o build/rt/
 patchbay diff build/DR1.adg build/rt/DR1.adg      # identical
 ```
 
-That round trip is exact for a rack PatchBay built, and a test holds it
-there. For a rack Live built it recovers the skeleton and not the sound:
-each device is refilled from a donor, so parameter values, a chain's second
-and third device, and per-rack cosmetics do not survive. Slot names never
-survive either. They are intent, not structure, so the emitted grammar is
-positional, `Macro_1` through `Macro_N`, for you to rename.
-
 `patchbay harvest` is how the donor library grows, from files you already
 own:
 
@@ -217,20 +207,10 @@ own:
 patchbay harvest "path/to/Project"
 ```
 
-Indexing a device never looks at preset structure, so a `.als` donates its
-devices exactly as a rack does and one Set is usually worth dozens of
-hand-saved racks. Paths and names are stripped on the way out, and a device
-the library already holds is left alone: a fuller copy would win on
-parameter count and silently rebuild racks that were gated against the old
-one.
-
 `uv run pytest tests/ -q` runs 59 tests asserting the library still agrees
 with every recorded finding. One of them clears the variations Live wrote
 in `racks/s8_c.adg`, writes them back through `patchbay`, and requires the
 diff to be empty.
-
-What is in flight and what is next lives in
-[`doc/TODO.md`](doc/TODO.md), the live backlog.
 
 ## Install
 
@@ -301,7 +281,7 @@ ableton-mcp/ submodule: the Live-side half.
 | **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
 | **`doc/SPIKES.md`** | discovery procedure and the spikes that answered it | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
-| **`doc/PATCHBAYGROUND.md`** | the musical target, the grammar, and what inspired it | for what any of this is for |
+| **`doc/PATCHBAYGROUND.md`** | the musical target, the layout, and what inspired it | for what any of this is for |
 | `doc/MCP.md` | what Live's API can and cannot do | before touching a running Live |
 | `doc/THE_BASEMENT.md` | ideas that failed, and what killed them | before reviving a good-sounding plan |
 | `doc/KICKOFF.md` | the original plan, and how it changed | for sequencing |
@@ -320,6 +300,9 @@ against Live **12.4.3**, and a major Live update may need the findings
 rechecked. How that checking is done is `CLAUDE.md` and `doc/SPIKES.md`,
 which are written for whoever, or whatever, does the work.
 
+## TODO
+
+Please check the detailed backlog of what remains to be done on [`doc/TODO.md`](doc/TODO.md).
 
 ## On MCP and potential way forward
 
@@ -329,7 +312,7 @@ and a potential future scope (maybe a more complete MCP server?)
 While being one working example of driving the LOM, it inherits every
 limit the LOM has. This project aims to complement where Live's API falls short.
 
-For now, ableton-mcp is the test harness. A file that passes
+For now, ableton-mcp is simply used as the test harness. A file that passes
 `patchbay check` is still only a file, and no unit test proves Live will
 load it. MCP is how a build gets tested **live**: drive a running Live,
 put the device we just wrote onto a track, read back what Live made of

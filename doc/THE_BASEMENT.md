@@ -25,7 +25,7 @@ unbuilt.
 
 **Replaced by:** `TODO.md` T4, `MCP.md`.
 
-## The 13 slot macro grammar
+## The 13 slot macro layout
 
 `PATCHBAYGROUND.md` specified thirteen named slots: Engine, Cutoff,
 Resonance, Decay, Drive, Movement, Space, Character on page one, then
@@ -40,16 +40,46 @@ worth, so slots 9 to 13 were paid for and never spent.
 
 **`Space` was on the wrong device.** A reverb send belongs on the channel
 strip, not on the instrument rack, and putting it in the instrument
-grammar spent one of only eight useful knobs on something the strip
+layout spent one of only eight useful knobs on something the strip
 already carries.
 
-**Replaced by** the eight slot grammar in `PATCHBAYGROUND.md`, with slots
+**Replaced by** the eight slot layout in `PATCHBAYGROUND.md`, with slots
 1, 2, 7 and 8 fixed across every rack (Instrument, Sound, Release, Volume)
 and 3 to 6 as per rack character. Volume and Release are new; they were
 absent from the thirteen and are the two most universally wanted knobs.
 
 `examples/patchbayground.py` still declares the thirteen. Reconciling it is
 open work, noted under Current state in `PATCHBAYGROUND.md`.
+
+## "Grammar" as the name for the macro layout
+
+**Tried:** calling the shared, ordered list of macro slots a Grammar. The
+word entered as prose, a `## Macro grammar` heading in the first draft of
+the target spec, and was promoted to a class 15 commits later without
+anyone re-examining it.
+
+**What killed it:** it describes something the object does not do. A
+grammar has production rules, composition, recursion and a notion of
+well-formedness. A layout has a fixed length, an order, and names. Nothing
+is parsed and nothing is generated. The tell was in the documentation:
+every place that had to be precise wrote "a Grammar is a contract, not a
+template", which is a name doing negative work.
+
+Worse in context. The project describes itself as a Python DSL, so a reader
+meeting `Grammar` reasonably assumes it is the grammar of the language.
+
+**Traced first, then renamed.** The suspicion was that the word came from
+PLAYGRND. It did not: `doc/STRUCTURE.md`, the only document assembled from
+PLAYGRND material, uses "grammar" twice and both times in our own analytic
+voice. What is observable there is slot LABELS in caps, `FILTER & RES.`,
+`SOUND`, `VOLUME`, and no word at all for the system they belong to.
+
+**Replaced by:** `Layout`. See `DSL.md` for the QWERTY argument. Also
+considered and rejected: `Schema`, which collides with `SCHEMA.md` and with
+Ableton's own XML schema; `Mapping`, which collides violently with macro
+mappings, the `KeyMidi` mechanism; `Template`, which the docs had already
+rejected in prose; and `Contract`, which is accurate and reads like a
+compliance document.
 
 ## ableton-inspector as a dependency
 

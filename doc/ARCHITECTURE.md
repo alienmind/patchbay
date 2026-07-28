@@ -314,7 +314,7 @@ it narrows what the macro reaches: setting Drive's `Max` to `12` makes
 Macro 1 at full land on exactly +12 dB. Verified by writing the file and
 loading it.
 
-Worth noting for the macro grammar: **Live 12.4.3 exposes no range editor
+Worth noting for the macro layout: **Live 12.4.3 exposes no range editor
 in its UI** - not on the macro, the target, or in Map mode. Ranges are
 writable only from the file, so a generator can express per-mapping scoping
 that cannot be built by hand.
@@ -339,7 +339,7 @@ loaded silent with the filter shut, and every diff, every id check and all
 49 tests passed on them. Ears caught it.
 
 A generator therefore has to place the knobs, not just wire them. The DSL
-does it with grammar-level start positions, see `DSL.md`.
+does it with layout-level start positions, see `DSL.md`.
 
 ### Why this matters for cloning
 

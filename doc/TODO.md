@@ -23,7 +23,7 @@ nesting, macros chaining into whichever sub-rack is selected, 96 variations
 recalling, and eight drum pads on their own notes each holding a rack of
 eight samples.
 
-The eight slot grammar in `PATCHBAYGROUND.md` is what the code declares.
+The eight slot layout in `PATCHBAYGROUND.md` is what the code declares.
 The cutoff and volume ranges, level trims and pad layout are gated. Slot
 3's pairing, slot 6's per rack role, the local labels and the release range
 on Operator and Simpler are NOT: they are the current round.
@@ -46,7 +46,7 @@ against the new build.** Three changes, from the reconstruction in
 |---|---|---|
 | slot 3 | cutoff | cutoff AND resonance, one knob |
 | slot 6 | resonance on every rack | per rack: attack, glide or morph |
-| labels | grammar name on every rack | local per rack |
+| labels | layout name on every rack | local per rack |
 | slot 7 | unranged on Operator and Simpler | the shared range, in ms |
 
 BS1's slot 6 moving on Meld ALONE is the rule working: only Meld can serve
@@ -219,7 +219,7 @@ two answers:
   is the thing muscle memory cannot absorb.
 - **Meaning per LEVEL.** Slots 5 and 6 become the two sends at kit level
   and the FM pair inside the sound. Buys four controls with no page flip,
-  and spends the one property the grammar exists to guarantee.
+  and spends the one property the layout exists to guarantee.
 
 The conservative reading is in the code because it is reversible; the other
 is not, once anything is played on it. Nothing is blocked on this and the
@@ -254,11 +254,11 @@ rack by browser URI. See `MCP.md`.
 DSL for a `.adg` and round-trips PatchBay's own racks exactly; see `DSL.md`.
 What is left is finding racks inside a Set, and putting names on the slots.
 
-**T6b tail. Match extracted mappings against a known grammar.**
-`--grammar patchbayground` would use that grammar's slot names wherever an
+**T6b tail. Match extracted mappings against a known layout.**
+`--layout patchbayground` would use that layout's slot names wherever an
 extracted parameter path agrees with one of its bindings, leaving the rest
 positional. The positional half is done. Do not guess a slot name from a
-parameter path with no grammar to check it against; that is inventing
+parameter path with no layout to check it against; that is inventing
 intent, and `CLAUDE.md` rule 1 applies.
 
 **T6c. Locate racks inside a `.als`.**
@@ -302,7 +302,7 @@ pitch for every sound, excluding drum pads. Nothing is known about how it
 is stored. Probably a sibling of the `KeyMidi` mechanism, since that
 already encodes MIDI, but that is a guess. Diff a rack before and after
 mapping aftertouch to one parameter.
-*Blocks: the macro grammar being complete.*
+*Blocks: the macro layout being complete.*
 
 **Q3. Key and velocity zones.** S5 settled chain-select zones. Key and
 velocity zones are Instrument Rack only and are PRESUMED siblings of
@@ -353,7 +353,7 @@ culling (generated names encoding parameter values make culling informed).
 
 `patchbay build` plus a driven `ableton-mcp` session produces a Set that
 opens in Live 12, with eight correctly named and routed tracks, racks whose
-macros follow the grammar in `PATCHBAYGROUND.md`, playable from Push 3
+macros follow the layout in `PATCHBAYGROUND.md`, playable from Push 3
 without touching a mouse.
 
 That is the END-TO-END TEST passing, not the point of the project. What it
