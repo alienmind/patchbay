@@ -662,7 +662,173 @@ def dr1() -> Rack | None:
 
 DR1 = dr1()
 
-RACKS: list[Rack] = [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None]
+
+# ===========================================================================
+# The channel strip
+# ===========================================================================
+#
+# Every track carries the same devices in the same order:
+#
+#     ARP1   MFX1   <instrument>   EQC   AFX1   AFXS1   Channel EQ   VOL1
+#
+# These four are racks with their own layouts. They do NOT share PB: an
+# arpeggiator has no Filter knob and pretending otherwise would put the word
+# on a macro that moves nothing. What they share is the shape - eight slots
+# at most, one Push page, a slot left empty rather than invented.
+#
+# A strip rack is a SERIES: several devices in one chain, one set of macros
+# across all of them. That is the opposite shape from an instrument rack,
+# where each chain is an alternative rather than a stage.
+
+
+ARP = Layout(
+    Slot("Style"),          # which arpeggio pattern
+    Slot("Rate"),
+    Slot("Retrigger"),
+    Slot("Chance"),         # how often a note is replaced
+    Slot("Choices"),        # how far the replacement may stray
+    Slot("Steps"),
+    Slot("Gate"),
+    Slot("Vel Rand"),
+)
+
+# Three MIDI devices in series. Style and Retrigger sweep enums rather than
+# switching them on: Live stores both as plain numbered modes, and a knob
+# that walks the mode list is a control in its own right. Nothing here
+# guesses which number means which mode, because nothing here has to.
+ARP1 = Rack.midi_effect("ARP1", ARP).chain(
+    "strip",
+    Engine("MidiArpeggiator")
+    .drives(ARP.style, "Mode")
+    .drives(ARP.rate, "SyncedRate")
+    .drives(ARP.retrigger, "Retrigger")
+    .drives(ARP.steps, "TransposeSteps")
+    .drives(ARP.gate, "Gate", over=Range(1.0, 200.0, "%"))
+    .then(Engine("MidiRandom")
+          .drives(ARP.chance, "Chance")
+          .drives(ARP.choices, "Choices"))
+    .then(Engine("MidiVelocity")
+          .drives(ARP.vel_rand, "Random")))
+
+
+MFX = Layout(
+    Slot("Vel Range"),
+    Slot("Vel Rand"),
+    Slot("Pitch"),
+    Slot("Root"),
+    Slot("Transpose"),
+)
+
+# Scale Selector is in PATCHBAYGROUND.md and is NOT here: MidiScale stores a
+# scale as twelve `Mapping.N` parameters, one per semitone, and no single
+# parameter selects a named scale. Binding one knob to twelve mappings would
+# be a different control from the one the spec asks for. Root and Transpose
+# are real parameters and are bound.
+MFX1 = Rack.midi_effect("MFX1", MFX).chain(
+    "strip",
+    Engine("MidiVelocity")
+    .drives(MFX.vel_range, "Range")
+    .drives(MFX.vel_rand, "Random")
+    .then(Engine("MidiPitcher").drives(MFX.pitch, "Pitch"))
+    .then(Engine("MidiScale")
+          .drives(MFX.root, "Base")
+          .drives(MFX.transpose, "Transpose")))
+
+
+EQ = Layout(
+    Slot("Lo", start=64),
+    Slot("Mid", start=64),
+    Slot("Hi", start=64),
+    Slot("Comp", start=127),
+    Slot("Duck", start=127),
+    Slot("Gain", start=64),
+)
+
+#: The sidechain band. 100 Hz tracks a kick and misses a hat, which is what
+#: PATCHBAYGROUND.md asks the EQC compressor to hear. Q is the donor's own.
+SIDECHAIN_HZ = 100.0
+
+# The three shelf knobs open at centre rather than at full: an EQ's neutral
+# is 0 dB in the middle of its range, not the top of it.
+#
+# The sidechain is CONFIGURED here and its SOURCE is not, because a device
+# preset does not carry one - see Q18 in SCHEMA.md. Dropped on a track this
+# arrives with External on, the band set, and one dropdown left to fill.
+EQC = Rack.audio_effect("EQC", EQ).chain(
+    "strip",
+    Engine("ChannelEq")
+    .drives(EQ.lo, "LowShelfGain")
+    .drives(EQ.mid, "MidGain")
+    .drives(EQ.hi, "HighShelfGain")
+    .then(Engine("Compressor2")
+          .drives(EQ.comp, "DryWet")
+          .drives(EQ.duck, "SideChain/DryWet")
+          .sets("SideChain/OnOff", True)
+          .sets("SideChainEq/On", True)
+          .sets("SideChainEq/Freq", SIDECHAIN_HZ))
+    .then(Engine("StereoGain")
+          .drives(EQ.gain, "Gain", over=Range(-12.0, 12.0, "dB"))))
+
+
+AFX = Layout(
+    Slot("Effect", selects=True),
+    Slot("Amount"),
+    Slot("Tone", start=64),
+    Slot("Motion"),
+)
+
+# Eight character effects behind ONE selector, so the knob swaps the effect
+# rather than layering it. Parallel audio chains are expensive; a selector is
+# not, and eight chains cost one macro instead of eight.
+#
+# Every chain answers the same three knobs. That is the instrument-rack idea
+# one level up: Amount means "how much of whatever is selected", so the pair
+# of knobs is playable before you know which effect you landed on.
+#
+# Which device serves which role is a taste call. This is a first pass over
+# the spread PATCHBAYGROUND.md asks for - degradation, time and space rather
+# than eight flavours of one idea - and swapping one is a one-line edit.
+AFX1 = (Rack.audio_effect("AFX1", AFX)
+        .chain("glitch", Engine("BeatRepeat")
+               .drives(AFX.amount, "Chance")
+               .drives(AFX.tone, "MidFreq")
+               .drives(AFX.motion, "Grid")
+               # The filter is what Tone reaches, and it ships off. A knob
+               # bound to a switched-off filter is Q16 all over again.
+               .sets("FilterOn", True))
+        .chain("tear", Engine("Roar")
+               .drives(AFX.amount, "Stage1_Shaper_Amount")
+               .drives(AFX.tone, "Input_ToneAmount")
+               .drives(AFX.motion, "Feedback_FeedbackAmount"))
+        .chain("erode", Engine("Erosion")
+               .drives(AFX.amount, "Amplitude")
+               .drives(AFX.tone, "Freq")
+               .drives(AFX.motion, "BandQ"))
+        .chain("grind", Engine("Overdrive")
+               .drives(AFX.amount, "Drive")
+               .drives(AFX.tone, "Tone")
+               .drives(AFX.motion, "DryWet"))
+        .chain("reduce", Engine("Redux2")
+               .drives(AFX.amount, "DryWet")
+               .drives(AFX.tone, "SampleRate")
+               .drives(AFX.motion, "Jitter"))
+        .chain("soak", Engine("Hybrid")
+               .drives(AFX.amount, "DryWet")
+               .drives(AFX.tone, "Algorithm_Damping")
+               .drives(AFX.motion, "Algorithm_Decay"))
+        .chain("stretch", Engine("Spectral")
+               .drives(AFX.amount, "DryWet")
+               .drives(AFX.tone, "Delay_FrequencyShift")
+               .drives(AFX.motion, "Delay_Feedback"))
+        .chain("fade", Engine("GrainDelay")
+               .drives(AFX.amount, "NewDryWet")
+               .drives(AFX.tone, "Pitch")
+               .drives(AFX.motion, "Spray")))
+
+
+STRIP: list[Rack] = [ARP1, MFX1, EQC, AFX1]
+
+RACKS: list[Rack] = [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None] + STRIP
 
 
 # ===========================================================================

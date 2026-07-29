@@ -882,6 +882,102 @@ def test_a_device_with_no_id_is_refused_before_it_is_written():
         raise AssertionError("a document Live refuses must not pass the guard")
 
 
+def test_a_chain_may_hold_several_devices_in_series():
+    """The channel strip shape: one chain, several devices, one macro set.
+
+    Every device is a member of `DevicePresets` and numbers with the signal
+    chain, while each device is still member 0 of its own holder. Both Ids
+    are the Q9 rule one level apart.
+    """
+    g = Layout(Slot("Lo"), Slot("Gain"))
+    rack = Rack.audio_effect("EQC", g).chain(
+        "strip",
+        Engine("ChannelEq").drives(g.lo, "LowShelfGain")
+        .then(Engine("StereoGain").drives(g.gain, "Gain")))
+    root = rack.build()
+    branch = find.branches(find.preset(root))[0]
+
+    assert [d.tag for d in find.devices(branch)] == ["ChannelEq", "StereoGain"]
+    assert [w.get("Id") for w in branch.find("DevicePresets")] == ["0", "1"]
+    assert all(d.get("Id") == "0" for d in find.devices(branch))
+
+    got = {(m["macro"], m["target"]) for m in mappings.find(branch)}
+    assert got == {(1, "LowShelfGain"), (2, "Gain")}
+
+
+def test_a_zone_inside_a_series_is_refused():
+    """A chain has one position on the selector, however many devices it holds."""
+    g = Layout(Slot("Lo"))
+    try:
+        Engine("ChannelEq").zone(0, 63).then(Engine("StereoGain"))
+    except ValueError as e:
+        assert "one zone" in str(e)
+    else:
+        raise AssertionError("a per-device zone in a series must be refused")
+
+
+def test_a_placed_device_does_not_inherit_the_donor_rack_mappings():
+    """A donor is a device cut out of somebody's rack, mappings included.
+
+    `Compressor2.adg` carries five, on Threshold, Ratio, Gain, DryWet and
+    On, all pointing at macro 4 of a rack that no longer exists. Placed
+    unchanged, one knob of the new rack moved all five. Same shape as the
+    donor's Drift modulation row: a donor is for the parameter list, never
+    for anybody's decisions.
+    """
+    from patchbay.library import Library
+
+    donor = Library.default().device("Compressor2")
+    assert mappings.find(donor.instance()), (
+        "this test is pointless if the donor carries no mappings")
+
+    g = Layout(Slot("Comp"))
+    rack = Rack.audio_effect("C", g).chain(
+        "strip", Engine("Compressor2").drives(g.comp, "DryWet"))
+    branch = find.branches(find.preset(rack.build()))[0]
+    assert {(m["macro"], m["target"]) for m in mappings.find(branch)} == {
+        (1, "DryWet")}
+
+
+def test_a_midi_effect_rack_builds_with_its_own_branch_tag():
+    """MidiEffectGroupDevice holds MidiEffectBranchPreset, per donors/AM_midi.adg."""
+    g = Layout(Slot("Rate"))
+    rack = Rack.midi_effect("ARP", g).chain(
+        "strip", Engine("MidiArpeggiator").drives(g.rate, "SyncedRate"))
+    preset = find.preset(rack.build())
+    assert find.rack_device(preset).tag == "MidiEffectGroupDevice"
+    assert [b.tag for b in find.branches(preset)] == ["MidiEffectBranchPreset"]
+
+
+def test_an_instrument_rack_is_refused_in_a_midi_effect_chain():
+    g = Layout(Slot("Cutoff"))
+    try:
+        Rack.midi_effect("M", g).chain("SUB", Rack.instrument("I", g))
+    except ValueError as e:
+        assert "midi effect chain" in str(e)
+    else:
+        raise AssertionError("Live refuses this preset; so must we")
+
+
+def test_the_sidechain_is_configured_but_never_sourced():
+    """C4: everything but the source, which no device preset carries (Q18).
+
+    The enable is asserted next to the band, for the Q16 reason: a
+    sidechain EQ that is set and switched off is a knob that moves nothing.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    comp = next(patchbayground.EQC.build().iter("Compressor2"))
+    assert find.param(comp, "SideChain/OnOff").find("Manual").get("Value") == "true"
+    assert find.param(comp, "SideChainEq/On").find("Manual").get("Value") == "true"
+    assert find.param(comp, "SideChainEq/Freq").find("Manual").get("Value") == "100"
+
+    target = find.setting(comp, "SideChain/RoutedInput/Routable/Target")
+    assert target.get("Value") == "AudioIn/None", (
+        "a source in a .adg would contradict Q18; if this moved, re-read it")
+
+
 def test_a_placed_device_carries_no_blank_int64_field():
     """The second Set-form difference, and it hid behind the first.
 
