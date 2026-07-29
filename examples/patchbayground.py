@@ -89,12 +89,15 @@ from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 # 0.01..20 s range: short enough to play, long enough to hear the knob move
 # in either direction. Instrument and Sound open at 0, the first chain.
 #
-# Slot 1 STEPS where every other knob SWEEPS, and a player wants to know
-# which is which before touching it. `>` is this project's mark for that,
-# not a Live convention: nothing in the format distinguishes a selector on
-# the display, so the distinction has to be spelled.
+# Slot 1 STEPS where every other knob SWEEPS, and there is no mark for that.
+# This project used to prefix the selector with `>`. It went after I1 to I4
+# in Live 12.4.3: Push rendered it, Live truncated `> Instrument` to
+# `> Instrum`, and asked whether it read as "this one steps" the answer was
+# no. So it cost two characters on the one field that truncates and bought
+# nothing. Nothing in the format distinguishes a selector on the display,
+# and the honest position is that nothing here does either.
 PB = Layout(
-    Slot("Instrument", label="> Instrument", selects=True),  # 1  which engine
+    Slot("Instrument", selects=True),  # 1  which engine
     Slot("Sound"),                    # 2  which sound within that engine
     Slot("Filter", start=127),        # 3  cutoff, paired with resonance
     Slot("Drive"),                    # 4  filter drive
@@ -509,10 +512,9 @@ VA1 = _VA1.variations(
 # are unbound, so their start is not written.
 #
 # The kit's Filter chains into each pad's Filter, which is paired, so the kit
-# knob moves cutoff and resonance on eight pads at once and says so. Sound
-# STEPS rather than sweeps: it walks the sample list.
+# knob moves cutoff and resonance on eight pads at once and says so.
 KIT = Layout(
-    Slot("Sound", label="> Sound"),
+    Slot("Sound"),
     Slot("Pitch"),
     Slot("Filter", start=127, label=PAIRED),
     Slot("Drive"),
@@ -526,8 +528,7 @@ KIT = Layout(
 # rather than Instrument. Same eight slots as PB, carrying the same starts,
 # so the kit can chain slot to slot by identity; only which slot drives the
 # selector moves, and the `>` mark moves with it.
-PAD = PB.deriving(selects=PB.sound,
-                  relabel={PB.sound: "> Sound", PB.instrument: None})
+PAD = PB.deriving(selects=PB.sound)
 
 # Pad layout, and the folder each pad draws from. The names are the ones
 # samples/README.md documents, not a vendor's.

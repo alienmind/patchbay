@@ -276,3 +276,37 @@ argument, because the outer rack does not care which it got and the two
 keyword form could be given both or neither. And the `with rack.engine(...)
 as e:` block bought scoping for an object that was already mutable and
 already appended to the rack, so it read as a transaction and was not one.
+
+## `>` as the mark for a stepping macro
+
+**Tried:** prefixing the chain-selector slot's label with `>`, so
+`Instrument` read `> Instrument` and a drum pad's `Sound` read `> Sound`.
+Slot 1 STEPS between chains where every other knob SWEEPS, nothing in the
+file format distinguishes the two on a display, and a player wants to know
+which is which before touching it.
+
+**What killed it:** round I in Live 12.4.3 and on Push 3, three results at
+once.
+
+- On Push the whole label rendered, `> Instrument` and all eight others,
+  no truncation. The mechanism worked.
+- In Live's rack panel the field is narrower and it came back
+  `> Instrum`. The mark cost two characters on the one field that
+  truncates, so it bought a display problem rather than solving one.
+- Asked directly whether `>` reads as "this one steps", the answer was
+  that it does not stand out at all.
+
+So it was paid for and not delivering. Dropping it puts `Instrument` back
+inside the field, or near enough that Live clips it to `Instrumen`, which
+is readable in a way `> Instrum` is not.
+
+**What survives:** the LABEL mechanism itself, which is worth more than the
+mark ever was. It carries `Filter + Res` on the paired slot, and the
+wildcard's actual role per rack, `Attack` on PD1 and `Morph` on BS1 in the
+same position. Both rendered whole on Push and both are things a player
+cannot get from the knob's position.
+
+**Not tried, and still open:** a shorter name for slot 1. `Engine` fits
+Live's field whole and is what the slot selects, but the eight slot names
+are gated and renaming one reopens `PATCHBAYGROUND.md`, `DSL.md` and
+`README.md` with it.

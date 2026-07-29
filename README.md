@@ -65,7 +65,7 @@ this tool routes macros to parameters, chains to zones, and racks onto tracks.
 
 ```python
 PB = Layout(
-    Slot("Instrument", label="> Instrument", selects=True),
+    Slot("Instrument", selects=True),
     Slot("Sound"),
     Slot("Filter", start=127),
     Slot("Drive"),

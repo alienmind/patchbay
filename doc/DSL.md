@@ -30,7 +30,7 @@ promise; expressed through a shared layout it is structural.
 
 ```python
 PB = Layout(
-    Slot("Instrument", label="> Instrument", selects=True),
+    Slot("Instrument", selects=True),
     Slot("Sound"),
     Slot("Filter", start=127),
     Slot("Release", start=30),
@@ -135,8 +135,9 @@ cases force the split, and neither is cosmetic:
 - **A paired slot under-describes itself.** Slot 3 drives cutoff and
   resonance. A knob labelled "Filter" that also moves resonance is lying
   by omission, on the one surface the player actually reads.
-- **A selector steps where every other knob sweeps**, and nothing in the
-  format marks it. That is a property of the rack, not of the parameter.
+- **A rack renames a slot for what IT does with it.** Slot 6 is a wildcard
+  called Character in the layout, and reads Attack, Glide or Morph
+  depending on which role the rack spent it on.
 
 So a label sits on the slot and a rack may override it:
 
@@ -151,13 +152,12 @@ chaining and the same muscle memory. A label cannot move a mapping.
 ## Deriving a layout moves what changed and keeps the rest
 
 ```python
-PAD = PB.deriving(selects=PB.sound,
-                  relabel={PB.sound: "> Sound", PB.instrument: None})
+PAD = PB.deriving(selects=PB.sound)
 ```
 
 Inside a drum pad the axis is WHICH SAMPLE, so the selector is Sound
-rather than Instrument, and the `>` mark moves with it: a relabel of
-`None` clears one.
+rather than Instrument. `relabel` moves a word at the same time, and a
+relabel of `None` clears one.
 
 Everything not named survives, which is the point. Rebuilding the slot
 list by hand to move the selector drops the starts and the labels with it,

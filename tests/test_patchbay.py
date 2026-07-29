@@ -1159,16 +1159,16 @@ def test_deriving_a_layout_carries_what_was_not_named():
     and the labels with it, which loads as a rack whose filter is shut and
     whose volume is down. It happened once, while testing something else.
     """
-    pb = Layout(Slot("Instrument", label="> Instrument", selects=True),
+    pb = Layout(Slot("Instrument", label="Engine", selects=True),
                 Slot("Sound"),
                 Slot("Filter", start=127))
     pad = pb.deriving(selects=pb.sound,
-                      relabel={pb.sound: "> Sound", pb.instrument: None})
+                      relabel={pb.sound: "Sample", pb.instrument: None})
 
     assert pad.selector.display == "Sound"
-    assert pad.sound.label == "> Sound"
+    assert pad.sound.label == "Sample"
     assert pad.filter.start == 127, "the start survived a derivation"
-    assert pad.instrument.label is None, "the selector mark moved with the selector"
+    assert pad.instrument.label is None, "a relabel of None clears one"
     assert [s.display for s in pad] == [s.display for s in pb]
     assert pb.selector.display == "Instrument", "the original did not move"
 

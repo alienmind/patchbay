@@ -72,7 +72,7 @@ Ordered by what unblocks the most. Report by check number.
 | **Q16b** | One knob, Drift's LFO depth | The diff landed. This decides which parameter Macro 5 binds |
 | **K** | Two donor racks, one load check | Widens the vocabulary and gates 54 donors nothing has loaded yet |
 | **H3b/H6b** | Two knobs on LD1 and PD1 | The switches are on now. Confirm the knobs finally do something |
-| **I** | Labels on Push | Eyes only. Nothing about a display is in the file |
+
 
 | **D2b** | One knob inside a pad | Sound is the second macro, not the first |
 | **E** | Five one-change spikes | Each unblocks a separate feature. No hurry, no order |
@@ -137,21 +137,28 @@ Meld's half of glide is NOT fixed and is E6 below: its
 `MeldVoice_Engine{A,B}_GlideMode` is 0, an enum nobody has diffed, and a
 mode that is probably off is exactly what rule 1 says not to guess.
 
-### I. Do the labels read right on the hardware
+### I. Labels on the hardware - ANSWERED
 
-The first check of this whole mechanism, and it is a Push check rather
-than a Live one.
+Round I is closed and it killed one thing and confirmed another.
 
-| # | Do this | Report |
-|---|---|---|
-| I1 | BS1 on Push, look at the macro row | Do you see `> Instrument`, `Filter + Res`, `Morph`? Or truncated versions, and truncated to what? |
-| I2 | Same in Live's rack panel | Same question. Live's macro name field is narrower than Push's |
-| I3 | DR1, dive into KICK, then into HAT | KICK slot 4 reads `Drive + Snap`, HAT reads `Drive`, same position |
-| I4 | Any rack | Does `>` read as "this one steps"? If it is noise on the display, say so and it goes |
+**The `>` selector mark is gone.** Push rendered it whole, Live truncated
+`> Instrument` to `> Instrum`, and asked whether it reads as "this one
+steps" the answer was no. It cost two characters on the one field that
+truncates and bought nothing. See `THE_BASEMENT.md`. Goldens moved on all
+six racks.
 
-I1 and I2 decide whether labels can carry a phrase at all. If Push shows
-eight characters, `Filter + Res` is not the answer and the pairing needs a
-different word rather than a longer one.
+**Labels themselves are worth keeping.** All eight rendered whole on Push,
+`Filter + Res` included, so a phrase fits. I3 passed: KICK's slot 4 reads
+`Drive + Snap` where HAT's reads `Drive`, same position. Live wraps
+`Movement` onto two lines and clips longer words, so Live is the tighter
+constraint and roughly nine characters is the budget there.
+
+One inconsistency this surfaced, not yet decided: **VA1's slot 3 reads
+`Filter` while every other rack reads `Filter + Res`.** VA1 declares no
+labels, and its sub-racks do pair cutoff with resonance, so the knob moves
+a pair and does not say so. Either VA1 labels it or a nested rack's labels
+should reach the outer knob, and the second is a DSL question rather than a
+spec one.
 
 ### J. Release, now that Operator and Simpler are ranged
 
