@@ -1041,6 +1041,10 @@ class Rack:
                 # document rather than the device. See Q9.
                 device = self.library.instance(chain.device)
                 device.set("Id", "0")
+                # And the second thing Set form leaves behind: blank int64
+                # fields on the device's own LastPresetRef. Same donors, same
+                # refusal one line later in Live's parser. See Q9.
+                clone.fill_empty_int64_fields(device)
                 holder.append(device)
                 wrapper.set("Id", "0")
                 devices.append(wrapper)

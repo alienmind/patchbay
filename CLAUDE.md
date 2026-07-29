@@ -199,6 +199,12 @@ re-derive it.
 - **A device loads with every parameter removed.** Live fills defaults.
   Donors are for FIDELITY, not loadability: they carry configured values
   and tell you what a device can be asked to do.
+- **A blank value is not a missing value.** A device lifted out of a
+  `.als` carries `OriginalFileSize=""` and `OriginalCrc=""` on its
+  `LastPresetRef`, which a `.als` accepts and a `.adg` refuses with
+  "Unexpected value for int64 node". `patchbay diff` hides
+  `/LastPresetRef/` by default, so a spike pair does not show it. Pass
+  `--all` when a file loads nowhere and the diff looks clean.
 - **Sample metadata is advisory.** Live re-reads the file on load, so
   retargeting a sample needs only the two path fields on each of its two
   FileRefs. `OriginalCrc` is never validated and never needs computing.

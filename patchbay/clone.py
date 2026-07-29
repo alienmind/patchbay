@@ -182,6 +182,47 @@ def missing_device_ids(root):
     return out
 
 
+#: FileRef fields Live parses as int64. Set form leaves both blank, and
+#: every `.adg` Live saved here writes "0" - 12 racks, no exception. See Q9.
+INT64_FILEREF_FIELDS = ("OriginalFileSize", "OriginalCrc")
+
+
+def empty_int64_fields(root):
+    """FileRef int64 fields carrying an empty Value, as a list of paths.
+
+    The SECOND difference between Set form and preset form, and it hides
+    behind the first. A device lifted out of a `.als` brings a
+    `LastPresetRef/.../FileRef` whose `OriginalFileSize` and `OriginalCrc`
+    are blank, which a `.als` accepts and a `.adg` does not:
+
+        Exception: Unexpected value for int64 node:
+        The document "..." is corrupt and cannot be loaded.
+
+    Blank is not the same as absent. Live re-reads a sample on load and
+    never validates the CRC, so the VALUE means nothing; the node being
+    parseable is what is required.
+    """
+    out = []
+    for ref in root.iter("FileRef"):
+        for tag in INT64_FILEREF_FIELDS:
+            el = ref.find(tag)
+            if el is not None and el.get("Value") == "":
+                out.append(tag)
+    return out
+
+
+def fill_empty_int64_fields(root):
+    """Write "0" where Live writes "0". Returns how many were filled."""
+    filled = 0
+    for ref in root.iter("FileRef"):
+        for tag in INT64_FILEREF_FIELDS:
+            el = ref.find(tag)
+            if el is not None and el.get("Value") == "":
+                el.set("Value", "0")
+                filled += 1
+    return filled
+
+
 def assert_loadable(root):
     """Raise if the tree would be refused by Live.
 
@@ -195,6 +236,14 @@ def assert_loadable(root):
             f"{', '.join(sorted(set(no_id)))}. Live refuses the whole "
             f"document with 'Not all list members have Ids'. A donor "
             f"harvested from a .als carries no Id here; see Q9.")
+
+    blank = empty_int64_fields(root)
+    if blank:
+        raise ValueError(
+            f"{len(blank)} FileRef int64 field(s) left empty: "
+            f"{', '.join(sorted(set(blank)))}. Live refuses the whole "
+            f"document with 'Unexpected value for int64 node'. A donor "
+            f"harvested from a .als arrives blank here; see Q9.")
 
     bad = check(root)
     if bad:

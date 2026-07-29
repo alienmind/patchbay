@@ -882,6 +882,41 @@ def test_a_device_with_no_id_is_refused_before_it_is_written():
         raise AssertionError("a document Live refuses must not pass the guard")
 
 
+def test_a_placed_device_carries_no_blank_int64_field():
+    """The second Set-form difference, and it hid behind the first.
+
+    A device lifted out of a `.als` brings a LastPresetRef whose FileRef
+    has `OriginalFileSize` and `OriginalCrc` blank. A `.als` accepts that
+    and a `.adg` does not:
+
+        Exception: Unexpected value for int64 node:
+        The document "..." is corrupt and cannot be loaded.
+
+    42 of 54 donors carry it. It survived the Id fix because our own diff
+    hides `/LastPresetRef/` by default, so no spike pair ever showed it.
+    """
+    g = Layout(Slot("Effect", selects=True), Slot("Cutoff"))
+    rack = (Rack.audio_effect("K3", g)
+            .chain("AutoFilter", Engine("AutoFilter").drives(g.cutoff, "Cutoff"))
+            .chain("Eq8", Engine("Eq8"))
+            .chain("Echo", Engine("Echo")))
+    assert clone.empty_int64_fields(rack.build()) == []
+
+
+def test_a_blank_int64_field_is_refused_before_it_is_written():
+    """Fail loudly, same as the missing Id. This one reached a person too."""
+    g = Layout(Slot("Effect", selects=True))
+    root = Rack.audio_effect("X", g).chain("A", Engine("Echo")).build()
+    ref = next(root.iter("FileRef"))
+    ref.find("OriginalFileSize").set("Value", "")
+    try:
+        clone.assert_loadable(root)
+    except ValueError as e:
+        assert "Unexpected value for int64 node" in str(e)
+    else:
+        raise AssertionError("a document Live refuses must not pass the guard")
+
+
 def test_a_bound_modulator_is_switched_on():
     """H6 and Q16 are one defect: a mapping that resolves and reaches nothing.
 

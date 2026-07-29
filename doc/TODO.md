@@ -154,20 +154,25 @@ each parameter's native range.
 |---|---|---|
 | K3b | Drag `build/K3_als_donor.adg` onto any track. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
 
-**K3 already fired, and it caught what it was written to catch.** Live
-refused the file outright: *"Not all list members have Ids"*, pointing at
-the `<AutoFilter>` element, which carried no `Id`. Every device harvested
-out of a `.als` was missing it, 48 of 56 donors, and nothing here noticed
-because ids were unique, mappings resolved and `patchbay check` passed.
+**K3 has fired twice and caught a different defect each time.** Both are
+Set form leaving something behind, both are fixed in `_make_chains`, and
+both are guarded by `clone.assert_loadable`. Evidence is under Q9 in
+`SCHEMA.md`.
 
-The rack now writes `Id="0"` on the device as it places it, and
-`clone.assert_loadable` refuses a tree without one. `SCHEMA.md` has the
-evidence under Q9. **K3b is the retest**, against a rebuilt file.
+| refusal | what was wrong | affected |
+|---|---|---|
+| *Not all list members have Ids* | the device node carried no `Id` | 48 of 56 donors |
+| *Unexpected value for int64 node* | `OriginalFileSize` and `OriginalCrc` blank on the device's `LastPresetRef` | 42 of 54 donors |
 
-What K3b cannot tell us is whether the Id was the ONLY difference between
-Set form and preset form. If it loads, the 48 donors are usable and the
-channel strip is unblocked. If it still refuses, the harvest has to go
-through preset form and the log will say why.
+The second hid behind the first, and behind our own tool: `patchbay diff`
+hides `/LastPresetRef/` by default, so no spike pair ever printed the field
+that refuses the document.
+
+**K3b is the retest, against a file rebuilt after both fixes.** It does not
+prove the two forms are otherwise identical - two differences have now been
+found by loading one file, and a third is not ruled out. If it loads, the
+donors are usable and the channel strip is unblocked. If it refuses again,
+the log names the next one.
 
 ### F1. One deliberately broken zone
 

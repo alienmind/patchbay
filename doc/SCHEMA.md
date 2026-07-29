@@ -1490,11 +1490,42 @@ rule one level apart. `clone.missing_device_ids` now refuses a tree that
 lacks one, so this class fails before a file is written rather than in
 Live.
 
-**What is still open** is whether an Id is the ONLY difference between the
-two forms. It is the only one this file hit, and the rack now loads as far
-as the guard can tell, but that is a claim about one refusal and not about
-the two serialisations being otherwise identical. T6c still needs the full
-mapping before it can read racks out of a Set.
+**The Id was NOT the only difference.** The rebuilt file was refused again,
+by a different parser error and 30 lines further on:
+
+    Exception: Unexpected value for int64 node:
+    Exception: The document "C:\Users\jaime\src\patchbay\build\
+    K3_als_donor.adg" is corrupt and cannot be loaded.
+    (Unexpected value for int64 node:  (at line 480, column 46))
+
+Line 480 is `<OriginalFileSize Value=""/>`, inside
+`AutoFilter/LastPresetRef/Value/AbletonDefaultPresetRef/FileRef`. Its
+sibling `OriginalCrc` is blank the same way. Blank is not absent: the node
+is there, and Live's `.adg` parser reads it as an int64 and gives up.
+
+| source | `OriginalFileSize` / `OriginalCrc` |
+|---|---|
+| the 28 racks Live saved here, preset refs | `0` / `0`, 307 of them |
+| the same files, sample refs | the real size and CRC, 44 of them |
+| donor harvested from a `.als` | blank, in 42 of 54 donors |
+
+Never blank in anything Live wrote, at either kind of ref.
+
+**42 of 54 donors carry it**, the same population as the missing Id: what
+came out of a Set. Both are fixed at the same line of `_make_chains`,
+`clone.fill_empty_int64_fields` next to the `Id="0"`, and
+`clone.empty_int64_fields` refuses a tree that still has one.
+
+**Why the one-change method never caught this.** `diff.PRESET_REF_MARKERS`
+hides `/PresetRef/` and `/LastPresetRef/` by default, because saving one
+rack under two names moves them and they bury real findings. The field that
+refuses the document lives inside exactly that subtree, so no spike pair
+ever printed it. `patchbay diff --all` does.
+
+**What is still open** is whether these two are the ONLY differences. Two
+have now been found by loading one file, and a third is not ruled out by
+anything. T6c still needs the full mapping before it can read racks out of
+a Set, and K3b is the retest again.
 
 ## S11. .als track structure
 
