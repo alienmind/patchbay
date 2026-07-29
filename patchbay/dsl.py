@@ -82,6 +82,13 @@ Element = etree._Element
 _SKELETONS: dict = {}
 _SKELETON_PATHS: dict = {}
 
+#: A return branch and a send entry, from the first file found carrying one.
+_RETURN_TEMPLATES: dict = {}
+
+#: Live's silent floor for a send, in linear amplitude: 10^(-70/20). A send
+#: nobody set reads this, which is what Live writes when a return appears.
+SEND_FLOOR: float = 0.0003162277571
+
 
 def _macro_pos(slot: str, pos: float) -> float:
     """A macro position, checked against the only scale macros have.
@@ -556,17 +563,20 @@ class Nested:
     any other, with Channel 16 at every depth (ARCHITECTURE.md section 5).
     """
 
-    __slots__ = ("rack", "items", "_zone")
+    __slots__ = ("rack", "items", "_zone", "chained")
 
-    def __init__(self, rack: "Rack", items=(), zone=None) -> None:
+    def __init__(self, rack: "Rack", items=(), zone=None, chained=True) -> None:
         self.rack = rack
         self.items = tuple(items)
         self._zone = zone
+        #: False means drive NOTHING, which is not what no items means.
+        self.chained = chained
 
     def zone(self, lo: int, hi: int) -> "Nested":
         """Where on the 0..127 selector this chain answers. See Engine.zone."""
         return Nested(self.rack, self.items,
-                      _zone_bounds_checked(self.rack.name, lo, hi))
+                      _zone_bounds_checked(self.rack.name, lo, hi),
+                      self.chained)
 
 
 Content = Union[Engine, "Series", "Rack", Nested]
@@ -579,6 +589,9 @@ class _Chain:
     name: str
     content: Content
     note: int | None = None
+    #: Return name -> send level, linear amplitude. Resolved to positions at
+    #: build, because `Index` on a send is positional (S9).
+    sends: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -615,6 +628,7 @@ class _Resolved:
     inner: "Rack | None"
     chained: Mapping[int, int]
     zone: tuple[int, int] | None
+    sends: Mapping[str, float] = field(default_factory=dict)
 
 
 class Rack:
@@ -624,17 +638,23 @@ class Rack:
     can sit in two racks without one build reaching the other.
     """
 
-    __slots__ = ("name", "layout", "kind", "_chains", "_variations",
-                 "_labels", "_starts", "_role", "_wildcard", "_library",
-                 "_skeleton", "_branch_template", "_wrapper_template")
+    __slots__ = ("name", "layout", "kind", "_chains", "_returns",
+                 "_variations", "_labels", "_starts", "_role", "_wildcard",
+                 "_library", "_skeleton", "_branch_template",
+                 "_wrapper_template", "_return_template", "_send_template",
+                 "_send_slots")
 
     def __init__(self, name: str, layout: Layout, kind: RackKind, chains=(),
                  variations=(), labels=None, starts=None, role=None,
-                 wildcard=None, library=None, skeleton=None):
+                 wildcard=None, library=None, skeleton=None, returns=(),
+                 send_slots=None):
         self.name = name
         self.layout = layout
         self.kind = kind
         self._chains: tuple[_Chain, ...] = tuple(chains)
+        self._returns: tuple[_Chain, ...] = tuple(returns)
+        #: Return name -> the slot whose macro drives every chain's send.
+        self._send_slots: dict[str, Slot] = dict(send_slots or {})
         self._variations: tuple[Variation, ...] = tuple(variations)
         self._labels: dict[str, str] = dict(labels or {})
         self._starts: dict[str, float] = dict(starts or {})
@@ -644,6 +664,8 @@ class Rack:
         self._skeleton: Path | None = Path(skeleton) if skeleton else None
         self._branch_template: Element | None = None
         self._wrapper_template: Element | None = None
+        self._return_template: Element | None = None
+        self._send_template: Element | None = None
 
     @classmethod
     def instrument(cls, name: str, layout: Layout, **kw) -> "Rack":
@@ -663,7 +685,8 @@ class Rack:
 
     def _with(self, **kw) -> "Rack":
         base = dict(name=self.name, layout=self.layout, kind=self.kind,
-                    chains=self._chains, variations=self._variations,
+                    chains=self._chains, returns=self._returns,
+                    send_slots=self._send_slots, variations=self._variations,
                     labels=self._labels, starts=self._starts, role=self._role,
                     wildcard=self._wildcard, library=self._library,
                     skeleton=self._skeleton)
@@ -672,15 +695,60 @@ class Rack:
 
     # --- assembly ---------------------------------------------------------
 
-    def chain(self, name: str, content: Content) -> "Rack":
+    def chain(self, name: str, content: Content,
+              sends: Mapping[str, float] | None = None) -> "Rack":
         """Add a chain. Its content is an engine profile or another rack.
 
         One chain is one engine, or one nested rack. The outer rack does not
         care which, which is why this is one verb.
-        """
-        return self._with(chains=self._chains + (_Chain(name, self._checked(content)),))
 
-    def pad(self, name: str, note: int, content: Content) -> "Rack":
+        `sends` is return name to level, in linear amplitude - a third scale,
+        not macros and not zones (S9). A return this rack does not have
+        raises at build.
+        """
+        return self._with(chains=self._chains + (
+            _Chain(name, self._checked(content), None, dict(sends or {})),))
+
+    def ret(self, name: str, content: Content) -> "Rack":
+        """Add a RETURN chain: an effect every pad can send to.
+
+        A return branch is an `AudioEffectBranchPreset` whatever the parent
+        rack is, and it lives in `ReturnBranchPresets`, a sibling of
+        `BranchPresets` (S9). Its content is an effect, or a whole rack when
+        the return is a selector across several of them.
+
+        Adding one seeds a send on EVERY chain at the silent floor, which is
+        what Live does, so a pad that names no level still has the entry.
+        """
+        return self._with(returns=self._returns + (
+            _Chain(name, self._checked_return(content)),))
+
+    def sending(self, slot: Slot, ret: str) -> "Rack":
+        """This slot drives EVERY chain's send to that return.
+
+        One knob for "how much of the whole kit goes to the reverb", which
+        is what a send slot means at kit level. It is one mapping per chain,
+        written into each chain's own `SendInfos` entry, because a send
+        belongs to a chain and not to the rack.
+
+        A send is shaped exactly like a mappable parameter and the mapping
+        is addressed by containment like every other, so nothing here is a
+        special case. Whether Live HONOURS a macro on a send is not verified
+        - see ARCHITECTURE.md section 12.
+        """
+        return self._with(send_slots={**self._send_slots, ret: slot})
+
+    def _checked_return(self, content: Content) -> Content:
+        inner = content.rack if isinstance(content, Nested) else content
+        if isinstance(inner, Rack) and inner.kind is not RackKind.AUDIO_EFFECT:
+            raise ValueError(
+                f"return chain {inner.name!r} is a "
+                f"{inner.kind.name.lower()} rack; a return branch is an "
+                f"AudioEffectBranchPreset whatever the parent rack is")
+        return content
+
+    def pad(self, name: str, note: int, content: Content,
+            sends: Mapping[str, float] | None = None) -> "Rack":
         """Add a drum pad: a chain selected by a MIDI note, not a zone.
 
         A pad is a chain like any other, with one thing swapped. An ordinary
@@ -699,8 +767,8 @@ class Rack:
             raise ValueError(
                 f"{name}: note {note} already triggers pad {taken[note]!r}. "
                 f"Two pads on one note fire together.")
-        return self._with(
-            chains=self._chains + (_Chain(name, self._checked(content), note),))
+        return self._with(chains=self._chains + (
+            _Chain(name, self._checked(content), note, dict(sends or {})),))
 
     def _checked(self, content: Content) -> Content:
         """Refuse a pairing Live would refuse, here rather than on the drop."""
@@ -760,6 +828,17 @@ class Rack:
         """
         return Nested(self, items)
 
+    def unchained(self) -> Nested:
+        """Use this rack as a chain, driven by NOTHING.
+
+        `chaining()` with no arguments means the identity default, every
+        slot the inner rack drives from the matching outer knob. That is the
+        right default for a sub-rack and the wrong one for a return, whose
+        effects answer their own macros and no outer knob at all. The two
+        cases are one call apart and read differently on purpose.
+        """
+        return Nested(self, (), chained=False)
+
     def using(self, skeleton: Path | str) -> "Rack":
         """Model this rack on a particular file rather than a found donor."""
         return self._with(skeleton=Path(skeleton))
@@ -801,12 +880,15 @@ class Rack:
                     out |= {d.slot.key
                             for d in engine._for(self._role, self._wildcard)
                             if d.slot is not None}
+        out |= {s.key for s in self._send_slots.values()}
         if self.layout.selector is not None:
             out.add(self.layout.selector.key)
         return out
 
     def _pairs(self, nested: Nested) -> list[tuple[Slot, Slot]]:
         """Outer slot, inner slot, defaulting to identity on shared slots."""
+        if not nested.chained:
+            return []
         if nested.items:
             out = []
             for item in nested.items:
@@ -842,10 +924,10 @@ class Rack:
 
     # --- realisation ------------------------------------------------------
 
-    def _resolve(self) -> list[_Resolved]:
+    def _resolve(self, which=None) -> list[_Resolved]:
         """Every chain with the rack's role, labels and defaults folded in."""
         out: list[_Resolved] = []
-        for ch in self._chains:
+        for ch in (self._chains if which is None else which):
             content = ch.content
             if isinstance(content, Rack):
                 content = Nested(content, ())
@@ -855,14 +937,14 @@ class Rack:
                     name=ch.name, note=ch.note, devices=(),
                     inner=content.rack,
                     chained={o.number: i.number for o, i in self._pairs(content)},
-                    zone=content._zone))
+                    zone=content._zone, sends=ch.sends))
             else:
                 engines = (content,) if isinstance(content, Engine) else tuple(content)
                 zone = content._zone
                 out.append(_Resolved(
                     name=ch.name, note=ch.note,
                     devices=tuple(self._place(e) for e in engines),
-                    inner=None, chained={}, zone=zone))
+                    inner=None, chained={}, zone=zone, sends=ch.sends))
         return out
 
     def _place(self, engine: Engine) -> _Placed:
@@ -882,6 +964,7 @@ class Rack:
             raise ValueError(f"rack {self.name!r} has no chains")
 
         chains = self._resolve()
+        returns = self._resolve(self._returns)
         root = self._load_skeleton()
         preset = find.preset(root)
         rack_dev = find.rack_device(preset)
@@ -894,12 +977,24 @@ class Rack:
         self._distribute_zones(branches, chains)
         self._map_engine_selector(rack_dev)
 
-        for chain, branch in zip(chains, branches):
+        made = list(zip(chains, branches))
+        if returns:
+            made += list(zip(returns, self._make_returns(preset, returns)))
+        for chain, branch in made:
             if chain.inner is not None:
                 self._apply_nest(chain, branch)
             else:
                 self._apply_bindings(chain, branch)
 
+        self._write_sends(branches + self._return_branches(preset),
+                          chains + returns, [r.name for r in returns])
+        if returns:
+            # Live ships this false, which hides the send column in the
+            # chain list. A rack that writes sends and does not show them
+            # looks like a rack whose sends did not write (S9).
+            visible = rack_dev.find("AreSendsVisible")
+            if visible is not None:
+                visible.set("Value", "true")
         self._write_variations(rack_dev)
 
         user_name = rack_dev.find("UserName")
@@ -1110,30 +1205,14 @@ class Rack:
             if chain.inner is not None:
                 devices.append(self._nested_preset(chain.inner))
             else:
+                # Two Ids, one rule a level apart: the device is the only
+                # member of its holder and the holder is a member of
+                # DevicePresets, numbering with the signal chain. A donor
+                # also arrives carrying the mappings and the blank int64
+                # fields of wherever it was cut from. All of it is in
+                # `_device_holder`. See Q9.
                 for slot, placed in enumerate(chain.devices):
-                    wrapper = self._device_wrapper()
-                    holder = wrapper.find("Device")
-                    for child in list(holder):
-                        holder.remove(child)
-                    # The device is the only member of its holder, so it is
-                    # member 0 whatever position the holder itself takes. The
-                    # wrapper is a member of DevicePresets and numbers with
-                    # the signal chain. Missing either Id makes Live refuse
-                    # the whole document rather than the device. See Q9.
-                    device = self.library.instance(placed.device)
-                    device.set("Id", "0")
-                    # A donor arrives wired to the macros of the rack it was
-                    # cut from. Compressor2 brings five such mappings, all on
-                    # macro 4. Ours are written below; these are somebody
-                    # else's.
-                    clone.strip_macro_mappings(device)
-                    # And the second thing Set form leaves behind: blank
-                    # int64 fields on the device's own LastPresetRef. Same
-                    # donors, same refusal one line later in Live's parser.
-                    clone.fill_empty_int64_fields(device)
-                    holder.append(device)
-                    wrapper.set("Id", str(slot))
-                    devices.append(wrapper)
+                    devices.append(self._device_holder(placed, slot))
 
             if chain.note is not None:
                 clone.set_receiving_note(branch, chain.note)
@@ -1141,6 +1220,83 @@ class Rack:
             container.append(branch)
             made.append(branch)
         return made
+
+    def _return_branches(self, preset: Element) -> list[Element]:
+        container = preset.find("ReturnBranchPresets")
+        return [] if container is None else [
+            c for c in container if isinstance(c.tag, str)]
+
+    def _make_returns(self, preset: Element,
+                      returns: Sequence[_Resolved]) -> list[Element]:
+        """Build the rack's return chains into `ReturnBranchPresets`.
+
+        A return branch is an `AudioEffectBranchPreset` whatever the parent
+        rack is, so the template comes from a file that HAS one rather than
+        from this rack's own branch template, which is the wrong tag with
+        the wrong children (S9).
+        """
+        container = preset.find("ReturnBranchPresets")
+        if container is None:
+            container = etree.SubElement(preset, "ReturnBranchPresets")
+        for child in list(container):
+            container.remove(child)
+
+        made: list[Element] = []
+        for i, chain in enumerate(returns):
+            branch = copy.deepcopy(self._return_skeleton())
+            branch.set("Id", str(i))
+            name = branch.find("Name")
+            if name is not None:
+                name.set("Value", chain.name)
+
+            devices = branch.find("DevicePresets")
+            for child in list(devices):
+                devices.remove(child)
+            if chain.inner is not None:
+                devices.append(self._nested_preset(chain.inner))
+            else:
+                for slot, placed in enumerate(chain.devices):
+                    devices.append(self._device_holder(placed, slot))
+
+            container.append(branch)
+            made.append(branch)
+        return made
+
+    def _write_sends(self, branches: Sequence[Element],
+                     chains: Sequence[_Resolved], names: Sequence[str]) -> None:
+        """One `AudioBranchSendInfo` per return, on every chain and return.
+
+        Live seeds a send on every existing chain the moment a return is
+        added, all at the silent floor, so a chain that names no level still
+        carries the entry (S9). `Index` is POSITIONAL, which is why a spec
+        names the return and this resolves it here.
+        """
+        if not names:
+            return
+        order = {name: i for i, name in enumerate(names)}
+        for chain, branch in zip(chains, branches):
+            stray = set(chain.sends) - set(order)
+            if stray:
+                raise ValueError(
+                    f"{chain.name}: sends to {sorted(stray)}, which is not a "
+                    f"return of {self.name!r}. Returns: {list(names)}")
+            infos = next(branch.iter("SendInfos"), None)
+            if infos is None:
+                raise ValueError(
+                    f"{chain.name}: chain mixer has no SendInfos to write to")
+            for child in list(infos):
+                infos.remove(child)
+            for name, index in order.items():
+                info = copy.deepcopy(self._send_skeleton())
+                info.set("Id", str(index))
+                info.find("Index").set("Value", str(index))
+                level = chain.sends.get(name, SEND_FLOOR)
+                send = info.find("Send")
+                params.set_value(send, level)
+                slot = self._send_slots.get(name)
+                if slot is not None:
+                    params.map_to_macro(send, self.layout[slot.display].number)
+                infos.append(info)
 
     def _nested_preset(self, inner: "Rack") -> Element:
         """The inner rack's GroupDevicePreset, ready to sit in a chain.
@@ -1156,6 +1312,65 @@ class Rack:
             parent.remove(preset)
         preset.set("Id", "0")
         return preset
+
+    def _device_holder(self, placed: _Placed, slot: int) -> Element:
+        """One device in its `AbletonDevicePreset`, ready to sit in a chain."""
+        wrapper = self._device_wrapper()
+        holder = wrapper.find("Device")
+        for child in list(holder):
+            holder.remove(child)
+        device = self.library.instance(placed.device)
+        device.set("Id", "0")
+        clone.strip_macro_mappings(device)
+        clone.fill_empty_int64_fields(device)
+        holder.append(device)
+        wrapper.set("Id", str(slot))
+        return wrapper
+
+    def _return_skeleton(self) -> Element:
+        """An emptied return branch, from a file that has one.
+
+        `racks/s9_b.adg` is where S9 established the shape, and any rack
+        carrying a return serves. Searched rather than named, so a hand
+        saved rack in `donors/` takes over the moment one exists.
+        """
+        if self._return_template is None:
+            self._load_return_templates()
+        return self._return_template
+
+    def _send_skeleton(self) -> Element:
+        if self._send_template is None:
+            self._load_return_templates()
+        return self._send_template
+
+    def _load_return_templates(self) -> None:
+        cached = _RETURN_TEMPLATES.get("branch")
+        if cached is None:
+            branch, send = self._find_return_templates()
+            _RETURN_TEMPLATES["branch"] = branch
+            _RETURN_TEMPLATES["send"] = send
+        self._return_template = copy.deepcopy(_RETURN_TEMPLATES["branch"])
+        self._send_template = copy.deepcopy(_RETURN_TEMPLATES["send"])
+
+    def _find_return_templates(self) -> tuple[Element, Element]:
+        root = Path(__file__).resolve().parent.parent
+        checked = 0
+        for folder in ("donors", "racks"):
+            for candidate in sorted((root / folder).glob("*.adg")):
+                checked += 1
+                try:
+                    tree = io.load(candidate)
+                except Exception:
+                    continue
+                branch = next((b for c in tree.iter("ReturnBranchPresets")
+                               for b in c if isinstance(b.tag, str)), None)
+                send = next(tree.iter("AudioBranchSendInfo"), None)
+                if branch is None or send is None:
+                    continue
+                return copy.deepcopy(branch), copy.deepcopy(send)
+        raise FileNotFoundError(
+            f"no return chain to model on. Save a rack with one return "
+            f"chain into donors/ and re-harvest. Checked {checked} file(s).")
 
     def _device_wrapper(self) -> Element:
         """An empty AbletonDevicePreset, modelled on the skeleton's.

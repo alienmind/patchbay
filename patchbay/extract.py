@@ -26,6 +26,10 @@ from .library import Library
 #: rack has no constructor because `RackKind` has no member for it, and the
 #: emitted `Rack.midi_effect(...)` fails loudly rather than building the
 #: wrong kind of rack silently.
+#: Live's silent floor for a send, as the file spells it. A send left here
+#: carries no information a rebuild does not already write.
+FLOOR = "0.0003162277571"
+
 KIND_OF = {
     "InstrumentGroupDevice": "instrument",
     "AudioEffectGroupDevice": "audio_effect",
@@ -197,6 +201,42 @@ def _sample_targets(device) -> list[str]:
     return out
 
 
+def _branch_name(branch, fallback: str) -> str:
+    el = branch.find("Name")
+    got = el.get("Value") if el is not None else ""
+    return got or fallback
+
+
+def _sends_of(branch, names) -> tuple[dict[str, str], dict[int, str]]:
+    """This chain's send levels by return name, and any macro on them.
+
+    `Index` is positional (S9), so the names come from the return list and
+    the level is read back as the string the file holds - a send is linear
+    amplitude and a re-rounded one is a diff to explain every time.
+
+    A send at the silent floor with no macro on it says nothing a rebuild
+    does not already write, so it is left out.
+    """
+    levels: dict[str, str] = {}
+    driven: dict[int, str] = {}
+    for info in branch.iter("AudioBranchSendInfo"):
+        idx = info.find("Index")
+        send = info.find("Send")
+        if idx is None or send is None:
+            continue
+        try:
+            name = names[int(idx.get("Value"))]
+        except (ValueError, IndexError):
+            continue
+        manual = send.find("Manual")
+        if manual is not None and manual.get("Value") != FLOOR:
+            levels[name] = manual.get("Value")
+        for m in mappings.find(send):
+            if m["macro"]:
+                driven[m["macro"]] = name
+    return levels, driven
+
+
 def _zone_of(branch) -> tuple[str, str] | None:
     """This chain's selector bounds, emitted whether or not they look default.
 
@@ -301,7 +341,10 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
     # parent references it.
     children: dict[int, tuple[str, str]] = {}
     branches = find.branches(preset_el)
-    for i, branch in enumerate(branches):
+    returns = find.return_branches(preset_el)
+    return_names = [_branch_name(b, f"{name}_return{i}")
+                    for i, b in enumerate(returns)]
+    for i, branch in enumerate(branches + returns):
         nested = [d for d in branch.iter("GroupDevicePreset")]
         if nested:
             child_name = branch.find("Name")
@@ -338,15 +381,27 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
     lines.append(")")
 
     call = [f"{var} = (Rack.{kind}({name!r}, {layout_var})"]
+    #: Macro -> return name, for the slots that drive every chain's send.
+    send_slots: dict[int, str] = {}
 
-    for i, branch in enumerate(branches):
+    for i, branch in enumerate(branches + returns):
         # The stored name, empty string included. Live leaves a chain
         # unnamed and inventing "chain0" for it is a change to the rack.
         bname_el = branch.find("Name")
         bname = bname_el.get("Value") if bname_el is not None else f"chain{i}"
         note = _receiving_note(branch)
-        verb = f".pad({bname!r}, {note}," if note is not None else f".chain({bname!r},"
+        is_return = i >= len(branches)
+        if is_return:
+            verb = f".ret({bname!r},"
+        else:
+            verb = (f".pad({bname!r}, {note}," if note is not None
+                    else f".chain({bname!r},")
         zone = _zone_of(branch)
+        levels, driven = _sends_of(branch, return_names)
+        send_slots.update(driven)
+        # A return sends to nothing, so only a chain carries one.
+        tail = "" if is_return or not levels else ", sends={%s}" % ", ".join(
+            f"{k!r}: {v}" for k, v in sorted(levels.items()))
 
         if i in children:
             child_var, child_layout = children[i]
@@ -355,13 +410,18 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             # drives, which is one mapping more than the original wherever
             # the author deliberately left a slot out. VA1 does exactly that
             # with its selector, and a bare chaining silently puts it back.
+            # `chaining()` with no arguments is the IDENTITY default, which
+            # is one mapping per driven slot and not the same thing as a
+            # rack driven by nothing. A return is the second case, and so is
+            # any chain whose author left every slot out.
             pairs = ", ".join(
                 f"{layout_var}.macro_{o}.to({child_layout}.macro_{inner})"
                 for o, inner in sorted(_chained_slots(branch).items()))
-            content = f"{child_var}.chaining({pairs})"
-            if zone and note is None:
+            content = (f"{child_var}.chaining({pairs})" if pairs
+                       else f"{child_var}.unchained()")
+            if zone and note is None and not is_return:
                 content += f".zone({zone[0]}, {zone[1]})"
-            call.append(f"        {verb} {content})")
+            call.append(f"        {verb} {content}{tail})")
             continue
 
         devices = find.devices(branch)
@@ -403,11 +463,14 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
                         f"{_fmt_binding(spec)})")
             if pos:
                 content[-1] += ")"
-        if zone and note is None:
+        if zone and note is None and not is_return:
             content.append(f".zone({zone[0]}, {zone[1]})")
 
         joined = ("\n" + " " * 12).join(content)
         call.append(f"        {verb}\n            {joined})")
+
+    for macro, ret_name in sorted(send_slots.items()):
+        call.append(f"        .sending({layout_var}.macro_{macro}, {ret_name!r})")
 
     got = variations.read(rack_dev)
     if got:
