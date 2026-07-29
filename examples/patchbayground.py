@@ -578,6 +578,34 @@ def pad_rack(name: str, sound: str) -> Rack | None:
     return rack
 
 
+# The two returns every pad can reach, and the selector inside each. A
+# return is a chain like any other, so a rack goes in one and the knob swaps
+# the EFFECT rather than only its level.
+#
+# Short and long, because that is the pair worth having on one kit: a room
+# that thickens a snare without smearing the grid, and a tail that survives
+# past the next hit.
+FX = Layout(Slot("Effect", selects=True), Slot("Amount"), Slot("Tone", start=64))
+
+SHORT_FX = (Rack.audio_effect("A-Short", FX)
+            .chain("room", Engine("Hybrid")
+                   .drives(FX.amount, "DryWet")
+                   .drives(FX.tone, "Algorithm_Damping"))
+            .chain("slap", Engine("Delay")
+                   .drives(FX.amount, "DryWet")
+                   .drives(FX.tone, "Filter_Frequency")
+                   .sets("Filter_On", True)))
+
+LONG_FX = (Rack.audio_effect("A-Long", FX)
+           .chain("hall", Engine("Hybrid")
+                  .drives(FX.amount, "DryWet")
+                  .drives(FX.tone, "Algorithm_Decay"))
+           .chain("echo", Engine("Echo")
+                  .drives(FX.amount, "DryWet")
+                  .drives(FX.tone, "Filter_LowPassFrequency")
+                  .sets("Filter_On", True)))
+
+
 def dr1() -> Rack | None:
     """The drum rack: eight pads, each a rack of samples. Three levels.
 
@@ -588,8 +616,23 @@ def dr1() -> Rack | None:
     Kit macros chain into every pad at once. Sound is the interesting one:
     one knob walks the sample choice across the whole kit, and a pad can be
     dived into on Push to move its own.
+
+    **Slots 5 and 6 mean different things at different depths, and that is
+    decided rather than accidental.** At kit level they are the two sends,
+    because a send is a kit-level idea: it exists once per return and every
+    pad has one. Inside a pad they stay Movement and Character, which is
+    what a single voice has to offer. The cost is that the layout is a
+    contract per LEVEL rather than per rack, and the label on each knob is
+    what says which level you are on.
     """
-    kit = Rack.drum("DR1", KIT)
+    kit = (Rack.drum("DR1", KIT)
+           # `unchained`, not `chaining`: a return's effects answer their
+           # own three knobs and no kit knob at all. The kit reaches a return
+           # through its send, which is what `sending` writes.
+           .ret("A-Rvb:Short", SHORT_FX.unchained())
+           .ret("A-Dly:Long", LONG_FX.unchained())
+           .sending(KIT.send_a, "A-Rvb:Short")
+           .sending(KIT.send_b, "A-Dly:Long"))
     chained = (KIT.sound, KIT.filter, KIT.drive, KIT.volume)
 
     built = 0
@@ -769,7 +812,59 @@ AFX1 = (Rack.audio_effect("AFX1", AFX)
                .drives(AFX.motion, "Spray")))
 
 
-STRIP: list[Rack] = [ARP1, MFX1, EQC, AFX1]
+# The second effect slot. Same layout as AFX1, so the two knobs mean the
+# same thing in both, and a deliberately different spread: AFX1 is
+# degradation, this is movement and space. `PATCHBAYGROUND.md` calls AFXS1
+# "freely editable", which is a rack to REPLACE chains in rather than a rack
+# to leave alone, and a shared layout is what makes replacing one cheap.
+AFXS1 = (Rack.audio_effect("AFXS1", AFX)
+         .chain("swirl", Engine("Chorus2")
+                .drives(AFX.amount, "DryWet")
+                .drives(AFX.tone, "Warmth")
+                .drives(AFX.motion, "Rate"))
+         .chain("sweep", Engine("PhaserNew")
+                .drives(AFX.amount, "DryWet")
+                .drives(AFX.tone, "CenterFrequency")
+                .drives(AFX.motion, "Modulation_Amount"))
+         .chain("ring", Engine("Resonator")
+                .drives(AFX.amount, "DryWet")
+                .drives(AFX.tone, "ResColor")
+                .drives(AFX.motion, "ResDecay"))
+         .chain("echo", Engine("Echo")
+                .drives(AFX.amount, "DryWet")
+                .drives(AFX.tone, "Filter_LowPassFrequency")
+                .drives(AFX.motion, "Feedback")
+                # Echo's filter section ships off, so Tone would reach a
+                # bypassed filter. Q16 again, on a third device.
+                .sets("Filter_On", True)))
+
+
+VOL = Layout(
+    Slot("Sub Cut"),
+    Slot("Pre Gain", start=64),
+    Slot("Ceiling", start=127),
+    Slot("Release", start=64),
+)
+
+# Last on the strip. Sub-Cut is Channel EQ's high-pass SWITCH rather than a
+# swept frequency: it is a plain boolean, where a swept cut would need
+# Eq8's band Mode, an enum nothing here has diffed. Q21.
+#
+# The limiter is what makes this the last device: Pre Gain pushes into it
+# and Ceiling says where the output stops.
+VOL1 = Rack.audio_effect("VOL1", VOL).chain(
+    "strip",
+    Engine("ChannelEq").drives(VOL.sub_cut, "HighpassOn")
+    .then(Engine("StereoGain")
+          .drives(VOL.pre_gain, "Gain", over=Range(-12.0, 12.0, "dB")))
+    .then(Engine("Limiter")
+          .drives(VOL.ceiling, "Ceiling", over=Range(-24.0, 0.0, "dB"))
+          .drives(VOL.release, "Release", over=Range(10.0, 3000.0, "ms"))
+          # Release is bound, so the limiter must not be choosing its own.
+          .sets("AutoRelease", False)))
+
+
+STRIP: list[Rack] = [ARP1, MFX1, EQC, AFX1, AFXS1, VOL1]
 
 RACKS: list[Rack] = [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None] + STRIP
 

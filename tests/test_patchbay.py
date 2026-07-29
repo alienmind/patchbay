@@ -15,6 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from patchbay import io, find, params, clone, diff, mappings, ids, variations  # noqa: E402
+from patchbay import dsl   # noqa: E402
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot   # noqa: E402
 
 RACKS = Path(__file__).resolve().parent.parent / "racks"
@@ -880,6 +881,87 @@ def test_a_device_with_no_id_is_refused_before_it_is_written():
         assert "Not all list members have Ids" in str(e)
     else:
         raise AssertionError("a document Live refuses must not pass the guard")
+
+
+def _kit_with_return(**kw):
+    g = Layout(Slot("Tune"), Slot("Verb"))
+    return g, (Rack.drum("K", g)
+               .pad("KICK", 36, Engine("DrumCell"), sends={"verb": 0.35})
+               .pad("SNARE", 38, Engine("DrumCell"))
+               .ret("verb", Engine("Reverb")))
+
+
+def test_a_return_chain_is_an_audio_effect_branch_whatever_the_parent():
+    """S9: `ReturnBranchPresets` is a sibling of `BranchPresets`, and its
+    members are `AudioEffectBranchPreset` even inside a drum rack."""
+    _, kit = _kit_with_return()
+    preset = find.preset(kit.build())
+    rets = find.return_branches(preset)
+    assert [b.tag for b in rets] == ["AudioEffectBranchPreset"]
+    assert [b.get("Id") for b in rets] == ["0"]
+    assert [d.tag for d in find.devices(rets[0])] == ["Reverb"]
+
+
+def test_every_chain_gets_a_send_per_return():
+    """Live seeds a send on every chain the moment a return appears, at the
+    silent floor, and `Index` is positional. A chain that names no level
+    still carries the entry (S9)."""
+    _, kit = _kit_with_return()
+    preset = find.preset(kit.build())
+    levels = {}
+    for branch in find.branches(preset) + find.return_branches(preset):
+        infos = list(next(branch.iter("SendInfos")))
+        assert [i.find("Index").get("Value") for i in infos] == ["0"]
+        levels[branch.find("Name").get("Value")] = (
+            infos[0].find("Send/Manual").get("Value"))
+    assert levels["KICK"] == "0.35"
+    assert levels["SNARE"] == str(dsl.SEND_FLOOR)
+    assert levels["verb"] == str(dsl.SEND_FLOOR)
+
+
+def test_a_send_to_a_return_that_does_not_exist_is_refused():
+    g = Layout(Slot("Tune"), Slot("Verb"))
+    kit = (Rack.drum("K", g)
+           .pad("KICK", 36, Engine("DrumCell"), sends={"nope": 0.5})
+           .ret("verb", Engine("Reverb")))
+    try:
+        kit.build()
+    except ValueError as e:
+        assert "not a return" in str(e)
+    else:
+        raise AssertionError("a send naming no return must be refused")
+
+
+def test_a_send_slot_drives_every_chains_send():
+    """T8's kit half: one knob for how much of the whole kit goes to a return."""
+    g, kit = _kit_with_return()
+    preset = find.preset(kit.sending(g.verb, "verb").build())
+    for branch in find.branches(preset):
+        got = {(m["macro"], m["target"]) for m in mappings.find(branch)}
+        assert (2, "Send") in got, f"{branch.find('Name').get('Value')}: no send mapping"
+    dev = find.rack_device(preset)
+    assert dev.find("AreSendsVisible").get("Value") == "true", (
+        "sends written but hidden in the chain list reads as sends that failed")
+
+
+def test_a_nested_rack_may_be_driven_by_nothing():
+    """`chaining()` is the identity default; `unchained()` is not the same thing.
+
+    A return's effects answer their own macros. Chaining them to the outer
+    rack by default would write a mapping nobody asked for, which is what
+    extraction used to emit for every return.
+    """
+    inner_layout = Layout(Slot("Tune"))
+    inner = Rack.audio_effect("FX", inner_layout).chain(
+        "verb", Engine("Reverb").drives(inner_layout.tune, "DecayTime"))
+
+    g = Layout(Slot("Tune"))
+    kit = Rack.drum("K", g).pad("KICK", 36, Engine("DrumCell")).ret(
+        "verb", inner.unchained())
+    branch = find.return_branches(find.preset(kit.build()))[0]
+    outer_driven = [m for m in mappings.find(branch)
+                    if m["target"].startswith("MacroControls.")]
+    assert outer_driven == []
 
 
 def test_a_chain_may_hold_several_devices_in_series():
