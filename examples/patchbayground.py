@@ -243,7 +243,18 @@ def trimmed(tag: str, r: Range) -> Range:
 #   morph       only Meld, whose filter Macro2 is the L-B-H-N morph. Q10.
 #   glide       everywhere, under four different names.
 
+# The two `sets` are H6, and they are Q16 one device over. Operator ships
+# with `Lfo/LfoOn` false and `Filter/LfoOn` false, so Macro 5 drove the
+# AMOUNT of a switched-off LFO into a filter it was not connected to. The
+# knob moved, the mapping resolved, nothing happened. Both are plain
+# booleans read off the donor, not an enum anybody guessed.
+#
+# Safe on every rack that uses FM, because Movement declares no start: the
+# macro opens at 0, so the LFO is enabled and contributing nothing until
+# the knob is turned.
 FM = (Engine("Operator")
+      .sets("Lfo/LfoOn", True)
+      .sets("Filter/LfoOn", True)
       .drives(PB.filter, "Filter/Frequency", over=CUTOFF)
       .drives(PB.filter, "Filter/Resonance", over=RESONANCE)
       .drives(PB.drive, "Filter/Drive")
@@ -428,10 +439,19 @@ BS1 = (Rack.instrument("BS1", PB)
 # Leads. FM first, per the spec, with Meld as the second colour. Slot 6 is
 # GLIDE, the one control a lead needs that a pad does not, and the rack where
 # the wildcard pays best: a mono lead lives on portamento.
+# H3: the glide TIME moved and nothing glided, because Operator ships with
+# `Globals/PortamentoOn` false. The enable sits on the rack rather than in
+# `FM`, because it belongs to the ROLE: PD1 and VA1 use the same profile
+# and spend slot 6 on attack, and turning portamento on there would smear
+# every pad they play. Only the rack that spends glide wants it.
+#
+# Meld's half is NOT here. Its `MeldVoice_Engine{A,B}_GlideMode` is 0, an
+# enum nobody has diffed, and rule 1 says a mode that is probably off is
+# exactly what must not be guessed. See E6.
 LD1 = (Rack.instrument("LD1", PB)
        .spends(PB.character, "glide")
        .label(PB.filter, PAIRED)
-       .chain("FM", FM)
+       .chain("FM", FM.sets("Globals/PortamentoOn", True))
        .chain("Meld", MELD))
 
 

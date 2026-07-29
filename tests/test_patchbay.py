@@ -845,6 +845,54 @@ def test_the_example_racks_still_build_the_same_bytes():
             f"if not, `patchbay diff` it against a build from before.")
 
 
+def test_a_bound_modulator_is_switched_on():
+    """H6 and Q16 are one defect: a mapping that resolves and reaches nothing.
+
+    Operator ships with `Lfo/LfoOn` false and `Filter/LfoOn` false, Drift
+    with a modulation row pointed somewhere else. In every case the macro
+    moved, the KeyMidi was valid, and only ears found it. So the enable is
+    asserted next to the binding that needs it.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    for rack in patchbayground.RACKS:
+        root = rack.build()
+        for op in root.iter("Operator"):
+            if find.param(op, "Lfo/LfoAmount") is None:
+                continue
+            if not params.is_mapped(find.param(op, "Lfo/LfoAmount")):
+                continue
+            for gate in ("Lfo/LfoOn", "Filter/LfoOn"):
+                assert params.raw_value(find.param(op, gate)) == "true", (
+                    f"{rack.name}: Lfo/LfoAmount is mapped with {gate} off, "
+                    f"so the knob moves and nothing does")
+        for drift in root.iter("Drift"):
+            if not params.is_mapped(find.param(drift, "Lfo_Amount")):
+                continue
+            assert drift.find("ModulationMatrix_Target1").get("Value") == "6", (
+                f"{rack.name}: Drift's LFO is bound but routed nowhere useful")
+
+
+def test_glide_is_only_enabled_where_a_rack_spends_it():
+    """The role owns the enable, not the engine profile.
+
+    PD1 and VA1 hold the same Operator profile and spend slot 6 on attack.
+    Portamento on there would smear every pad they play.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    on = {}
+    for rack in patchbayground.RACKS:
+        for op in rack.build().iter("Operator"):
+            got = params.raw_value(find.param(op, "Globals/PortamentoOn"))
+            on.setdefault(rack.name, set()).add(got)
+    assert on.get("LD1") == {"true"}, "LD1 spends glide"
+    for name in ("PD1", "VA1"):
+        assert on.get(name) == {"false"}, f"{name} does not spend glide"
+
+
 def test_bound_macros_do_not_open_at_zero():
     """Every rack in the example places the slots it binds.
 

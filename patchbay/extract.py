@@ -140,42 +140,43 @@ def _fmt_setting(text: str) -> str:
 
 
 def _settings_for(device) -> dict[str, str]:
-    """Direct-child values that differ from the donor this rebuilds from.
+    """Values that differ from the donor this rebuilds from, at any depth.
 
     A rebuild fills the device from the donor, so anything equal to the
     donor is already there and emitting it would be noise. What differs is
     either something a spec SET or something Live wrote, and both have to
     be said or the rebuild is a different device.
 
-    This is how Drift's modulation routing survives extraction: `Target1=6`
-    is a plain `Value` with no `Manual`, so no mapping records it and only
-    a `sets` line carries it (Q16).
+    Both kinds, because both are reachable by `sets` and neither is
+    recorded by a mapping: Drift's `ModulationMatrix_Target1` is a plain
+    value, Operator's `Lfo/LfoOn` is an ordinary parameter that happens to
+    be a switch, and a rack that forgets either gets a knob that moves
+    nothing.
     """
     try:
         donor = Library.default().instance(device.tag)
     except Exception:                     # a device the library has never seen
         return {}
-    was = {c.tag: c for c in donor if isinstance(c.tag, str)}
+
     out: dict[str, str] = {}
-    for child in device:
-        if not isinstance(child.tag, str) or child.tag in find.NON_PARAMS:
-            continue
-        before = was.get(child.tag)
+    now_p, was_p = find.all_params(device), find.all_params(donor)
+    for path, el in now_p.items():
+        before = was_p.get(path)
         if before is None:
             continue
-        manual = child.find("Manual")
-        if manual is not None:
-            now, then = manual.get("Value"), (
-                before.find("Manual").get("Value")
-                if before.find("Manual") is not None else None)
-        elif len(child) == 0:
-            now, then = child.get("Value"), before.get("Value")
-        else:
-            continue
-        if now is not None and now != then:
-            out[child.tag] = now
-    return out
+        a = el.find("Manual").get("Value")
+        b = before.find("Manual").get("Value")
+        if a is not None and a != b:
+            out[path] = a
 
+    now_s, was_s = find.settings(device), find.settings(donor)
+    for path, el in now_s.items():
+        before = was_s.get(path)
+        if before is None:
+            continue
+        if el.get("Value") != before.get("Value"):
+            out[path] = el.get("Value")
+    return out
 
 def _sample_targets(device) -> list[str]:
     """One path per sample: the LIVE FileRef, not the provenance one.

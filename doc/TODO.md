@@ -71,10 +71,10 @@ Ordered by what unblocks the most. Report by check number.
 |---|---|---|
 | **Q16b** | One knob, Drift's LFO depth | The diff landed. This decides which parameter Macro 5 binds |
 | **K** | Two donor racks, one load check | Widens the vocabulary and gates 54 donors nothing has loaded yet |
-| **H** | The new slots 3 and 6 | The reshape has never been HEARD. Its structure is now a test |
+| **H3b/H6b** | Two knobs on LD1 and PD1 | The switches are on now. Confirm the knobs finally do something |
 | **I** | Labels on Push | Eyes only. Nothing about a display is in the file |
-| **J** | Release, one check left | Whether 20 s is the right ceiling |
-| **D** | DR1 in depth | Unaffected by the reshape except D3 |
+
+| **D2b** | One knob inside a pad | Sound is the second macro, not the first |
 | **E** | Five one-change spikes | Each unblocks a separate feature. No hurry, no order |
 | **F1** | One deliberately broken zone | A refusal is a result |
 | **G1** | The MCP handlers | Blocks the whole Set-building half |
@@ -104,29 +104,38 @@ it. If K3 refuses or half-loads, all 51 harvested donors are suspect and
 the harvest has to go through preset form instead. Nothing depends on them
 yet, which is why this is cheap now and expensive later.
 
-### H. The new slot 3, and the new slot 6
+### H. The new slot 3, and the new slot 6 - MOSTLY ANSWERED
 
-Everything round B proved about slots 3 and 6 is void; those two knobs
-drive different parameters now. Slots 1, 2, 4 and 8 are unchanged and are
-not re-checked. Slot 7 is round J.
+H1, H2 passed in Live 12.4.3: BS1's Macro 3 sweeps comparably on all three
+engines and is playable at 127, so slot 3's pairing and its resonance range
+both stand.
 
-**The structural half is now a test and is not asked for here.** That slot
-3 drives a pair on every chain, that slot 6 reaches Meld and neither
-Wavetable nor Drift on BS1, and that it reaches both chains on PD1W and
-LD1, are all asserted in `tests/test_patchbay.py`. What is left is whether
-those mappings SOUND like what they are called, which nothing but ears
-answers.
+H3 and H6 found the same defect Q16 found, twice more. A macro was mapped,
+resolved, moved its target, and reached nothing because a SWITCH was off:
+
+| rack | knob | what was off | fixed by |
+|---|---|---|---|
+| LD1 | Macro 6, glide | Operator `Globals/PortamentoOn` = false | `sets` on LD1's FM chain only |
+| PD1, LD1, VA1 | Macro 5, movement | Operator `Lfo/LfoOn` AND `Filter/LfoOn` = false | `sets` on the FM profile |
+
+Both are plain booleans read off the donor, so neither is a guessed enum.
+`test_a_bound_modulator_is_switched_on` now asserts that a mapped
+`Lfo/LfoAmount` implies both switches, and a mapped Drift `Lfo_Amount`
+implies a routed row, so this class of defect fails a test rather than
+waiting for ears. Goldens moved for PD1, LD1 and VA1.
+
+The glide enable sits on the RACK, not on the FM profile: PD1 and VA1 hold
+the same profile and spend slot 6 on attack, and portamento there would
+smear every pad they play.
 
 | # | Rack | Do this | Should happen |
 |---|---|---|---|
-| H1 | BS1 | Macro 3 across all three engines | The sweep is comparable on all three. Report an engine that is obviously wider or narrower than the others |
-| H2 | BS1 | Macro 3 at 127 | Playable, not a scream. If it screams, slot 3's resonance half wants a narrower range |
-| H3 | PD1W, LD1 | Macro 6 on each chain | Attack softens on PD1W, glide on LD1. This is whether the role is the RIGHT parameter, not whether it is mapped |
-| H6 | LD1 | Macro 5 on FM | `Lfo/LfoAmount` is bound on Operator and its routing is Q16's question one device over. Anything at all, or nothing? |
+| H3b | LD1 | Macro 6 on the FM chain, playing a legato line | Notes now GLIDE. Report if the 50 ms donor default is too short to hear |
+| H6b | LD1, PD1 | Macro 5 on the FM chain | Filter wobbles, deepening with the knob |
 
-H6 is not covered by the test above and is the one that surprised: LD1's
-macro 5 IS mapped, on Operator, so "nothing until Q16" was only ever true
-of Wavetable and Meld.
+Meld's half of glide is NOT fixed and is E6 below: its
+`MeldVoice_Engine{A,B}_GlideMode` is 0, an enum nobody has diffed, and a
+mode that is probably off is exactly what rule 1 says not to guess.
 
 ### I. Do the labels read right on the hardware
 
@@ -154,11 +163,8 @@ written asked a person to confirm arithmetic.
 
 What a test cannot say is whether 20 s is the right ceiling.
 
-| # | Rack | Do this | Should happen |
-|---|---|---|---|
-| J3 | LD1 | Macro 7 at its 30 default, then full right | Playable at 30, and the long end is long enough to be worth having. Report if either end is useless |
-
-Expected still broken: Macro 5 on Wavetable and Meld, until Q16.
+J3 passed: 30 is playable and neither end is useless. The 0.01..20 s
+ceiling stands and round J is closed.
 
 ### Q16. Drift's LFO routing - DIFFED, one question left
 
@@ -192,25 +198,27 @@ line either way.
 Wavetable's LFO depth is still not in the parameter list at all and Meld
 has no equivalent, so Macro 5 stays empty on those two regardless.
 
-### D. DR1 in depth
+### D. DR1 in depth - ANSWERED, with one thing to re-check
 
-Unaffected by the reshape except D3, which now moves a pair.
+D1 and D3 passed: the kit's Sound walks every pad's sample at once and
+lands on a sample rather than between two, and Kit Macro 3 moves cutoff and
+resonance comparably across pads.
 
-D4 is a pure absence claim and D1 to D3 each have a structural half, so all
-four are largely answerable by the mapping matrix test. They are not yet,
-because DR1 needs `samples/` and this machine's checkout has none, so the
-test would be asserting nothing. **Extend
-`test_the_wildcard_slot_reaches_only_the_engines_that_offer_it` to DR1 on
-a machine that has the audio, and D4 goes away entirely.**
-
-What stays is whether the chaining does what its name says three levels
-down, which is the part the matrix cannot reach.
+D2 reported that diving into KICK and turning Sound moved every pad. The
+file says that cannot be what happened: each pad's chain selector is driven
+by that pad's OWN macro 2, and the kit reaches pads only through macros 1,
+3, 4 and 8, which is asserted by the mapping matrix test. The likely cause
+is which knob was turned. **Inside a pad, Sound is the SECOND macro**,
+because PAD keeps Instrument in slot 1 and leaves it unbound, so the first
+encoder does nothing and the second one steps.
 
 | # | Do this | Should happen |
-|---------|---------|---------------|
-| D1 | Kit Macro 1 (Sound), slowly, while playing a pad | Sample changes on EVERY pad at once, and lands on a sample rather than between two |
-| D2 | Dive into KICK on Push, turn its Sound knob | Only the kick's sample changes |
-| D3 | Kit Macro 3 (Filter + Res) | Cutoff and resonance on all pads, comparable across pads |
+|---|---|---|
+| D2b | Dive into KICK, turn the SECOND macro | Only the kick's sample changes |
+
+**That the first knob inside a pad is dead is a finding, not a slip.** It is
+T8 arriving in practice: one meaning per rack whatever the depth costs a
+knob at every level below the top. Worth weighing when T8 is decided.
 
 ### E. Spikes, each a one change diff
 
@@ -223,6 +231,11 @@ Save as the exact filename. One change only, nothing else touched.
 | E3 | Q3 velocity zone | Same rack, drag a VELOCITY zone | `racks/q3_vel_a.adg` / `_b.adg` |
 | E4 | Q5 tail | Load `build/probe_q5_unmapped.adg`, save it straight back out | `racks/q5_b.adg` |
 | E5 | S10 tail | Load `build/PD1.adg`, right-click Macro 3, read what the range UI offers | just tell me what you see |
+| E6 | Meld glide | Load `build/LD1.adg`, select Meld, turn glide ON for engine A only, nothing else | `racks/q17_a.adg`, and the same rack with it off as `racks/q17_b.adg` |
+
+E6 is the last of the mapped-but-switched-off family. Meld's
+`MeldVoice_EngineA_GlideMode` reads 0 and the enum is undiffed, so LD1's
+Macro 6 moves Meld's glide TIME and glides nothing. One diff closes it.
 
 ### F. Failure modes, where the answer may be "Live refused it"
 
