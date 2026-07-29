@@ -311,8 +311,11 @@ is what made the project feel bigger than it is.
 
 - Choosing which samples are good. A generator cannot judge a kick.
 - Sound design judgement. Generate wide, audition, cull.
-- Gain staging and mix balance. The `PEAK_DB` table is worth about 3 dB and
-  will not get better without a repeatable signal instead of a played note.
+- Gain staging and mix balance. A per-engine loudness trim lived in the
+  spec for a while and is buried in `THE_BASEMENT.md` with its
+  measurements: a number taken by ear is not structure, and no test can
+  check one. Volume ranges stop at each engine's own unity; trim on the
+  mixer.
 - Whether one knob feels comparable across engines. The RANGES that make it
   so are declared and tested; whether the result is musical is ears.
 - Assembling the Set: eight tracks, naming, routing, returns, tempo. Half

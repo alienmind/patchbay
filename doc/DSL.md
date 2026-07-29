@@ -312,58 +312,21 @@ SINGLY mapped macro and cannot undo this.
 
 The intersection above gets every engine to the same gain SETTING at the
 same knob position. It does not get them to the same loudness, and the
-difference is not small: on LD1 with Macro 8 full right, Operator peaks
-+6 dB and clips while Meld sits below zero, both at what their own volume
-parameter calls unity. What an engine puts out before its volume stage is
-a property of the engine.
+difference is not small: at what each engine's own volume parameter calls
+unity, these four span about 12 dB. What an engine puts out before its
+volume stage is a property of the engine.
 
-So a second number per engine. `examples/patchbayground.py` stores the
-MEASUREMENT, `PEAK_DB`, and derives the correction from it against one
-`TARGET_PEAK_DB`. Measured peaks at Macro 8 full right, Live 12.4.3:
+**The DSL does not correct for that, deliberately.** Every volume binding
+is capped at its engine's unity and stops there. A per-engine loudness trim
+was built, measured in Live and then removed: it is a number taken by ear,
+in one Set, on one set of patches, and no test can check it. The
+measurements are in `THE_BASEMENT.md` for whoever wants them. Gain staging
+is mixer work.
 
-| engine | peak | correction | range top |
-|---|---|---|---|
-| Operator | +4.4 dB | -12.4 dB | 0.240 |
-| Meld | -6.8 dB | -1.3 dB | 0.866 |
-| Drift | -5.8 dB | -2.2 dB | 0.776 |
-| Wavetable | -4.0 dB | -4.0 dB | 0.631 |
-
-Storing the measurement rather than the correction is what makes the table
-re-derivable: change the target and every number follows, and an engine
-that gets re-measured is one edit rather than an arithmetic problem. That
-paid immediately. Correcting from these figures and measuring again put
-Operator, Wavetable and Meld on -8 to within the meter's resolution and
-Drift 2.2 dB loud, so Drift's first reading was wrong; the fix was one
-number, and every other engine was unaffected.
-
-**There is a ceiling on the target, and it is not taste.** Wavetable's
-`Volume` and Drift's `Global_Volume` both max out at 1.0 amplitude
-natively, so neither can be driven above its own unity from a range,
-whatever a range says. Only Meld and Operator reach 1.995. So the target
-can never exceed the quietest engine that cannot be boosted. -8 sits below
-that with margin, every correction is a cut, and no correction can
-introduce clipping.
-
-Two things this is NOT. It is not a utility device after the rack, which
-would cost a device per chain and hide the correction from the declaration
-that caused it. And it does not apply to a range expressed in dB, like
-Simpler's `-36..0`, where a correction is a subtraction and not a ratio;
-that engine also plays whatever sample it is handed, so one measurement
-would only ever hold for one sample.
-
-One measurement here was derived rather than read: Operator clips at unity
-and a pinned meter reports nothing, so it was measured through a known
--6 dB trim and the trim added back. That is worth knowing before trusting
-any figure in a table like this one.
-
-**These figures are worth about 3 dB, and the table does not say what they
-were measured under.** Three passes over the same three engines gave
-`-4 / -8 / -6.75`, `-8 / -5.78 / -8` and `-7.34 / -8.75 / -12`, on files
-that had only the correction between them. A peak read off a played note
-depends on the note, the velocity and where the Filter macro sits, because
-cutoff is a gain stage; none of that was held fixed. The table did its job,
-which was killing a 12 dB spread that clipped, and it will not get past a
-few dB without a repeatable signal instead of a played note.
+One part of it is not taste and is worth keeping in mind when binding a
+volume slot. Wavetable's `Volume` and Drift's `Global_Volume` both max out
+at 1.0 amplitude natively, so a range cannot push either above its own
+unity whatever it says; only Meld and Operator reach 1.995.
 
 ## A chain may name its own sample
 

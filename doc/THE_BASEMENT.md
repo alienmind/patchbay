@@ -382,3 +382,42 @@ argument reverses and the file is still there.
 **Not killed by this:** `patchbay extract` reading a `.als` (T6c). That is
 the opposite direction, reading Live's files rather than driving Live, it
 needs no remote script, and it turns Sets you already own into input.
+
+## The per-engine loudness trim, `PEAK_DB`
+
+**Built, gated in Live, and removed anyway.** The spec file carried a table
+of measured output peaks, one per engine, and derived a correction against
+one target so that Macro 8 full right meant the same LOUDNESS on every
+engine rather than the same gain SETTING.
+
+Measured at Macro 8 full right, Live 12.4.3, on LD1 and BS1. Kept here
+because they were expensive to take and they are real:
+
+| engine | peak at unity | correction to -8 dBFS | range top |
+|---|---|---|---|
+| Operator | +4.4 dB | -12.4 dB | 0.240 |
+| Wavetable | -4.0 dB | -4.0 dB | 0.631 |
+| Meld | -6.8 dB | -1.3 dB | 0.866 |
+| Drift | -5.8 dB | -2.2 dB | 0.776 |
+
+Operator's figure is derived rather than read: at unity it clips and a
+pinned meter reports nothing, so it was measured at -1.62 through a -6 dB
+trim. Meld was measured twice on two racks, -6.74 and -6.75, which is what
+says these are engine properties rather than patch properties.
+
+**What killed it.** It is a measurement by ear, in one Set, on one set of
+patches, and the DSL declares STRUCTURE. Nothing in the spec can state it,
+no test can check it, and a Simpler figure would only hold for the sample
+it was measured with. The table also read as settled fact in a file whose
+other numbers are all derived from parameter ranges, which is the wrong
+company for a number somebody heard once.
+
+**Replaced by:** volume ranges capped at each engine's own unity, and
+nothing else. Gain staging is mixer work and is listed under standing
+manual work in `TODO.md`, beside sample choice and sound design judgement.
+
+**What survives:** the reasoning about a CEILING, which is not taste.
+Wavetable's `Volume` and Drift's `Global_Volume` both max at 1.0 amplitude
+natively, so neither can be pushed above its own unity by a range whatever
+the range says. Any future target above -4 dBFS is unreachable for two of
+the four engines.
