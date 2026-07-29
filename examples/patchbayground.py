@@ -169,6 +169,18 @@ VOLUME = Range(0.0, 1.0, "amplitude")
 # are absurd as seconds.
 RELEASE_MS = RELEASE.scaled(1000.0)
 
+# Glide, and the same unit split as release: Operator keeps portamento in
+# MILLISECONDS at 0.1..10000, Wavetable in seconds at 0..20, Drift in
+# seconds at 0..2. So the intersection is 0.01..2 s, and Drift is what
+# caps it.
+#
+# H3b is why this is ranged rather than left native. Operator's full
+# 0.1..10000 ms through a logarithmic taper (Q15) puts the geometric mean
+# at macro 64, which is 32 ms: a glide nobody can hear across half the
+# knob's travel. Ranged, macro 64 lands near 140 ms, which is a glide.
+GLIDE = Range(0.01, 2.0, "s")
+GLIDE_MS = GLIDE.scaled(1000.0)
+
 # What each engine actually PUTS OUT with the Volume slot full right, in
 # dBFS, measured in Live 12.4.3 on LD1 and BS1.
 #
@@ -270,7 +282,7 @@ FM = (Engine("Operator")
       .drives(PB.volume, "Globals/Volume",
               over=trimmed("Operator", Range(0.0003162277571, 1.0, "amplitude")))
       .offers("attack", "Operator.0/Envelope/AttackTime")
-      .offers("glide", "Globals/PortamentoTime")
+      .offers("glide", "Globals/PortamentoTime", over=GLIDE_MS)
       .offers("saturation", "Shaper/Drive"))
 
 # The SAME layout slots as FM, on different synthesis. That correspondence
@@ -292,7 +304,7 @@ SAMPLER = (Engine("OriginalSimpler")
            # once would only hold for that sample.
            .drives(PB.volume, "VolumeAndPan/Volume", over=Range(-36.0, 0.0, "dB"))
            .offers("attack", "VolumeAndPan/Envelope/AttackTime")
-           .offers("glide", "Globals/PortamentoTime"))
+           .offers("glide", "Globals/PortamentoTime", over=GLIDE_MS))
 
 # Wavetable leaves Movement empty, deliberately. Its LFO depth lives in a
 # modulation matrix that is not in the parameter list at all, and
@@ -307,7 +319,7 @@ WAVE = (Engine("InstrumentVector")
                 over=RELEASE)
         .drives(PB.volume, "Volume", over=trimmed("InstrumentVector", VOLUME))
         .offers("attack", "Voice_Modulators_AmpEnvelope_Times_Attack")
-        .offers("glide", "Voice_Global_Glide"))
+        .offers("glide", "Voice_Global_Glide", over=GLIDE))
 
 # No Drive: Drift exposes no drive parameter at all.
 #
@@ -340,7 +352,7 @@ DRIFT = (Engine("Drift")
          .drives(PB.release, "Envelope1_Release", over=RELEASE)
          .drives(PB.volume, "Global_Volume", over=trimmed("Drift", VOLUME))
          .offers("attack", "Envelope1_Attack")
-         .offers("glide", "Global_Glide"))
+         .offers("glide", "Global_Glide", over=GLIDE))
 
 # Meld is two synthesis engines behind one device, and every A-side path has
 # a B twin, so each slot names both. Binding only A was gated in Live 12.4.3
@@ -369,7 +381,7 @@ MELD = (Engine("InstrumentMeld")
         .offers("attack", "MeldVoice_EngineA_AmpEnvelope_Times_Attack",
                 "MeldVoice_EngineB_AmpEnvelope_Times_Attack")
         .offers("glide", "MeldVoice_EngineA_GlideTime",
-                "MeldVoice_EngineB_GlideTime")
+                "MeldVoice_EngineB_GlideTime", over=GLIDE)
         .offers("morph", "MeldVoice_EngineA_Filter_Macro2",
                 "MeldVoice_EngineB_Filter_Macro2"))
 
