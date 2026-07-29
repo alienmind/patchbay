@@ -214,9 +214,8 @@ Every item below was gated by loading the output in Live 12.4.3.
 - setting device controls no mapping can reach, which is how a modulation
   routing gets written at all
 
-Two more are written and tested but have not yet been loaded in Live, so
-they are listed apart from the gated ones above: **several devices in one
-chain**, which is what a channel strip is, and **MIDI effect racks**.
+- several devices in one chain, which is what a channel strip is
+- MIDI effect racks
 
 `patchbay extract` prints the declaration for a saved rack: chains, device
 types, bindings with their ranges, zones, samples, macro positions, labels,
