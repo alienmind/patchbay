@@ -1527,8 +1527,48 @@ have now been found by loading one file, and a third is not ruled out by
 anything. T6c still needs the full mapping before it can read racks out of
 a Set, and K3b is the retest again.
 
+## Q18. The sidechain source is not in preset form - ANSWERED
+
+**Evidence:** `racks/q18_a.adg` and `racks/q18_b.adg`, one Compressor on a
+track in a Set that has a DR1 track, dragged to the browser twice: first
+with the sidechain off, then with it on and its source set to DR1.
+
+`patchbay diff --all` over the pair reports ONE changed fact:
+
+    Compressor2/SideChain/OnOff/Manual@Value   false -> true
+
+`SideChain/RoutedInput/Routable/Target` reads `AudioIn/None` in BOTH files,
+beside `UpperDisplayString = No Output`, with the source selected in Live
+at the moment of the drag. The rest of the diff is `PresetRef` churn from
+saving under a second name.
+
+**So a device preset does not carry its sidechain source.** The routing
+belongs to the Set, and dragging a device chain to the browser leaves it
+behind. Q18c is the same answer from the other direction: dropped into a
+Set with no DR1 track, the enable came back ON and the source read
+`No input`.
+
+**What this settles for C4.** Every part of the sidechain except the source
+is an ordinary parameter on `Compressor2` and `sets` writes it:
+
+    SideChain/OnOff                       the External toggle
+    SideChainEq/On /Mode /Freq /Q /Gain   the band that ignores hats
+    SideChain/DryWet                      how much of the duck lands
+    SideChain/RoutedInput/Volume          input trim
+    SideListen                            audition the sidechain input
+
+Picking the source stays one dropdown per track, by hand, and it is on the
+Standing manual work list rather than the backlog. Nothing here can be
+automated by trying harder: the fact is not in the file format we author.
+
+**The External toggle is `SideChain/OnOff`.** The sidechain does nothing
+until it is true, whatever the source says, which is the same shape as
+Q16: a routing behind a switch.
+
 ## S11. .als track structure
 
-TBD - routing, sidechain source, return tracks.
+TBD - routing and return tracks. The sidechain source is answered above:
+it is not in a `.adg`. Whether an `.als` stores it by track name or by id
+is still unknown, and only matters if PatchBay ever writes a Set.
 
 

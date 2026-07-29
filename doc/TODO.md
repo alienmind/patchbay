@@ -16,13 +16,8 @@ nothing in that column can be done from code.
 
 | # | Who | Task | Unblocks |
 |---|---|---|---|
-| **K3b** | you | Drag `build/K3_als_donor.adg` onto any track. Loads clean? | 48 donors, and with them C1 to C4 |
-| **K1** | you | Audio Effect Rack: Channel EQ, Tuner, Spectrum, Auto Shift, one chain, defaults, save `donors/AM_fx.adg` | C3 |
-| **K2** | you | MIDI Effect Rack: Arpeggiator, Note Length, defaults, save `donors/AM_midi.adg` | C2 |
-| **K4** | you | Audio Effect Rack: Phaser-Flanger, Resonators, Utility, defaults, save `donors/AM_fx2.adg` | C1, VOL1 |
-| **Q18a/b** | you | Compressor in a rack, sidechain off then on and sourced from DR1. Save `racks/q18_a.adg` / `_b.adg` | C4's source half |
-| **Q18c** | you | Drag `q18_b.adg` into a Set with no DR1 track. Does the source survive? | Decides if C4 is fully automatable |
-| **F1** | you | Drag `build/Q7_bad_zone.adg`. Repaired, refused, or broken? | Whether the DSL guards the zone invariant |
+| **K3b** | you | Drag `build/K3_als_donor.adg` onto an AUDIO track. Loads clean? | 48 donors, and with them C1 to C4 |
+| **F1** | you | Drag `build/Q7_bad_zone.adg` onto a MIDI track. Repaired, refused, or broken? | Whether the DSL guards the zone invariant |
 | **C1** | code | AFX1: eight effects behind one selector | The last big tedium. Answers Q6 on the way |
 | **C2** | code | ARP1 and MFX1 | Channel strip |
 | **C3** | code | EQC | Channel strip |
@@ -35,6 +30,11 @@ nothing in that column can be done from code.
 Optional spikes, none blocking: **Q17** (Meld glide mode), **Q2**
 (aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
 (send taper), the **S10** and **Q5** tails.
+
+Donors for the whole channel strip are in: `ChannelEq`, `Tuner`,
+`SpectrumAnalyzer`, `AutoShift`, `MidiArpeggiator`, `MidiNoteLength`,
+`PhaserNew`, `Resonator`, `StereoGain`. Two tags are not the GUI name:
+Spectrum is `SpectrumAnalyzer`, Resonators is `Resonator`.
 
 ## Status
 
@@ -98,15 +98,13 @@ zones distributed, one macro each.
 `PATCHBAYGROUND.md` asks for a spread across degradation, time and space
 rather than eight flavours of one idea: glitch, tear, erode, grind, reduce,
 soak, stretch, fade. Which device serves which is a taste call and yours.
-*Donors: 9 of 11 candidates are indexed. Phaser and Resonators are not.*
+*Donors: all 11 candidates are indexed.*
 
-**C2. ARP1 and MFX1.** Two small MIDI racks. MFX1's four devices are all
-indexed already; ARP1 needs the donors in K2.
-*Cheap once the donors land.*
+**C2. ARP1 and MFX1.** Two small MIDI racks, every device indexed.
 
 **C3. EQC.** Five devices, carrying Lo-Hi EQ, EQ dry/wet, compressor
-dry/wet, gain, and the sidechain.
-*Donors: `ChannelEq` and `Utility` are missing.*
+dry/wet, gain, and the sidechain. Every device indexed; Utility is
+`StereoGain`.
 
 **C4. The sidechain, on every track.** This is the tedious one, and it was
 wrongly written off as manual. `PATCHBAYGROUND.md` sidechains EQC's
@@ -116,43 +114,32 @@ tracks plus returns, each with an enable, an EQ mode, a frequency, a Q, a
 dry/wet and a source: that is the shape of thing this project exists to
 stop doing by hand.
 
-**Most of it is reachable today.** Reading the `Compressor2` donor rather
-than searching for the feature turns up the whole mechanism, and every part
-but the source is an ordinary parameter that `sets` writes:
+**Everything but the source is reachable today**, as ordinary parameters
+that `sets` writes:
 
-    SideChain/OnOff                       enable
+    SideChain/OnOff                       the External toggle
     SideChainEq/On /Mode /Freq /Q /Gain   the low band that ignores hats
     SideChain/DryWet                      how much of the duck lands
     SideChain/RoutedInput/Volume          input trim
+    SideListen                            audition the sidechain input
 
-So C4 splits. The compressor's whole sidechain CONFIGURATION can be
-declared now, with no new capability and no donor. What is unknown is the
-SOURCE, which is Q18 below, and until that lands the manual step shrinks
-from configuring a sidechain per track to picking a source from a dropdown
-per track.
+**The source is not automatable, and Q18 settled why.** A device preset
+does not carry it: `Target` reads `AudioIn/None` in a file saved with the
+source pointed at DR1, and a rack dropped into another Set comes back with
+the enable ON and the source at `No input`. Picking it is one dropdown per
+track, by hand, and it is on the Standing manual work list. See Q18 in
+`SCHEMA.md`.
+*Ready to build. Nothing blocks it.*
 
-**No ghost track**, per the spec: the source is DR1 itself. That matters
-for Q18, because a reference to a real track is exactly the kind that may
-not survive being dragged into a different Set.
-*Wants Q18 for the source. Everything else can start now.*
-
-### K. Donors: three racks to save, one file to load
-
-C1 to C3 are blocked on the saves. K3 is the one that can fail, and it is
-worth doing before anything depends on a harvested donor.
-
-Defaults are wanted, not settings: a donor is for the parameter list and
-each parameter's native range.
-
-| # | Do this | Save as |
-|---|---|---|
-| K1 | New Audio Effect Rack. One each of Channel EQ, Tuner, Spectrum, Auto Shift into ONE chain, all at defaults | `donors/AM_fx.adg` |
-| K2 | New MIDI Effect Rack. One each of Arpeggiator, Note Length, all at defaults | `donors/AM_midi.adg` |
-| K4 | New Audio Effect Rack. One each of Phaser-Flanger, Resonators, Utility, all at defaults | `donors/AM_fx2.adg` |
+### K3b. One file to load
 
 | # | Do this | Should happen |
 |---|---|---|
-| K3b | Drag `build/K3_als_donor.adg` onto any track. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+| K3b | Drag `build/K3_als_donor.adg` onto an AUDIO track. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+
+Live refuses a drop of the wrong kind before it reads the file, so a
+refusal on the wrong track type says nothing about the file. This one is an
+`AudioEffectGroupDevice` and wants an audio track.
 
 **K3 has fired twice and caught a different defect each time.** Both are
 Set form leaving something behind, both are fixed in `_make_chains`, and
@@ -178,10 +165,15 @@ the log names the next one.
 
 | # | File | Question | What to report |
 |---|---|---|---|
-| F1 | `build/Q7_bad_zone.adg` | Chain 2's zone is inverted: Min 120, Max 20, crossfades outside both | Does it load? Repaired, refused, or loaded broken? |
+| F1 | `build/Q7_bad_zone.adg`, onto a MIDI track | Chain 2's zone is inverted: Min 120, Max 20, crossfades outside both | Does it load? Repaired, refused, or loaded broken? |
 
 A refusal is a RESULT here, not a problem. It decides whether the DSL has
 to guard the invariant or can leave it to Live.
+
+**The file is an `InstrumentGroupDevice` and needs a MIDI track.** Dropped
+on an audio track Live answers *"Only audio effects can be loaded on an
+audio track"* without reading it, which is a fact about track types and not
+about the zone.
 
 ### Rounds A to J are closed
 
@@ -312,26 +304,6 @@ EFFECT rather than the send level. The pieces are known separately, the
 combination is untested. **C1 is the same mechanism one level up**, so
 building AFX1 answers most of this for free.
 
-**Q18. Where the sidechain source lives, and whether it travels.** The
-enable, the EQ and the dry/wet are ordinary parameters and need no spike.
-The SOURCE is a plain setting,
-`SideChain/RoutedInput/Routable/Target`, reading `AudioIn/None` in the
-donor, beside `UpperDisplayString = No Output`. Two things are unknown and
-one diff plus one drag answers both.
-
-| # | Do this | Save as |
-|---|---|---|
-| Q18a | In a Set with a DR1 track, put a Compressor on another track, sidechain OFF, defaults. Drag that track's device chain to the browser | `racks/q18_a.adg` |
-| Q18b | Turn the sidechain ON and set its source to the DR1 track. Change nothing else. Drag it out again | `racks/q18_b.adg` |
-| Q18c | Drag `racks/q18_b.adg` onto a track in a DIFFERENT Set, one with no track named DR1 | report what the sidechain source reads |
-
-Q18a and Q18b give the `Target` string for a real track. Q18c is the one
-that decides whether this is worth automating at all: if the reference is
-by track id it will not resolve in another Set, and if it is by NAME it
-will, which is also what `MCP.md` flags as the fragile part of routing.
-Either answer is useful. A source that does not travel means PatchBay
-writes the configuration and a person picks the source once per track.
-
 **Q17. Meld's glide mode.** `MeldVoice_Engine{A,B}_GlideMode` reads 0 and
 the enum is undiffed, so LD1's Macro 6 moves Meld's glide TIME and glides
 nothing. The last of the mapped-but-switched-off family. Load
@@ -389,8 +361,8 @@ is what made the project feel bigger than it is.
   so are declared and tested; whether the result is musical is ears.
 - Assembling the Set: eight tracks, naming, routing, returns, tempo. Half
   an hour, once. See `THE_BASEMENT.md` for why this is not automated.
-- Picking the sidechain SOURCE, if Q18c shows the reference does not
-  survive a drag into another Set. The configuration around it is not
+- Picking the sidechain SOURCE, one dropdown per track. Q18 showed a device
+  preset does not carry it at all. The configuration around it is not
   manual: see C4.
 - Confirming a mapped macro DOES something. WHICH mappings exist is not
   manual: `patchbay mappings` reads them out of the file, the matrix is
