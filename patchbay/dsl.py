@@ -1001,7 +1001,14 @@ class Rack:
                 holder = wrapper.find("Device")
                 for child in list(holder):
                     holder.remove(child)
-                holder.append(self.library.instance(chain.device))
+                # Both Ids are one rule a level apart: each node is the only
+                # member of its holder, so each is member 0. The device's own
+                # is the one easy to miss, because a donor lifted out of a
+                # `.als` arrives without it and Live then refuses the whole
+                # document rather than the device. See Q9.
+                device = self.library.instance(chain.device)
+                device.set("Id", "0")
+                holder.append(device)
                 wrapper.set("Id", "0")
                 devices.append(wrapper)
 

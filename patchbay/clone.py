@@ -158,12 +158,44 @@ def check(root):
     return collisions(root)
 
 
+def missing_device_ids(root):
+    """Device nodes sitting in a preset holder with no `Id` of their own.
+
+    The second id rule, and it cost a Live check to find. A device inside
+    `AbletonDevicePreset/Device` is a LIST MEMBER, and Live refuses the
+    whole document if one lacks an `Id`:
+
+        Exception: Not all list members have Ids.
+        The document "..." is corrupt and cannot be loaded.
+
+    Every rack Live has saved here writes `Id="0"` there, because the
+    holder holds exactly one device. A device lifted out of a `.als` does
+    not: in Set form it is a member of `Devices` and carries its position
+    in the track, and losing that on the way out leaves nothing behind.
+    See Q9 in `SCHEMA.md`.
+    """
+    out = []
+    for holder in root.iter("Device"):
+        for child in holder:
+            if isinstance(child.tag, str) and child.get("Id") is None:
+                out.append(child.tag)
+    return out
+
+
 def assert_loadable(root):
     """Raise if the tree would be refused by Live.
 
     Fail loudly: a corrupt .adg that Live silently half-loads is worse
     than one it rejects, and here we can know in advance.
     """
+    no_id = missing_device_ids(root)
+    if no_id:
+        raise ValueError(
+            f"{len(no_id)} device node(s) with no Id: "
+            f"{', '.join(sorted(set(no_id)))}. Live refuses the whole "
+            f"document with 'Not all list members have Ids'. A donor "
+            f"harvested from a .als carries no Id here; see Q9.")
+
     bad = check(root)
     if bad:
         lines = "\n".join(

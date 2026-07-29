@@ -1450,6 +1450,52 @@ on switches and routing the parameter list does not mention.
 `test_a_bound_modulator_is_switched_on` asserts the pairing for both
 devices, so this fails in pytest rather than in a room.
 
+## Q9. Set form versus preset form - PARTLY ANSWERED, and it bit
+
+**Evidence:** `build/K3_als_donor.adg`, a three chain audio effect rack
+built entirely from donors harvested out of a `.als`. Live 12.4.3 refused
+it, on an audio track and on a MIDI track alike:
+
+    Exception: Not all list members have Ids.
+    Exception: The document "...uild\K3_als_donor.adg" is corrupt and
+    cannot be loaded. (Not all list members have Ids. (at line 450,
+    column 19))
+
+Line 450 is the `<AutoFilter>` element itself, sitting inside
+`AbletonDevicePreset/Device`, and it carried no `Id` attribute.
+
+**So there is a SECOND id rule.** The first is S6: an `Id` must be unique
+among its siblings. The second is that a list member must HAVE one at all.
+A device node inside a preset holder is a list member.
+
+| source | `<Device>` child | loads |
+|---|---|---|
+| every rack Live saved here | `Id="0"` | yes |
+| donor harvested from a `.adg` | `Id="0"` | yes |
+| donor harvested from a `.als` | no `Id` | **refused** |
+
+The holder holds exactly one device, so the member is number 0 and every
+Live-written file says `Id="0"`. In Set form the same device is a member of
+the track's `Devices` list and carries its position there instead; lifting
+it out dropped the attribute and put nothing back.
+
+**48 of 56 indexed donors were affected**, which is every device the
+harvest took out of a Set. Nothing caught it. Ids were unique, every
+mapping resolved, `patchbay check` passed, and `clone.assert_loadable`
+only ever looked for collisions.
+
+**Fixed** by writing `Id="0"` on the device as it is placed in a chain,
+which is where the rack already writes the wrapper's own `Id="0"`: the same
+rule one level apart. `clone.missing_device_ids` now refuses a tree that
+lacks one, so this class fails before a file is written rather than in
+Live.
+
+**What is still open** is whether an Id is the ONLY difference between the
+two forms. It is the only one this file hit, and the rack now loads as far
+as the guard can tell, but that is a claim about one refusal and not about
+the two serialisations being otherwise identical. T6c still needs the full
+mapping before it can read racks out of a Set.
+
 ## S11. .als track structure
 
 TBD - routing, sidechain source, return tracks.

@@ -845,6 +845,43 @@ def test_the_example_racks_still_build_the_same_bytes():
             f"if not, `patchbay diff` it against a build from before.")
 
 
+def test_a_device_node_carries_its_own_id():
+    """Q9's second id rule, and it cost a Live check to find.
+
+    A device inside `AbletonDevicePreset/Device` is a list member, and Live
+    refuses the WHOLE document if one lacks an Id:
+
+        Exception: Not all list members have Ids.
+        The document "..." is corrupt and cannot be loaded.
+
+    48 of 56 donors carried no Id, every one of them harvested out of a
+    `.als`, where the device is a member of the track's `Devices` instead.
+    Nothing caught it: ids were unique, every mapping resolved, and
+    `patchbay check` passed.
+    """
+    g = Layout(Slot("Effect", selects=True), Slot("Cutoff"))
+    rack = (Rack.audio_effect("K3", g)
+            .chain("AutoFilter", Engine("AutoFilter").drives(g.cutoff, "Cutoff"))
+            .chain("Echo", Engine("Echo")))
+    for branch in find.branches(find.preset(rack.build())):
+        for dev in find.devices(branch):
+            assert dev.get("Id") is not None, f"<{dev.tag}> has no Id"
+
+
+def test_a_device_with_no_id_is_refused_before_it_is_written():
+    """Fail loudly. This one reached a file and a person before it was caught."""
+    g = Layout(Slot("Effect", selects=True))
+    root = Rack.audio_effect("X", g).chain("A", Engine("Echo")).build()
+    dev = find.devices(find.branches(find.preset(root))[0])[0]
+    del dev.attrib["Id"]
+    try:
+        clone.assert_loadable(root)
+    except ValueError as e:
+        assert "Not all list members have Ids" in str(e)
+    else:
+        raise AssertionError("a document Live refuses must not pass the guard")
+
+
 def test_a_bound_modulator_is_switched_on():
     """H6 and Q16 are one defect: a mapping that resolves and reaches nothing.
 

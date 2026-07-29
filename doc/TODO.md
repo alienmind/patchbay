@@ -125,19 +125,22 @@ each parameter's native range.
 
 | # | Do this | Should happen |
 |---|---|---|
-| K3 | Drag `build/K3_als_donor.adg` onto an **AUDIO track**, or onto a MIDI track that already holds an instrument. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+| K3b | Drag `build/K3_als_donor.adg` onto any track. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
 
-**It is an `AudioEffectGroupDevice`, so a bare MIDI track will not take it**
-and the cursor never arms. That is Live's rule about where audio effects can
-live, not a verdict on the file, and it is a different outcome from Live
-reading the file and refusing it. Asked for on a MIDI track once, and the
-answer was "not even draggable", which says nothing about Q9 either way.
+**K3 already fired, and it caught what it was written to catch.** Live
+refused the file outright: *"Not all list members have Ids"*, pointing at
+the `<AutoFilter>` element, which carried no `Id`. Every device harvested
+out of a `.als` was missing it, 48 of 56 donors, and nothing here noticed
+because ids were unique, mappings resolved and `patchbay check` passed.
 
-K3 is a real risk, not a formality. Every harvested donor was lifted out of
-a `.als`, and whether a device node is serialised identically in Set form
-and preset form is Q9, which is open. Id checks pass and say nothing about
-it. If K3 refuses or half-loads, all 51 harvested donors are suspect and
-the harvest has to go through preset form instead.
+The rack now writes `Id="0"` on the device as it places it, and
+`clone.assert_loadable` refuses a tree without one. `SCHEMA.md` has the
+evidence under Q9. **K3b is the retest**, against a rebuilt file.
+
+What K3b cannot tell us is whether the Id was the ONLY difference between
+Set form and preset form. If it loads, the 48 donors are usable and the
+channel strip is unblocked. If it still refuses, the harvest has to go
+through preset form and the log will say why.
 
 ### F1. One deliberately broken zone
 
