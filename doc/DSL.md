@@ -9,8 +9,7 @@ readily as a literal does.
 `PATCHBAYGROUND.md` line 60: *"This consistency is the actual product, more
 than any individual rack."* The macro layout is identical across every
 instrument rack. Six racks sharing one layout is a program, not a
-document - in YAML you would copy the layout six times and watch it
-drift.
+document - in YAML you would copy the layout six times and watch it drift.
 
 Three further pressures point the same way:
 
@@ -31,92 +30,213 @@ promise; expressed through a shared layout it is structural.
 ## The shape
 
 ```python
-PUSH = Layout("Instrument", "Sound", "Filter", "Drive",
-               "Movement", "Character", "Release", "Volume",
-               selector="Instrument")
+PB = Layout(
+    Slot("Instrument", label="> Instrument", selects=True),
+    Slot("Sound"),
+    Slot("Filter", start=127),
+    Slot("Release", start=30),
+    Slot("Volume", start=127),
+)
 
-rack = Rack("PD1", PUSH, kind=RackKind.INSTRUMENT)
+CUTOFF = Range(30.0, 18500.0, "Hz")
+RELEASE = Range(0.01, 20.0, "s")
 
-with rack.engine("FM", "Operator") as e:
-    e.bind(filter=("Filter/Frequency", 30, 18500),
-           character="Filter/Resonance",
-           release=("Operator.0/Envelope/ReleaseTime", 10, 20000),
-           volume=("Globals/Volume", 0.0003162277571, 1.0))
+FM = (Engine("Operator")
+      .drives(PB.filter, "Filter/Frequency", over=CUTOFF)
+      .drives(PB.release, "Operator.0/Envelope/ReleaseTime",
+              over=RELEASE.scaled(1000.0))
+      .offers("attack", "Operator.0/Envelope/AttackTime")
+      .offers("glide", "Globals/PortamentoTime"))
 
-with rack.engine("Sample", "OriginalSimpler") as e:
-    e.bind(filter=("Filter/Slot/Value/SimplerFilter/Freq", 30, 18500),
-           character="Filter/Slot/Value/SimplerFilter/Res",
-           release=("VolumeAndPan/Envelope/ReleaseTime", 10, 20000),
-           volume=("VolumeAndPan/Volume", -36.0, 0.0))
+SAMPLER = (Engine("OriginalSimpler")
+           .drives(PB.filter, "Filter/Slot/Value/SimplerFilter/Freq",
+                   over=CUTOFF)
+           .drives(PB.release, "VolumeAndPan/Envelope/ReleaseTime",
+                   over=RELEASE.scaled(1000.0))
+           .offers("attack", "VolumeAndPan/Envelope/AttackTime"))
 
-rack.variations(Variation("dark", filter=30, release=110),
-                Variation("open", filter=120, release=20))
+PD1 = (Rack.instrument("PD1", PB)
+       .chain("FM", FM)
+       .chain("Sample", SAMPLER)
+       .variations(PB.variation("dark", filter=30, release=110)))
 
-rack.save("build/PD1.adg")
+PD1.save("build/PD1.adg")
 ```
 
 The declaration is not "build a rack". It is **"bind this engine's
 parameters to the standard layout"**. Everything else follows:
 
-- one engine is one chain
+- one chain is one engine, or one nested rack
 - chain-select zones are distributed evenly across 0..127
-- the layout's `selector` slot drives the chain selector
+- the layout's selector slot drives the chain selector
 - the same layout slot means the same macro in every engine, which *is*
   the sound family constraint
 
-## The Layout selector
+Two properties hold throughout, and most of the shape above is downstream
+of them.
 
-`Layout(..., selector="Instrument")` says which slot drives the chain
-selector. It defaults to `"engine"` and may be `None` for a layout with
-no selector at all, such as a drum kit whose macro 1 is Tune.
+**One verb per relation.** `drives` binds a slot to a device parameter,
+`offers` says what an engine could serve, `spends` picks which of those a
+rack wants, `chain` and `pad` add chains, `chaining` puts a rack inside
+one. Nesting cannot be misread as parameter binding, because they are not
+the same call.
 
-## A chain may name its own sample
+**Values, not mutation.** Every builder returns a new object, so a layout,
+an engine profile or a sub-rack can sit in two racks without one build
+reaching the other. `PD1.variations(...)` is a new rack; `PD1` is not
+touched.
+
+An earlier surface had neither, and what that cost is in `THE_BASEMENT.md`.
+
+## Why it is called a Layout
+
+The object is an ordered list of named slots, plus which one drives the
+chain selector, plus where each knob rests. A rack takes one as an
+argument and binds its own parameters to it.
+
+QWERTY is the analogy and it is exact. A keyboard layout is shared across
+many different physical keyboards precisely so the skill transfers, the
+position carries the meaning, and the keycap is local paint. That is this
+object, slot for slot, and it is what `PATCHBAYGROUND.md` has claimed from
+its first draft: "identical across every instrument rack so muscle memory
+transfers".
+
+It was called a Grammar until it was not. See `THE_BASEMENT.md`.
+
+## A slot carries everything about itself
+
+`Slot` is one macro: its name, where it opens, what the hardware calls it,
+and whether it drives the chain selector. Stated once, in one place.
+
+`PB.filter` is the slot itself, not the string `"Filter"`, so a typo
+raises at the layout rather than at the binding that uses it. `Send A`
+answers to `send_a`: the word on the hardware and the Python name are
+already two things, and this finishes the split.
+
+**The selector is named, not fixed.** `selects=True` says which slot
+drives the chain selector, and a layout where no slot claims it gets no
+selector mapping at all. That is not a corner case: a drum rack's macro 1
+is Tune, and a pad is chosen by its `ReceivingNote`. Two slots claiming it
+raises, because a rack has one chain selector.
+
+**A slot says where its knob opens.** Binding a slot is half the job. The
+other half is where the knob sits when the rack is dropped, and the
+default answer is the worst one available: an untouched macro reads 0, a
+macro at 0 drives its target to the bottom of that target's range, so a
+rack that binds Volume and does not place it loads silent.
+`ARCHITECTURE.md` has the mechanism and what it cost.
+
+The position belongs to the slot, for the same reason the name does. If
+Volume means one thing on every rack, then where Volume opens is also one
+thing on every rack, and a per-rack answer is a chance to get it wrong per
+rack. Full right is the NEUTRAL position for Filter and Volume here, not a
+loud one, because every volume binding is capped at unity and every filter
+binding tops out above the audible band. Drive and Movement carry no start
+because their neutral is off, which is what 0 already means.
+
+`rack.start(PB.volume, 100)` overrides one slot for one rack. Positions
+are 0..127 like everything else in macro space, and out of range raises
+rather than clamps: Live clamps silently, so a 200 would load as a rack
+that looks correct and is not what was written.
+
+**A start is written only for a slot the rack actually drives.** Layouts
+declare positions for all their slots and no rack binds all of them.
+Wavetable leaves Movement unbound; parking that knob at a meaningful
+number would show a control that moves nothing, which reads exactly like a
+mapping that broke.
+
+**The label is what the knob SAYS, which is not what the slot IS.** Two
+cases force the split, and neither is cosmetic:
+
+- **A paired slot under-describes itself.** Slot 3 drives cutoff and
+  resonance. A knob labelled "Filter" that also moves resonance is lying
+  by omission, on the one surface the player actually reads.
+- **A selector steps where every other knob sweeps**, and nothing in the
+  format marks it. That is a property of the rack, not of the parameter.
+
+So a label sits on the slot and a rack may override it:
 
 ```python
-with rack.engine("Kick", "OriginalSimpler") as e:
-    e.sample("samples/kicks/ebm_01.wav")
+Rack.instrument("KICK", PAD).label(PAD.drive, "Drive + Snap")
 ```
 
-Path only. S7 established that Live re-reads the file on load and
-recomputes duration, sample end and the loop ends, so the other 18 facts a
-real swap moves in Live are its own bookkeeping. Nothing computes a CRC.
+**Position stays the contract; the word is local.** A kick reading
+"Drive + Snap" where a hat reads "Drive" is the same slot, the same
+chaining and the same muscle memory. A label cannot move a mapping.
 
-Two refusals, both because the alternative is silent:
-
-- **A path that is not a file raises at declaration.** Live loads a
-  missing sample as an offline rack, which passes every check this tooling
-  has and makes no sound.
-- **A device with no `SampleRef` raises at build.** Pointing a sample at
-  Operator is a mistake, not a no-op.
-
-Both FileRefs move together, the live reference and the provenance one
-under `SourceContext`. In a donor they routinely point at DIFFERENT files,
-so writing only the first leaves the second naming a sample this rack no
-longer plays.
-
-Naming the sample a chain ALREADY plays writes nothing at all. Flattening
-a donor's own pair to say the same thing in our form would discard the
-provenance ref for no gain, and it showed up as a difference the moment
-`patchbay extract` started round-tripping racks.
-
-## A chain may state where on the selector it answers
+## Deriving a layout moves what changed and keeps the rest
 
 ```python
-with rack.engine("Wave", "InstrumentVector") as e:
-    e.zone(0, 63)
+PAD = PB.deriving(selects=PB.sound,
+                  relabel={PB.sound: "> Sound", PB.instrument: None})
 ```
 
-The default is an even share of 0..127 among the chains that are not pads,
-which is what a generated rack wants and what every rack in
-`examples/patchbayground.py` uses. This is for the rack that was not
-generated: a hand built one whose chains overlap, or divide unevenly, or
-leave a dead band. It is also what makes such a rack survive `patchbay
-extract`.
+Inside a drum pad the axis is WHICH SAMPLE, so the selector is Sound
+rather than Instrument, and the `>` mark moves with it: a relabel of
+`None` clears one.
 
-Declaring it on ONE chain makes the whole rack explicit, and a chain left
-out then raises. The alternative is a rack that mixes a stated bound with
-an even share computed from a different chain count, which puts a chain
-somewhere nobody wrote.
+Everything not named survives, which is the point. Rebuilding the slot
+list by hand to move the selector drops the starts and the labels with it,
+and the result is a rack that loads silent with its filter shut. That
+happened once, while testing something else, and it is the reason this is
+a method rather than a splat.
+
+## An engine profile is a value
+
+`Engine` is how one device answers a layout. It is the thing this project
+is about, so it is a thing: declared once, extended by returning a new
+one, and used by every rack that wants that engine.
+
+```python
+DRIFT = (Engine("Drift")
+         .drives(PB.filter, "Filter_Frequency", over=CUTOFF)
+         .drives(PB.filter, "Filter_Resonance", over=RESONANCE)
+         .drives(PB.release, "Envelope1_Release", over=RELEASE)
+         .offers("attack", "Envelope1_Attack")
+         .offers("glide", "Global_Glide"))
+```
+
+**`drives` on the same slot accumulates.** A per-slot call reads as a
+second mapping, and behaves as one.
+
+## A slot may drive more than one parameter
+
+```python
+MELD = Engine("InstrumentMeld").drives(
+    PB.filter, "MeldVoice_EngineA_Filter_Frequency",
+    "MeldVoice_EngineB_Filter_Frequency", over=CUTOFF)
+```
+
+Meld is two synthesis engines behind one device, and every A-side path has
+a B twin. Binding only A produced a rack in which Macro 3 filtered half
+the sound and left the other half wide open. Every id was unique, every
+mapping resolved, every range was right, and the whole thing was audibly
+broken.
+
+What this is not is a second axis. Both Meld engines move together because
+the layout has one Filter knob; an A knob and a B knob would be two slots
+out of eight, and a Push page has no room for that.
+
+## A rack spends its wildcard slot on a role
+
+One slot per rack is deliberately not fixed. `offers` is what an engine
+CAN serve; `spends` is what this rack asks the whole family for:
+
+```python
+LD1 = (Rack.instrument("LD1", PB)
+       .spends(PB.character, "glide")
+       .chain("FM", FM)
+       .chain("Meld", MELD))
+```
+
+An engine that does not offer the role leaves the slot EMPTY rather than
+substituting something else, which is what makes the wildcard a decision
+instead of a leftover. BS1 asks for `morph` and only Meld has one, so on
+BS1 that knob moves Meld and nothing else. The alternative is binding
+three different ideas to one knob and calling it consistency.
+
+The role is stated once, on the rack, because it is a rack decision. The
+knob takes the role's name unless a label says otherwise.
 
 ## A slot is only as consistent as its ranges
 
@@ -129,11 +249,24 @@ One is linear amplitude bottoming at -70 dB, the other decibels bottoming
 at -36. Macro 8 at zero silenced one engine and left the other playing.
 See Q14 in `SCHEMA.md`.
 
-So the range argument is not decoration for taste. **Where engines
-disagree about units, `MidiControllerRange` is the only place the
-agreement can live.** `library.Device.range_of(path)` reports a
-parameter's native range without opening Live, which is how the divergence
-above was measured after ears found it.
+So `Range` is not decoration for taste. **Where engines disagree about
+units, `MidiControllerRange` is the only place the agreement can live**,
+and Live 12.4.3 has no UI for it at all.
+`library.Device.range_of(path)` reports a parameter's native range without
+opening Live, which is how the divergence above was measured after ears
+found it.
+
+A range states its unit and does its own arithmetic:
+
+```python
+RELEASE = Range(0.01, 20.0, "s")
+RELEASE_MS = RELEASE.scaled(1000.0)
+TRIMMED = VOLUME.capped(0.631)
+```
+
+Nothing reads `unit`, because nothing can: the format records none, and
+the same slot is Hz on one engine and dB on the next. It is there so the
+constant says which it is, which is the fact Q14 cost a rack to find.
 
 Rule of thumb: bind bare when engines agree about units, bind with a range
 when they do not, and assume they do not until checked.
@@ -145,27 +278,6 @@ target per engine, so no instrument knob will ever show a unit. That is
 the cost of one knob reaching every engine, and it is not
 `ForceDisplayGenericValue` (S10), which forces the same display on a
 SINGLY mapped macro and cannot undo this.
-
-## A slot may drive more than one parameter
-
-```python
-e.bind(filter=[("MeldVoice_EngineA_Filter_Frequency", *CUTOFF),
-               ("MeldVoice_EngineB_Filter_Frequency", *CUTOFF)])
-```
-
-Meld is two synthesis engines behind one device, and every A-side path has
-a B twin. Binding only A produced a rack in which Macro 3 filtered half
-the sound and left the other half wide open. Every id was unique, every
-mapping resolved, every range was right, and the whole thing was audibly
-broken.
-
-So a slot maps to a LIST of parameters, and a single path is the one-item
-case. Binding a slot twice replaces rather than accumulates, so a repeated
-`bind` call reads as the edit it looks like.
-
-What this is not is a second axis. Both Meld engines move together because
-the layout has one Filter knob; an A knob and a B knob would be two slots
-out of eight, and a Push page has no room for that.
 
 ## A range equalises settings, not loudness
 
@@ -224,73 +336,51 @@ cutoff is a gain stage; none of that was held fixed. The table did its job,
 which was killing a 12 dB spread that clipped, and it will not get past a
 few dB without a repeatable signal instead of a played note.
 
-## The slot name and the knob label are two different things
-
-A slot name is doing two jobs that pull apart: it is the KEY a rack binds
-against, and it is the WORD on the hardware. `_name_macros` wrote the
-layout's name onto every rack, so every rack sharing a layout showed
-identical words.
-
-Two cases break that, and neither is cosmetic:
-
-- **A paired slot under-describes itself.** Slot 3 drives cutoff and
-  resonance. A knob labelled "Filter" that also moves resonance is lying
-  by omission, on the one surface the player actually reads.
-- **A selector steps where every other knob sweeps**, and nothing in the
-  format marks it. That is a property of the rack, not of the parameter.
-
-So labels are separate, declared on the layout and overridable per rack,
-exactly as start positions are:
+## A chain may name its own sample
 
 ```python
-PATCHBAYGROUND = Layout(..., labels={"Instrument": "> Instrument"})
-
-Rack("KICK", PAD, labels={"Drive": "Drive + Snap"})
+.chain("Kick", Engine("OriginalSimpler").sample("samples/drums/kick/kick_001.wav"))
 ```
 
-**Position stays the contract; the word is local.** A kick reading
-"Drive + Snap" where a hat reads "Drive" is the same slot, the same
-chaining and the same muscle memory. Nothing about what the knob DOES
-changes, which is what makes this safe: a label cannot move a mapping, and
-a label for a slot that is not in the layout raises.
+Path only. S7 established that Live re-reads the file on load and
+recomputes duration, sample end and the loop ends, so the other 18 facts a
+real swap moves in Live are its own bookkeeping. Nothing computes a CRC.
 
-## A layout says where the knobs open
+Two refusals, both because the alternative is silent:
 
-Binding a slot is half the job. The other half is where the knob sits when
-the rack is dropped, and the default answer is the worst one available: an
-untouched macro reads 0, a macro at 0 drives its target to the bottom of
-that target's range, so a rack that binds Volume and does not place it
-loads silent. `ARCHITECTURE.md` has the mechanism and what it cost.
+- **A path that is not a file raises at declaration.** Live loads a
+  missing sample as an offline rack, which passes every check this tooling
+  has and makes no sound.
+- **A device with no `SampleRef` raises at build.** Pointing a sample at
+  Operator is a mistake, not a no-op.
 
-The position belongs to the GRAMMAR, for the same reason the slot names
-do. If Volume means one thing on every rack, then where Volume opens is
-also one thing on every rack, and a per-rack answer is a chance to get it
-wrong per rack:
+Both FileRefs move together, the live reference and the provenance one
+under `SourceContext`. In a donor they routinely point at DIFFERENT files,
+so writing only the first leaves the second naming a sample this rack no
+longer plays.
+
+Naming the sample a chain ALREADY plays writes nothing at all. Flattening
+a donor's own pair to say the same thing in our form would discard the
+provenance ref for no gain, and it showed up as a difference the moment
+`patchbay extract` started round-tripping racks.
+
+## A chain may state where on the selector it answers
 
 ```python
-PATCHBAYGROUND = Layout(
-    "Instrument", "Sound", "Filter", "Drive",
-    "Movement", "Character", "Release", "Volume",
-    selector="Instrument",
-    start={"Filter": 127, "Release": 30, "Volume": 127},
-)
+.chain("Wave", Engine("InstrumentVector").zone(0, 63))
 ```
 
-Full right is the NEUTRAL position here, not a loud one, because every
-volume binding is capped at unity and every filter binding tops out above
-the audible band. Drive and Movement are absent from the mapping because
-their neutral is off, which is what 0 already means.
+The default is an even share of 0..127 among the chains that are not pads,
+which is what a generated rack wants and what every rack in
+`examples/patchbayground.py` uses. This is for the rack that was not
+generated: a hand built one whose chains overlap, or divide unevenly, or
+leave a dead band. It is also what makes such a rack survive `patchbay
+extract`.
 
-`rack.start(volume=100)` overrides one slot for one rack. Positions are
-0..127 like everything else in macro space, and out of range raises rather
-than clamps: Live clamps silently, so a 200 would load as a rack that
-looks correct and is not what was written.
-
-**A start is written only for a slot the rack actually drives.** Grammars
-declare positions for all their slots and no rack binds all of them.
-Wavetable leaves Movement unbound; parking that knob at a meaningful
-number would show a control that moves nothing, which reads exactly like a
-mapping that broke.
+Declaring it on ONE chain makes the whole rack explicit, and a chain left
+out then raises. The alternative is a rack that mixes a stated bound with
+an even share computed from a different chain count, which puts a chain
+somewhere nobody wrote.
 
 ## A chain may be another rack
 
@@ -298,22 +388,30 @@ DR1 is three levels deep and VA1 nests a rack per chain, so a chain has to
 be able to hold a rack as easily as a device:
 
 ```python
-rack.nest("PADS", pd1())
-rack.nest("KEYS", ld1()).bind(filter="filter", release="release")
+VA1 = (Rack.instrument("VA1", PB)
+       .chain("PADS", PADS.chaining(PB.filter, PB.release, PB.volume))
+       .chain("KEYS", KEYS.chaining(PB.character.to(INNER.movement))))
+
+DR1 = (Rack.drum("DR1", KIT)
+       .pad("KICK", 36, KICK.chaining(KIT.sound, KIT.filter)))
 ```
 
-`nest` is `engine`'s sibling, not a separate construct. Both add one
-chain, both get a zone, both take part in `engine_macro`, and a slot a
-nested rack answers to counts as driven for variations exactly as a bound
-parameter does. So the outer rack does not know or care which kind of
-chain it has, and a variation reaches into a sub-rack without saying so.
+`chain` takes an engine profile or a rack, because the outer rack does not
+care which. Both get a zone, both take part in `engine_macro`, and a slot
+a nested rack answers to counts as driven for variations exactly as a
+bound parameter does. So a variation reaches into a sub-rack without
+saying so.
 
-**Bindings are outer slot to inner slot, and the default is identity.**
-That default is the whole argument for one layout: when both racks share
-it, `outer.nest(name, inner)` with no arguments chains every slot the
-inner rack drives into the matching outer knob. Naming the exceptions is
-the only work, as VA1 does by binding around `engine` so the outer knob
-picks a sub-rack rather than doing two jobs.
+**Chaining is outer slot to inner slot, and no slots at all means
+identity.** That default is the whole argument for one layout: when both
+racks share it, `chaining()` drives every slot the inner rack drives from
+the matching outer knob. Naming slots drives only those, as VA1 does by
+leaving out the selector so the outer knob picks a sub-rack rather than
+doing two jobs. `Slot.to` names an inner slot with a different name.
+
+A pad is a chain with one thing swapped: it is selected by `ReceivingNote`
+rather than by a zone, Live leaves its zone at 0/0/0/0, and it is exempt
+from zone distribution. Nothing else changes.
 
 Nothing in the mapping code knows how deep it is. A macro-to-macro mapping
 is a `KeyMidi` on the inner rack's `MacroControls.N`, which is an ordinary
@@ -333,14 +431,17 @@ only scale a variation has, since Live applies each target's own
 `MidiControllerRange` at recall. It names slots, never device parameters:
 
 ```python
-Variation("dark plucks", filter=30, release=110, character=90)
+PB.variation("dark plucks", filter=30, release=110, character=90)
 ```
 
-**That is why the sound family constraint needs no enforcing.** Both engines
-bind `filter` to their own parameter, so one vector is one sound in each,
-and index alignment across engines is structural rather than a rule someone
-has to remember. Nothing in the variation code knows how many engines there
-are.
+It is built from the layout, which is what checks the slots belong to it.
+`_at` takes slot objects instead of keys, for values computed in a loop.
+
+**That is why the sound family constraint needs no enforcing.** Both
+engines bind `filter` to their own parameter, so one vector is one sound
+in each, and index alignment across engines is structural rather than a
+rule someone has to remember. Nothing in the variation code knows how many
+engines there are.
 
 A variation is NOT how PATCHBAYGROUND addresses a sound. Nothing maps a
 knob to a variation, so a variation cannot be dialled in while a clip
@@ -353,24 +454,24 @@ Instrument choice is itself a slot, because the layout's selector slot
 drives the chain selector and a selector is an ordinary parameter:
 
 ```python
-Variation("sampled", instrument=rack.engine_macro("Sample"), filter=40)
+PB.variation("sampled", instrument=PD1.engine_macro("Sample"), filter=40)
 ```
 
 `engine_macro` returns the centre of that engine's zone, from the same
-arithmetic that distributes the zones. So a variation selects its own chain,
-which is what makes a sound a variation rather than a chain.
+arithmetic that distributes the zones. So a variation selects its own
+chain, which is what makes a sound a variation rather than a chain.
 
 Two refusals, both loud:
 
 - a slot not in the layout fails at declaration, so a typo never reaches a
   file
-- a slot **no engine binds** fails at build, and the message lists the slots
-  that are driven. Live accepts such an entry and moves nothing on recall
-  (`SPIKES.md` Q5), so it would read as live and be dead
+- a slot **nothing in the rack drives** fails at build, and the message
+  lists the slots that are driven. Live accepts such an entry and moves
+  nothing on recall (`SPIKES.md` Q5), so it would read as live and be dead
 
 A built rack always replaces the skeleton's variation set rather than
-appending to it. Donors are real racks and may carry variations describing a
-different rack entirely.
+appending to it. Donors are real racks and may carry variations describing
+a different rack entirely.
 
 ## What it rests on
 
@@ -391,21 +492,21 @@ Each capability traces to a spike, not an assumption:
 
 ## Verified, not merely designed
 
-`build/PD1.adg`, compiled from `examples/patchbayground.py`, loads on a MIDI
-track in Live 12.4.3. Macro 1 sweeps engines across the distributed zones.
-Macro 3 drives Operator's `Filter/Frequency` and Simpler's
+`build/PD1.adg`, compiled from `examples/patchbayground.py`, loads on a
+MIDI track in Live 12.4.3. Macro 1 sweeps engines across the distributed
+zones. Macro 3 drives Operator's `Filter/Frequency` and Simpler's
 `Filter/Slot/Value/SimplerFilter/Freq`, both scoped to the declared
 30-18500 Hz range.
 
 That is the whole claim of this document demonstrated: one layout, two
 synthesis methods, the same knob meaning the same thing in both.
 
-Variations passed the same way. `build/PD1.adg` carries 96, all named and all
-recalling; unbound macros stay where they are, and a variation selects its
-own engine through the chain selector. The sound family claim was checked by
-ear: recall a Sample variation, turn Engine full left, and the same musical
-idea arrives through FM with nothing re-set. Live accepts more variations
-than the template needs - 256 loaded without truncation.
+Variations passed the same way. `build/PD1.adg` carries 96, all named and
+all recalling; unbound macros stay where they are, and a variation selects
+its own engine through the chain selector. The sound family claim was
+checked by ear: recall a Sample variation, turn Engine full left, and the
+same musical idea arrives through FM with nothing re-set. Live accepts
+more variations than the template needs - 256 loaded without truncation.
 
 Nesting passed too. `build/VA1.adg` is two levels written from scratch:
 Macro 1 swaps sub-rack, Macros 2 to 4 chain into whichever is selected,
@@ -420,12 +521,18 @@ turned out to be a single leftover attribute; the guard against nested
 skeletons is gone and the attribute is handled. See `THE_BASEMENT.md` for
 why it stayed hidden as long as it did.
 
+**Output identity is a test, not a claim.** `tests/golden.txt` holds a
+digest per rack over every fact `diff.flatten` can see, DR1's 178,960
+included. A change that is not supposed to move the output proves it by
+`uv run pytest`, and nobody opens Live for it. Live tells you a file
+loads; it never tells you a file is UNCHANGED.
+
 ## The compiler runs backwards
 
-`patchbay extract file.adg` prints DSL source for a saved rack. It recovers
-what is in the file: chains and their device types, every macro mapping
-with its range, chain zones, samples, macro resting positions, macro
-labels, variations, and nesting to any depth with the macro-to-macro
+`patchbay extract file.adg` prints DSL source for a saved rack. It
+recovers what is in the file: chains and their device types, every macro
+mapping with its range, chain zones, samples, macro resting positions,
+macro labels, variations, and nesting to any depth with the macro-to-macro
 chaining intact.
 
 For a rack PatchBay built, extracting and rebuilding is EXACT. All six
@@ -435,13 +542,16 @@ there. That gate is what found the gaps: ranges were not being emitted at
 all, variations came out as a comment, and unnamed chains were given
 invented names.
 
+It is also what proves a change to the syntax is complete, because the
+emitter is an exhaustive enumeration of what the syntax has to express.
+
 For a rack LIVE built it recovers a skeleton, and the shortfall is
 structural rather than a missing feature. A declaration names a device by
 tag and the compiler fills it from a donor, so:
 
-- **parameter values do not survive.** The rebuilt device holds the donor's
-  settings, not the original's. On `racks/s1_source.adg` that is about
-  15,000 facts.
+- **parameter values do not survive.** The rebuilt device holds the
+  donor's settings, not the original's. On `racks/s1_source.adg` that is
+  about 15,000 facts.
 - **only the first device on a chain survives.** A chain holding Simpler
   plus a Pitch device comes back as Simpler.
 - **only the first sample of a multi-sampled device survives.** Q3.
@@ -449,14 +559,16 @@ tag and the compiler fills it from a donor, so:
   `AreMacroVariationsControlsVisible` among them.
 
 Closing that gap means a DSL that can carry an arbitrary parameter dump,
-which is a different tool: at that point the declaration is the rack rather
-than a description of one, and the donor stops being the vocabulary.
+which is a different tool: at that point the declaration is the rack
+rather than a description of one, and the donor stops being the
+vocabulary.
 
 **Slot names never survive, from either source.** The emitted layout is
-positional, `Macro_1` through `Macro_N`. That a macro drives
-`Filter/Frequency` on every chain is in the file; that its author called
-the slot `Filter` is not, and guessing it is inventing intent. Renaming is
-a human edit, and every binding follows the rename.
+positional, `Slot("Macro 1")` through `Slot("Macro N")`, answering to
+`macro_1` in Python. That a macro drives `Filter/Frequency` on every chain
+is in the file; that its author called the slot `Filter` is not, and
+guessing it is inventing intent. Renaming is a human edit, and every
+binding follows the rename.
 
 ## Deliberate limits
 
@@ -479,196 +591,3 @@ structure, so one Live Set donates whatever it happens to contain. What a
 donor is wanted for is the parameter list and each parameter's native
 range, not anybody's settings, so paths and names are stripped on the way
 out. 56 devices are indexed today, from 8 before it existed.
-
-## The surface this should grow into
-
-Built, and not yet the only one. `Slot`, `Range`, `Layout`, `Engine` and
-`Rack` are in `patchbay/dsl.py` as of T9a, beside `LegacyLayout`,
-`LegacyEngine`, `LegacyNest` and `LegacyRack`, which are everything above
-this section and are what `examples/patchbayground.py` and `extract.py` are
-still written against. `T9` in `TODO.md` is the rest of the migration; T9d
-deletes the legacy half and folds this section into the body.
-
-The new types hold the declaration and realise it through the legacy ones,
-so the two surfaces cannot drift while both exist. What is written here
-compiles: the five sample-free racks of `examples/patchbayground.py`, plus
-a drum rack with a nested pad, are declared through it in
-`examples/experimental/patchbayground2.py` and diff clean against the racks
-the legacy syntax builds.
-
-### What the current surface costs
-
-**`bind` is four relations under one name.** `e.bind(filter="Filter/Frequency")`
-maps a slot to a device parameter. `n.bind(filter="filter")` maps an outer
-slot to an inner one. The value is `str`, or `(path, lo, hi)`, or a list of
-either. All four are the same shape at the call site, and which one a line
-means depends on whether its receiver came from `engine()` or `nest()`.
-
-**A slot name is a string in four places.** `selector=`, `start={}`,
-`labels={}` and every `bind` keyword each name the slot again, and each
-does its own `macro_of` typo check. A layout that declares
-`start={"Filter": 127}` states "Filter" twice within three lines. Slots
-that are not Python identifiers are worse off: `KIT` declares `Send A`,
-`Send B` and `Send Vol`, and none can be written as a keyword. Nothing has
-bound them yet, so it has not bitten.
-
-**There is no value for "how a device answers to the layout."** That is the
-thing this project is about, and `examples/patchbayground.py` has to
-express it as five functions that take a rack, mutate it and return it.
-`meld(drift(wavetable(rack)))` is a rack read inside out, and the profile
-cannot be shared, extended or inspected.
-
-**The wildcard role is threaded by hand.** Five engine functions carry a
-`character: str | None` parameter, a module-level `WILDCARD` table maps
-role to path per device, and `_bind` filters the misses. The role is then
-stated two to four times per rack: once in `labels=paired("attack")` and
-once per engine call. `pd1()` says "attack" three times.
-
-**Ranges are anonymous tuples doing arithmetic.** `("Filter/Frequency",
-*CUTOFF)` splats a pair into a triple, `RELEASE_MS = tuple(v * 1000.0 for v
-in RELEASE)` rebuilds one by comprehension, and `trimmed()` returns another
-to be splatted again.
-
-**Deriving a layout copies dicts by hand.** `PAD = Layout(*PATCHBAYGROUND.slots,
-selector="Sound", start=dict(PATCHBAYGROUND.start), labels=...)`. A
-derivation that forgets `start=` produces a rack that loads silent, and
-nothing says so.
-
-### The shape
-
-A slot carries everything about itself, so it is named once:
-
-```python
-PATCHBAYGROUND = Layout(
-    Slot("Instrument", label="> Instrument", selects=True),
-    Slot("Sound"),
-    Slot("Filter", start=127),
-    Slot("Drive"),
-    Slot("Movement"),
-    Slot("Character"),
-    Slot("Release", start=30),
-    Slot("Volume", start=127),
-)
-```
-
-`PATCHBAYGROUND.filter` is that slot. `Send A` answers to `send_a`, because
-the word on the hardware and the Python name are already two things and
-this only finishes the split. A typo raises at the layout, listing the
-slots.
-
-An engine profile is a value:
-
-```python
-PB = PATCHBAYGROUND
-
-FM = (Engine("Operator")
-      .drives(PB.filter, "Filter/Frequency", over=CUTOFF)
-      .drives(PB.filter, "Filter/Resonance", over=RESONANCE)
-      .drives(PB.release, "Operator.0/Envelope/ReleaseTime", over=RELEASE_MS)
-      .drives(PB.volume, "Globals/Volume", over=trimmed("Operator", UNITY))
-      .offers("attack", "Operator.0/Envelope/AttackTime")
-      .offers("glide", "Globals/PortamentoTime")
-      .offers("saturation", "Shaper/Drive"))
-```
-
-`offers` is what this engine can serve when a rack spends its wildcard slot
-on a role. The `WILDCARD` table, the `character=` parameter on five
-functions and `_bind` all collapse into it.
-
-A rack states the role once and lists its chains:
-
-```python
-LD1 = (Rack.instrument("LD1", PB)
-       .spends(PB.character, "glide")
-       .label(PB.filter, "Filter + Res")
-       .chain("FM", FM)
-       .chain("Meld", MELD))
-```
-
-Engines that do not offer `glide` leave the slot empty, which is the
-current rule with nothing to thread it through.
-
-One verb per relation. Nesting cannot be misread as parameter binding, and
-`chain` takes a device profile or a rack, because the outer rack does not
-care which:
-
-```python
-VA1 = (Rack.instrument("VA1", PB)
-       .chain("PADS", PADS.chaining(PB.filter, PB.release, PB.volume))
-       .chain("KEYS", KEYS.chaining(PB.character.to(INNER.movement))))
-
-DR1 = (Rack.drum("DR1", KIT)
-       .pad("KICK", 36, KICK.chaining(KIT.sound, KIT.filter)))
-```
-
-A bare slot chains to the inner slot of the same name, `Slot.to` names one
-that differs, and no arguments keeps the identity default.
-
-A range is a value, so the unit is stated and the arithmetic is a method:
-
-```python
-CUTOFF = Range(30.0, 18500.0, "Hz")
-RELEASE = Range(0.01, 20.0, "s")
-RELEASE_MS = RELEASE.scaled(1000.0)
-```
-
-Nothing reads `unit`, because nothing can: the format records none, and the
-same slot is Hz on one engine and dB on the next. It is there so the
-constant says which it is, which is the fact Q14 cost a rack to find.
-
-Deriving a layout moves what changed and keeps the rest:
-
-```python
-PAD = PATCHBAYGROUND.deriving(selects=PATCHBAYGROUND.sound,
-                              relabel={PATCHBAYGROUND.sound: "> Sound"})
-```
-
-Builders return new objects. A profile or a sub-rack can sit in two racks
-without one build reaching the other.
-
-### One rule reverses
-
-`.drives` on the same slot twice ACCUMULATES. A second legacy `bind` of a
-slot replaces the first, and that rule exists because `bind` is a bulk
-keyword call where a second call reads as an edit. A per-slot fluent call
-reads as a second mapping, which is what the Meld case wants, so the
-reading and the behaviour agree instead of the docstring having to say
-which won. Both rules are asserted, one per surface, in
-`tests/test_patchbay.py`.
-
-### What was verified
-
-`examples/experimental/patchbayground2.py` declares PD1, PD1W, BS1, LD1 and
-VA1 through the new types. Every one digests equal to `tests/golden.txt`,
-which the legacy spec writes, and a drum rack holding a nested pad diffs
-identical against the legacy kit. So this is a surface change and not a
-format change, which is what makes the migration mechanical, and no step of
-it asks a human to open Live.
-
-The gate is a test, not a procedure:
-
-    uv run pytest tests/ -q
-
-To see a difference rather than a digest, build both sides and diff a rack:
-
-    uv run patchbay build examples/patchbayground.py -o build/old
-    uv run patchbay build examples/experimental/patchbayground2.py -o build/new
-    patchbay diff build/old/PD1.adg build/new/PD1.adg
-
-One near-miss is worth keeping. The drum rack diff did not come out clean
-first time, because the hand written `Layout(*KIT.slots, selector="Sound")`
-dropped the kit's starts and labels while `deriving` carried them. That is
-the failure mode the derivation argument above predicts, produced by
-accident while testing something else.
-
-### What it costs
-
-`patchbay extract` emits DSL source and a test rebuilds six racks from it
-and diffs them, so the emitter moves with the syntax or the round trip
-breaks. That gate is also the reason the migration is safe to attempt: it
-is a complete enumeration of what the syntax has to express.
-
-`examples/patchbayground.py`, `tests/test_patchbay.py` and every code block
-in this document move too. `compile.py` picked racks out of a spec by
-`isinstance` against one class; it now takes either, so a spec written in
-either surface compiles.

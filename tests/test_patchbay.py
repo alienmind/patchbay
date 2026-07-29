@@ -14,9 +14,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from patchbay import io, find, params, clone, diff, dsl, mappings, ids, variations  # noqa: E402
-from patchbay.dsl import (LegacyLayout as Layout, LegacyRack as Rack,  # noqa: E402
-                          RackKind, Variation)
+from patchbay import io, find, params, clone, diff, mappings, ids, variations  # noqa: E402
+from patchbay.dsl import Engine, Layout, Rack, Range, Slot   # noqa: E402
 
 RACKS = Path(__file__).resolve().parent.parent / "racks"
 GOLDEN = Path(__file__).resolve().parent / "golden.txt"
@@ -305,16 +304,22 @@ def test_out_of_range_position_is_refused():
 
 # --- Phase 5: variations through the DSL ----------------------------------
 
+PD1 = Layout(Slot("Engine", selects=True), Slot("Cutoff"), Slot("Resonance"),
+             Slot("Decay"), Slot("Drive"))
+
+CUTOFF = Range(200, 8000, "Hz")
+
+
 def _pd1():
-    g = Layout("Engine", "Cutoff", "Resonance", "Decay", "Drive")
-    rack = Rack("PD1", g, kind=RackKind.INSTRUMENT)
-    with rack.engine("FM", "Operator") as e:
-        e.bind(cutoff=("Filter/Frequency", 200, 8000),
-               decay="Filter/Envelope/DecayTime")
-    with rack.engine("Sample", "OriginalSimpler") as e:
-        e.bind(cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
-               decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime")
-    return rack
+    return (Rack.instrument("PD1", PD1)
+            .chain("FM", Engine("Operator")
+                   .drives(PD1.cutoff, "Filter/Frequency", over=CUTOFF)
+                   .drives(PD1.decay, "Filter/Envelope/DecayTime"))
+            .chain("Sample", Engine("OriginalSimpler")
+                   .drives(PD1.cutoff, "Filter/Slot/Value/SimplerFilter/Freq",
+                           over=CUTOFF)
+                   .drives(PD1.decay,
+                           "Filter/Slot/Value/SimplerFilter/Envelope/DecayTime")))
 
 
 def test_one_vector_renders_through_every_engine():
@@ -324,15 +329,14 @@ def test_one_vector_renders_through_every_engine():
     nothing per engine to keep aligned. Both engines bind cutoff, so one
     variation is one sound in each.
     """
-    rack = _pd1()
-    rack.variations(Variation("dark", cutoff=30, decay=110),
-                    Variation("open", cutoff=120, decay=20))
+    rack = _pd1().variations(PD1.variation("dark", cutoff=30, decay=110),
+                             PD1.variation("open", cutoff=120, decay=20))
     root = rack.build()
     dev = find.rack_device(find.preset(root))
 
     got = variations.read(dev)
     assert [v["name"] for v in got] == ["dark", "open"]
-    cutoff = rack.layout.macro_of("cutoff")
+    cutoff = PD1.cutoff.number
     assert got[0]["values"][cutoff] == 30
 
     # One macro, one mapping per engine, which is what makes that work.
@@ -346,13 +350,13 @@ def test_engine_choice_is_a_variation_slot():
     fm, sample = rack.engine_macro("FM"), rack.engine_macro("Sample")
     assert fm < 64 <= sample, "each engine's zone centre falls in its own half"
 
-    rack.variations(Variation("fm sound", engine=fm, cutoff=40),
-                    Variation("sampled", engine=sample, cutoff=40))
+    rack = rack.variations(PD1.variation("fm sound", engine=fm, cutoff=40),
+                           PD1.variation("sampled", engine=sample, cutoff=40))
     root = rack.build()
     preset = find.preset(root)
     dev = find.rack_device(preset)
 
-    slot = rack.layout.macro_of("engine")
+    slot = PD1.engine.number
     got = variations.read(dev)
     assert got[0]["values"][slot] == fm and got[1]["values"][slot] == sample
 
@@ -366,21 +370,20 @@ def test_engine_choice_is_a_variation_slot():
 def test_variation_on_an_undriven_slot_is_refused():
     """Fail loudly: a flagged macro with nothing mapped to it is SPIKES Q5,
     untested, so the DSL refuses rather than shipping a guess."""
-    rack = _pd1()
-    rack.variations(Variation("bad", drive=90))
+    rack = _pd1().variations(PD1.variation("bad", drive=90))
     try:
         rack.build()
     except ValueError as e:
-        assert "drive" in str(e) and "no engine binds" in str(e)
+        assert "Drive" in str(e) and "no chain drives" in str(e)
     else:
         raise AssertionError("expected a raise, got a rack with a dead knob")
 
 
 def test_unknown_slot_fails_at_declaration_not_at_build():
-    rack = _pd1()
+    """And at the LAYOUT, which is one step earlier than it used to be."""
     try:
-        rack.variations(Variation("typo", cuttoff=40))
-    except KeyError as e:
+        PD1.variation("typo", cuttoff=40)
+    except AttributeError as e:
         assert "cuttoff" in str(e)
     else:
         raise AssertionError("a mistyped slot must not reach the file")
@@ -394,7 +397,7 @@ def test_a_built_rack_does_not_inherit_donor_variations():
     dev = find.rack_device(find.preset(root))
     assert variations.count(dev) == 0
 
-    rack.variations(Variation("only one", cutoff=10))
+    rack = rack.variations(PD1.variation("only one", cutoff=10))
     dev = find.rack_device(find.preset(rack.build()))
     assert variations.count(dev) == 1
 
@@ -404,29 +407,32 @@ def test_the_patchbayground_grid_builds():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import patchbayground
 
-    rack = patchbayground.pd1()
+    rack = patchbayground.PD1
     assert len(rack.variation_set) == 96, "2 engines x 4 x 4 x 3"
     dev = find.rack_device(find.preset(rack.build()))
     got = variations.read(dev)
     assert len(got) == 96
     assert len({v["name"] for v in got}) == 96, "names must be distinguishable"
     for v in got:
-        assert set(v["values"]) == {rack.layout.macro_of(s)
-                                    for s in ("instrument", "filter",
-                                              "release", "character")}
+        assert set(v["values"]) == {patchbayground.PB[s].number
+                                    for s in ("Instrument", "Filter",
+                                              "Release", "Character")}
 
 
 # --- nested racks ---------------------------------------------------------
 
-def _nested_pair():
-    """An outer rack with one chain holding an inner rack."""
-    g = Layout("Engine", "Cutoff")
-    inner = Rack("INNER", g, kind=RackKind.INSTRUMENT)
-    with inner.engine("FM", "Operator") as e:
-        e.bind(cutoff="Filter/Frequency")
-    outer = Rack("OUTER", g, kind=RackKind.INSTRUMENT)
-    outer.nest("SUB", inner)
-    return outer
+NEST = Layout(Slot("Engine", selects=True), Slot("Cutoff"))
+
+
+def _nested_pair(*chained):
+    """An outer rack with one chain holding an inner rack.
+
+    No `chained` slots keeps the identity default, which is what one shared
+    layout is for.
+    """
+    inner = Rack.instrument("INNER", NEST).chain(
+        "FM", Engine("Operator").drives(NEST.cutoff, "Filter/Frequency"))
+    return Rack.instrument("OUTER", NEST).chain("SUB", inner.chaining(*chained))
 
 
 def test_only_the_top_level_preset_carries_no_id():
@@ -446,11 +452,9 @@ def test_live_saved_racks_agree_on_that():
 
 def test_a_nested_skeleton_loses_its_id():
     """s1_source's inner rack is usable as a skeleton once the Id is gone."""
-    g = Layout("Engine", "Cutoff")
-    rack = Rack("FROM_NESTED", g, kind=RackKind.INSTRUMENT,
-                skeleton=RACKS / "s1_source.adg")
-    with rack.engine("FM", "Operator") as e:
-        e.bind(cutoff="Filter/Frequency")
+    rack = (Rack.instrument("FROM_NESTED", NEST,
+                            skeleton=RACKS / "s1_source.adg")
+            .chain("FM", Engine("Operator").drives(NEST.cutoff, "Filter/Frequency")))
     assert find.preset(rack.build()).attrib == {}
 
 
@@ -466,32 +470,33 @@ def test_nesting_chains_macro_to_macro():
     assert target.find("KeyMidi/Channel").get("Value") == "16"
 
 
-def test_nest_defaults_to_identity_over_the_shared_layout():
-    outer = _nested_pair()
-    assert outer.engines[0].resolved() == {"Engine": "Engine", "Cutoff": "Cutoff"}
+def test_chaining_defaults_to_identity_over_the_shared_layout():
+    assert _nested_pair()._resolve()[0].chained == {1: 1, 2: 2}
 
 
-def test_an_explicit_bind_replaces_the_default():
-    outer = _nested_pair()
-    outer.engines[0].bind(cutoff="cutoff")
-    assert outer.engines[0].resolved() == {"cutoff": "cutoff"}
+def test_naming_the_slots_replaces_the_identity_default():
+    """A partial chaining means only what is named is driven."""
+    assert _nested_pair(NEST.cutoff)._resolve()[0].chained == {2: 2}
+
+
+def test_an_outer_slot_may_drive_a_differently_named_inner_one():
+    assert _nested_pair(NEST.engine.to(NEST.cutoff))._resolve()[0].chained == {1: 2}
 
 
 def test_a_nested_slot_counts_as_driven():
     """A variation may name a slot only something answers to, and a chained
     macro answers just as much as a bound parameter does."""
-    outer = _nested_pair()
-    outer.variations(Variation("v", cutoff=40))
+    outer = _nested_pair().variations(NEST.variation("v", cutoff=40))
     dev = find.rack_device(find.preset(outer.build()))
     assert variations.count(dev) == 1
 
 
 def test_an_instrument_rack_is_refused_in_an_audio_effect_chain():
-    g = Layout("Cutoff")
-    inner = Rack("I", g, kind=RackKind.INSTRUMENT)
-    outer = Rack("A", g, kind=RackKind.AUDIO_EFFECT)
+    g = Layout(Slot("Cutoff"))
+    inner = Rack.instrument("I", g)
+    outer = Rack.audio_effect("A", g)
     try:
-        outer.nest("SUB", inner)
+        outer.chain("SUB", inner)
     except ValueError as e:
         assert "audio effect chain" in str(e)
     else:
@@ -502,7 +507,7 @@ def test_va1_builds_two_levels():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import patchbayground
 
-    root = patchbayground.va1().build()
+    root = patchbayground.VA1.build()
     racks = list(find.walk_racks(find.preset(root)))
     assert len(racks) == 3, "the outer rack and its two sub-racks"
     chained = [m for m in mappings.find(root)
@@ -514,13 +519,12 @@ def test_va1_builds_two_levels():
 # --- drum pads ------------------------------------------------------------
 
 def _kit():
-    inner = Rack("KICK", Layout("Engine", "Cutoff"))
-    inner.engine("S1", "OriginalSimpler").bind(
-        cutoff="Filter/Slot/Value/SimplerFilter/Freq")
-    kit = Rack("DR1", Layout("Tune", "Decay"), kind=RackKind.DRUM)
-    kit.pad("KICK", 36, rack=inner)
-    kit.pad("RIM", 37, device="OriginalSimpler")
-    return kit
+    inner = Rack.instrument("KICK", NEST).chain(
+        "S1", Engine("OriginalSimpler").drives(
+            NEST.cutoff, "Filter/Slot/Value/SimplerFilter/Freq"))
+    return (Rack.drum("DR1", Layout(Slot("Tune"), Slot("Decay")))
+            .pad("KICK", 36, inner)
+            .pad("RIM", 37, Engine("OriginalSimpler")))
 
 
 def test_a_pad_is_addressed_by_note():
@@ -541,11 +545,9 @@ def test_pads_are_exempt_from_zone_distribution():
 
 def test_declared_zones_override_the_even_share():
     """A hand built rack divides its selector however it likes."""
-    rack = Rack("PD1", Layout("Cutoff"), kind=RackKind.INSTRUMENT)
-    with rack.engine("A", "OriginalSimpler") as e:
-        e.zone(0, 99)
-    with rack.engine("B", "OriginalSimpler") as e:
-        e.zone(100, 127)
+    rack = (Rack.instrument("PD1", Layout(Slot("Cutoff")))
+            .chain("A", Engine("OriginalSimpler").zone(0, 99))
+            .chain("B", Engine("OriginalSimpler").zone(100, 127)))
 
     got = [{c.tag: c.get("Value") for c in find.zone(b)}
            for b in find.branches(find.preset(rack.build()))]
@@ -556,10 +558,9 @@ def test_declared_zones_override_the_even_share():
 
 def test_a_half_declared_zone_set_is_refused():
     """The other chain would take an even share of a scale it does not own."""
-    rack = Rack("PD1", Layout("Cutoff"), kind=RackKind.INSTRUMENT)
-    with rack.engine("A", "OriginalSimpler") as e:
-        e.zone(0, 99)
-    rack.engine("B", "OriginalSimpler")
+    rack = (Rack.instrument("PD1", Layout(Slot("Cutoff")))
+            .chain("A", Engine("OriginalSimpler").zone(0, 99))
+            .chain("B", Engine("OriginalSimpler")))
     try:
         rack.build()
     except ValueError as e:
@@ -577,10 +578,10 @@ def test_a_pad_may_hold_a_device_or_a_whole_rack():
 def test_two_pads_on_one_note_is_refused():
     """Legal and loadable, and almost never what anyone means: they fire
     together."""
-    kit = Rack("DR1", Layout("Tune"), kind=RackKind.DRUM)
-    kit.pad("KICK", 36, device="OriginalSimpler")
+    kit = Rack.drum("DR1", Layout(Slot("Tune"))).pad(
+        "KICK", 36, Engine("OriginalSimpler"))
     try:
-        kit.pad("SNARE", 36, device="OriginalSimpler")
+        kit.pad("SNARE", 36, Engine("OriginalSimpler"))
     except ValueError as e:
         assert "already triggers" in str(e)
     else:
@@ -588,24 +589,13 @@ def test_two_pads_on_one_note_is_refused():
 
 
 def test_pads_need_a_drum_rack():
-    rack = Rack("PD1", Layout("Cutoff"), kind=RackKind.INSTRUMENT)
+    rack = Rack.instrument("PD1", Layout(Slot("Cutoff")))
     try:
-        rack.pad("KICK", 36, device="OriginalSimpler")
+        rack.pad("KICK", 36, Engine("OriginalSimpler"))
     except ValueError as e:
         assert "drum rack" in str(e)
     else:
         raise AssertionError("an instrument rack has no pads")
-
-
-def test_a_pad_holds_exactly_one_thing():
-    kit = Rack("DR1", Layout("Tune"), kind=RackKind.DRUM)
-    for kwargs in ({}, {"device": "OriginalSimpler", "rack": Rack("X", Layout("A"))}):
-        try:
-            kit.pad("KICK", 36, **kwargs)
-        except ValueError as e:
-            assert "exactly one" in str(e)
-        else:
-            raise AssertionError(f"pad({kwargs}) should not build")
 
 
 # --- S12: devices may be partial ------------------------------------------
@@ -650,9 +640,8 @@ def test_sample_retargets_both_filerefs(tmp_path=None):
     out.mkdir(exist_ok=True)
     wav = _a_wav(out)
 
-    rack = Rack("SR", Layout("Instrument", "Filter"), kind=RackKind.INSTRUMENT)
-    with rack.engine("S", "OriginalSimpler") as e:
-        e.sample(wav)
+    rack = Rack.instrument("SR", Layout(Slot("Instrument"), Slot("Filter"))).chain(
+        "S", Engine("OriginalSimpler").sample(wav))
 
     device = find.devices(next(find.preset(rack.build()).iter("BranchPresets"))[0])[0]
     got = samples.targets(device)
@@ -665,12 +654,10 @@ def test_sample_retargets_both_filerefs(tmp_path=None):
 
 
 def test_sample_refuses_a_missing_file():
-    rack = Rack("SR", Layout("Instrument"), kind=RackKind.INSTRUMENT)
-    with rack.engine("S", "OriginalSimpler") as e:
-        try:
-            e.sample("no/such/file.wav")
-        except FileNotFoundError:
-            return
+    try:
+        Engine("OriginalSimpler").sample("no/such/file.wav")
+    except FileNotFoundError:
+        return
     raise AssertionError("a missing sample loads offline, so it must refuse")
 
 
@@ -679,9 +666,8 @@ def test_sample_refuses_a_device_with_no_sampleref(tmp_path=None):
     out.mkdir(exist_ok=True)
     wav = _a_wav(out)
 
-    rack = Rack("X", Layout("Instrument"), kind=RackKind.INSTRUMENT)
-    with rack.engine("FM", "Operator") as e:
-        e.sample(wav)
+    rack = Rack.instrument("X", Layout(Slot("Instrument"))).chain(
+        "FM", Engine("Operator").sample(wav))
     try:
         rack.build()
     except ValueError as err:
@@ -696,7 +682,7 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
     import patchbayground
     from patchbay import samples as S
 
-    kit = patchbayground.dr1()
+    kit = patchbayground.DR1
     if kit is None:
         return  # no samples on this machine
 
@@ -743,7 +729,7 @@ def test_the_wildcard_slot_reaches_only_the_engines_that_offer_it():
     import patchbayground
 
     by_name = {r.name: r for r in patchbayground.RACKS}
-    slot = patchbayground.PATCHBAYGROUND.macro_of("Character")
+    slot = patchbayground.PB.character.number
 
     # BS1 asks for morph and only Meld has one.
     bs1 = _mapping_matrix(by_name["BS1"])
@@ -765,9 +751,9 @@ def test_the_filter_slot_drives_a_pair_on_every_engine():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import patchbayground
 
-    slot = patchbayground.PATCHBAYGROUND.macro_of("Filter")
+    slot = patchbayground.PB.filter.number
     for rack in patchbayground.RACKS:
-        if rack.layout is not patchbayground.PATCHBAYGROUND:
+        if rack.layout is not patchbayground.PB:
             continue
         for chain, per_macro in _mapping_matrix(rack).items():
             targets = per_macro.get(slot, [])
@@ -785,10 +771,10 @@ def test_release_is_one_interval_however_an_engine_spells_it():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import patchbayground
 
-    slot = patchbayground.PATCHBAYGROUND.macro_of("Release")
+    slot = patchbayground.PB.release.number
     found = set()
     for rack in patchbayground.RACKS:
-        if rack.layout is not patchbayground.PATCHBAYGROUND:
+        if rack.layout is not patchbayground.PB:
             continue
         for branch in find.branches(find.preset(rack.build())):
             for km in branch.iter("KeyMidi"):
@@ -815,14 +801,14 @@ def test_the_example_racks_still_build_the_same_bytes():
     14,823 facts. So a change that is not supposed to move the output says so
     against this, and nobody opens Live for it.
 
-    A digest rather than the facts themselves: the five racks flatten to
-    9.5 MB, and a hash per rack fits in a file whose git diff is readable.
-    When one fails, build the rack before and after and run `patchbay diff`
-    for the detail.
+    A digest rather than the facts themselves: DR1 alone is 178,960 facts,
+    and a hash per rack fits in a file whose git diff is readable. When one
+    fails, build the rack before and after and run `patchbay diff` for the
+    detail.
 
     This also catches a hazard nothing else does. Skeleton and donor
     selection reads `donors/` and `racks/` by name, so adding a file can
-    silently rebuild every rack. That shows up here as five failures.
+    silently rebuild every rack. That shows up here as six failures.
 
     Regenerate deliberately, never to make a red test green:
         PATCHBAY_REGOLD=1 uv run pytest tests/ -k same_bytes
@@ -848,11 +834,13 @@ def test_the_example_racks_still_build_the_same_bytes():
     golden = dict(line.split() for line in
                   GOLDEN.read_text().splitlines() if line.strip())
 
-    # DR1 needs samples/, which is never committed, so it is absent on a
-    # machine that has the repo and not the audio. The other five are not.
-    for name in ("PD1", "PD1W", "BS1", "LD1", "VA1"):
+    for name, want in sorted(golden.items()):
+        # DR1 needs samples/, which is never committed, so it is absent on a
+        # machine that has the repo and not the audio. The other five are not.
+        if name == "DR1" and name not in built:
+            continue
         assert name in built, f"{name} did not build"
-        assert built[name] == golden[name], (
+        assert built[name] == want, (
             f"{name} changed. If that was intended, rebuild the goldens; "
             f"if not, `patchbay diff` it against a build from before.")
 
@@ -874,7 +862,7 @@ def test_bound_macros_do_not_open_at_zero():
         for slot in ("Filter", "Volume"):
             if slot.lower() not in rack.driven_slots():
                 continue
-            got = params.value(find.macro(dev, rack.layout.macro_of(slot)))
+            got = params.value(find.macro(dev, rack.layout[slot].number))
             assert got, f"{rack.name}: {slot} opens at {got}"
 
 
@@ -885,25 +873,14 @@ def test_one_slot_can_drive_several_parameters():
     open, audibly, on a rack where every id, every mapping and every range
     checked out.
     """
-    g = Layout("Engine", "Filter", selector="Engine")
-    rack = Rack("X", g)
-    with rack.engine("M", "InstrumentMeld") as e:
-        e.bind(filter=[("MeldVoice_EngineA_Filter_Frequency", 30.0, 18500.0),
-                       ("MeldVoice_EngineB_Filter_Frequency", 30.0, 18500.0)])
+    g = Layout(Slot("Engine", selects=True), Slot("Filter"))
+    rack = Rack.instrument("X", g).chain("M", Engine("InstrumentMeld").drives(
+        g.filter, "MeldVoice_EngineA_Filter_Frequency",
+        "MeldVoice_EngineB_Filter_Frequency", over=Range(30.0, 18500.0, "Hz")))
     root = rack.build()
     on_two = sorted(m["target"] for m in mappings.find(root) if m["macro"] == 2)
     assert on_two == ["MeldVoice_EngineA_Filter_Frequency",
                       "MeldVoice_EngineB_Filter_Frequency"]
-
-
-def test_binding_a_slot_twice_replaces_rather_than_accumulates():
-    g = Layout("Engine", "Filter", selector="Engine")
-    rack = Rack("X", g)
-    with rack.engine("M", "InstrumentMeld") as e:
-        e.bind(filter="MeldVoice_EngineA_Filter_Frequency")
-        e.bind(filter="MeldVoice_EngineB_Filter_Frequency")
-    on_two = [m["target"] for m in mappings.find(rack.build()) if m["macro"] == 2]
-    assert on_two == ["MeldVoice_EngineB_Filter_Frequency"]
 
 
 def _labels(rack):
@@ -919,55 +896,59 @@ def test_a_label_overrides_the_slot_name_without_moving_the_slot():
     and nothing in the format marks a selector as stepping rather than
     sweeping. Both are display problems with no other place to live.
     """
-    g = Layout("Engine", "Filter", selector="Engine",
-                labels={"Engine": "> Engine"})
-    rack = Rack("X", g, labels={"Filter": "Filter + Res"})
-    with rack.engine("A", "Operator") as e:
-        e.bind(filter="Filter/Frequency")
+    g = Layout(Slot("Engine", label="> Engine", selects=True), Slot("Filter"))
+    rack = (Rack.instrument("X", g)
+            .label(g.filter, "Filter + Res")
+            .chain("A", Engine("Operator").drives(g.filter, "Filter/Frequency")))
     assert _labels(rack) == ["> Engine", "Filter + Res"]
-    # The key did not move: bind() and macro_of() still take the slot name.
-    assert g.macro_of("filter") == 2
+    # The slot did not move: it is still the second macro, and still `filter`.
+    assert g.filter.number == 2
 
 
 def test_two_racks_on_one_layout_may_label_differently():
-    g = Layout("Engine", "Drive", selector="Engine")
-    a = Rack("KICK", g, labels={"Drive": "Drive + Snap"})
-    b = Rack("HAT", g)
-    for r in (a, b):
-        with r.engine("S", "OriginalSimpler") as e:
-            e.bind(drive="Filter/Slot/Value/SimplerFilter/Drive")
+    g = Layout(Slot("Engine", selects=True), Slot("Drive"))
+    voice = Engine("OriginalSimpler").drives(
+        g.drive, "Filter/Slot/Value/SimplerFilter/Drive")
+    a = Rack.instrument("KICK", g).label(g.drive, "Drive + Snap").chain("S", voice)
+    b = Rack.instrument("HAT", g).chain("S", voice)
     assert _labels(a) == ["Engine", "Drive + Snap"]
     assert _labels(b) == ["Engine", "Drive"]
 
 
-def test_a_label_for_a_slot_that_does_not_exist_is_refused():
-    g = Layout("Engine", "Filter", selector="Engine")
-    for bad in ({"Cutoff": "x"},):
-        try:
-            Rack("X", g, labels=bad)
-        except KeyError:
-            continue
-        assert False, f"{bad} accepted as a label"
+def test_a_slot_that_does_not_exist_is_refused_at_the_layout():
+    """One step earlier than it used to be: a slot is a value, not a string."""
+    g = Layout(Slot("Engine", selects=True), Slot("Filter"))
+    try:
+        g.cutoff
+    except AttributeError as e:
+        assert "cutoff" in str(e) and "filter" in str(e)
+    else:
+        raise AssertionError("a slot this layout does not have must not resolve")
 
 
-def test_start_refuses_a_position_off_the_macro_scale():
-    g = Layout("Engine", "Volume", selector="Engine")
-    rack = Rack("X", g)
+def test_a_position_off_the_macro_scale_is_refused():
+    g = Layout(Slot("Engine", selects=True), Slot("Volume"))
+    rack = Rack.instrument("X", g)
     for bad in (-1, 128, 200):
         try:
-            rack.start(volume=bad)
+            rack.start(g.volume, bad)
+        except ValueError:
+            pass
+        else:
+            assert False, f"{bad} accepted as a macro position"
+        try:
+            Layout(Slot("Volume", start=bad))
         except ValueError:
             continue
-        assert False, f"{bad} accepted as a macro position"
+        assert False, f"{bad} accepted as an opening position"
 
 
 def test_start_is_not_written_for_a_slot_nothing_drives():
     """A knob parked somewhere meaningful that moves nothing reads as a bug."""
-    g = Layout("Engine", "Filter", "Volume", selector="Engine",
-                start={"Filter": 127, "Volume": 127})
-    rack = Rack("X", g)
-    with rack.engine("A", "Operator") as e:
-        e.bind(volume="Globals/Volume")
+    g = Layout(Slot("Engine", selects=True), Slot("Filter", start=127),
+               Slot("Volume", start=127))
+    rack = Rack.instrument("X", g).chain(
+        "A", Engine("Operator").drives(g.volume, "Globals/Volume"))
     dev = find.rack_device(find.preset(rack.build()))
     assert params.value(find.macro(dev, 3)) == 127     # Volume, bound
     assert params.value(find.macro(dev, 2)) == 0       # Filter, bound by nothing
@@ -1097,139 +1078,112 @@ def test_no_carriage_returns_in_tracked_text():
         f"{offenders[:5]}. This is an LF repo; see .gitattributes.")
 
 
-# --- the T9 surface -------------------------------------------------------
-#
-# `dsl.Slot`, `dsl.Range`, `dsl.Layout`, `dsl.Engine` and `dsl.Rack` are the
-# new types. This module's `Layout` and `Rack` are the legacy ones, so the
-# new surface is written out in full here rather than imported by name.
-
-
-def _digest(rack) -> str:
-    import hashlib
-
-    facts = diff.flatten(rack.build())
-    text = "\n".join(f"{k}={v}" for k, v in sorted(facts.items()))
-    return hashlib.sha256(text.encode()).hexdigest()[:16]
-
-
-def test_the_new_surface_builds_the_same_bytes():
-    """T9's gate. Two surfaces, one output, asserted rather than agreed.
-
-    `examples/experimental/patchbayground2.py` declares PD1, PD1W, BS1, LD1
-    and VA1 through the new types; `examples/patchbayground.py` declares the
-    same five through the legacy ones and writes `tests/golden.txt`. So a
-    migration step that moves the output fails here, and NO step of T9 asks
-    a human to open Live.
-    """
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent
-                           / "examples" / "experimental"))
-    import patchbayground2
-
-    golden = dict(line.split() for line in
-                  GOLDEN.read_text().splitlines() if line.strip())
-    for rack in patchbayground2.RACKS:
-        assert _digest(rack) == golden[rack.name], (
-            f"{rack.name} on the new surface is not the rack the legacy "
-            f"surface builds. `patchbay diff` the two.")
-
+# --- the surface itself ---------------------------------------------------
 
 def test_a_slot_driven_twice_accumulates():
-    """The one rule T9 reverses. See DSL.md, and the test above this one.
+    """A per-slot call reads as a second mapping, and behaves as one.
 
-    A second legacy `bind` of a slot REPLACES, because it is a bulk keyword
-    call and a repeat reads as an edit. A per-slot fluent call reads as a
-    second mapping, which is what the Meld case wants.
+    Which is what the Meld case wants: two synthesis engines behind one
+    device, every A path with a B twin, one knob.
     """
-    g = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Filter"))
-    meld = (dsl.Engine("InstrumentMeld")
+    g = Layout(Slot("Engine", selects=True), Slot("Filter"))
+    meld = (Engine("InstrumentMeld")
             .drives(g.filter, "MeldVoice_EngineA_Filter_Frequency")
             .drives(g.filter, "MeldVoice_EngineB_Filter_Frequency"))
-    rack = dsl.Rack.instrument("X", g).chain("M", meld)
+    rack = Rack.instrument("X", g).chain("M", meld)
 
     on_two = [m["target"] for m in mappings.find(rack.build()) if m["macro"] == 2]
     assert on_two == ["MeldVoice_EngineA_Filter_Frequency",
                       "MeldVoice_EngineB_Filter_Frequency"]
 
 
-def test_the_new_surface_builds_the_same_drum_kit():
-    """The nested pad, which `golden.txt` cannot cover without `samples/`.
-
-    A pad reaches the file by a different route on each surface, so the two
-    are diffed rather than assumed: `Rack.pad` takes the content and decides
-    what it is, where the legacy call takes `device=` or `rack=`.
-    """
-    inner_layout = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Cutoff"))
-    simpler = dsl.Engine("OriginalSimpler").drives(
-        inner_layout.cutoff, "Filter/Slot/Value/SimplerFilter/Freq")
-    inner = dsl.Rack.instrument("KICK", inner_layout).chain("S1", simpler)
-    kit = (dsl.Rack.drum("DR1", dsl.Layout(dsl.Slot("Tune"), dsl.Slot("Decay")))
-           .pad("KICK", 36, inner)
-           .pad("RIM", 37, dsl.Engine("OriginalSimpler")))
-
-    assert diff.flatten(kit.build()) == diff.flatten(_kit().build())
-
-
 def test_a_range_states_its_unit_and_does_its_own_arithmetic():
     """Release is one interval in two spellings, seconds and milliseconds."""
-    release = dsl.Range(0.01, 20.0, "s")
-    assert release.scaled(1000.0) == dsl.Range(10.0, 20000.0, "s")
+    release = Range(0.01, 20.0, "s")
+    assert release.scaled(1000.0) == Range(10.0, 20000.0, "s")
     assert release.capped(5.0).as_tuple() == (0.01, 5.0)
 
 
 def test_deriving_a_layout_carries_what_was_not_named():
     """The failure this exists to stop: a start silently dropped.
 
-    `Layout(*PB.slots, selector="Sound")` on the legacy surface rebuilds the
-    slot list and loses the starts and labels with it, which loads as a rack
-    whose filter is shut and whose volume is down.
+    Rebuilding the slot list by hand to move the selector loses the starts
+    and the labels with it, which loads as a rack whose filter is shut and
+    whose volume is down. It happened once, while testing something else.
     """
-    pb = dsl.Layout(
-        dsl.Slot("Instrument", label="> Instrument", selects=True),
-        dsl.Slot("Sound"),
-        dsl.Slot("Filter", start=127))
-    pad = pb.deriving(selects=pb.sound, relabel={pb.sound: "> Sound"})
+    pb = Layout(Slot("Instrument", label="> Instrument", selects=True),
+                Slot("Sound"),
+                Slot("Filter", start=127))
+    pad = pb.deriving(selects=pb.sound,
+                      relabel={pb.sound: "> Sound", pb.instrument: None})
 
     assert pad.selector.display == "Sound"
     assert pad.sound.label == "> Sound"
     assert pad.filter.start == 127, "the start survived a derivation"
-    assert pad.instrument.label == "> Instrument"
+    assert pad.instrument.label is None, "the selector mark moved with the selector"
     assert [s.display for s in pad] == [s.display for s in pb]
+    assert pb.selector.display == "Instrument", "the original did not move"
 
 
 def test_a_layout_refuses_two_slots_that_mean_one_python_name():
     """`Send A` answers to `send_a`, so `Send-A` beside it is unreachable."""
     try:
-        dsl.Layout(dsl.Slot("Send A"), dsl.Slot("Send-A"))
+        Layout(Slot("Send A"), Slot("Send-A"))
     except ValueError as e:
         assert "send_a" in str(e)
     else:
         raise AssertionError("two slots collided on one key and were accepted")
 
 
+def test_a_layout_has_one_chain_selector():
+    try:
+        Layout(Slot("A", selects=True), Slot("B", selects=True))
+    except ValueError as e:
+        assert "chain selector" in str(e)
+    else:
+        raise AssertionError("two slots claimed the selector and were accepted")
+
+
 def test_an_engine_profile_is_a_value_and_does_not_mutate():
     """Two racks may hold one profile; extending it in one cannot reach the other."""
-    g = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Filter"))
-    base = dsl.Engine("OriginalSimpler").drives(
+    g = Layout(Slot("Engine", selects=True), Slot("Filter"))
+    base = Engine("OriginalSimpler").drives(
         g.filter, "Filter/Slot/Value/SimplerFilter/Freq")
     wider = base.drives(g.filter, "Filter/Slot/Value/SimplerFilter/Res")
 
     assert len(base._drives) == 1 and len(wider._drives) == 2
-    assert dsl.Rack.instrument("A", g).chain("S", base)._chains[0].content is base
+    assert Rack.instrument("A", g).chain("S", base)._chains[0].content is base
+
+
+def test_a_rack_builder_returns_a_new_rack():
+    """Same reason: a sub-rack in two racks, and neither build reaching the other."""
+    g = Layout(Slot("Engine", selects=True), Slot("Filter"))
+    empty = Rack.instrument("X", g)
+    one = empty.chain("A", Engine("Operator").drives(g.filter, "Filter/Frequency"))
+    assert len(empty.engines) == 0 and len(one.engines) == 1
 
 
 def test_a_wildcard_slot_reaches_only_the_engines_that_offer_the_role():
     """`spends` states the role once; an engine without it leaves the slot empty."""
-    g = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Character"))
-    offering = dsl.Engine("OriginalSimpler").offers(
+    g = Layout(Slot("Engine", selects=True), Slot("Character"))
+    offering = Engine("OriginalSimpler").offers(
         "attack", "VolumeAndPan/Envelope/AttackTime")
-    silent = dsl.Engine("OriginalSimpler").offers("glide", "Globals/PortamentoTime")
-    rack = (dsl.Rack.instrument("X", g)
+    silent = Engine("OriginalSimpler").offers("glide", "Globals/PortamentoTime")
+    rack = (Rack.instrument("X", g)
             .spends(g.character, "attack")
             .chain("A", offering)
             .chain("B", silent))
 
     on_two = [m["target"] for m in mappings.find(rack.build()) if m["macro"] == 2]
     assert on_two == ["AttackTime"], "the leaf, as mappings.find reports it"
+
+
+def test_spending_a_role_names_the_knob_after_it():
+    g = Layout(Slot("Engine", selects=True), Slot("Character"))
+    voice = Engine("OriginalSimpler").offers(
+        "attack", "VolumeAndPan/Envelope/AttackTime")
+    rack = Rack.instrument("X", g).spends(g.character, "attack").chain("A", voice)
+    assert _labels(rack) == ["Engine", "Attack"]
 
 
 if __name__ == "__main__":

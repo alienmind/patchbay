@@ -64,23 +64,36 @@ Similar to a real patchbay in a music studio - routing signals between studio eq
 this tool routes macros to parameters, chains to zones, and racks onto tracks.
 
 ```python
-PATCHBAYGROUND = Layout("Instrument", "Sound", "Filter", "Drive",
-                         "Movement", "Character", "Release", "Volume",
-                         selector="Instrument")
+PB = Layout(
+    Slot("Instrument", label="> Instrument", selects=True),
+    Slot("Sound"),
+    Slot("Filter", start=127),
+    Slot("Drive"),
+    Slot("Movement"),
+    Slot("Character"),
+    Slot("Release", start=30),
+    Slot("Volume", start=127),
+)
 
-rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT)
+RELEASE = Range(10, 20000, "ms")
 
-with rack.engine("FM", "Operator") as e:
-    e.bind(filter="Filter/Frequency",
-           release=("Operator.0/Envelope/ReleaseTime", 10, 20000))
+FM = (Engine("Operator")
+      .drives(PB.filter, "Filter/Frequency")
+      .drives(PB.release, "Operator.0/Envelope/ReleaseTime", over=RELEASE))
 
-with rack.engine("Sample", "OriginalSimpler") as e:
-    e.bind(filter="Filter/Slot/Value/SimplerFilter/Freq",
-           release=("VolumeAndPan/Envelope/ReleaseTime", 10, 20000))
+SAMPLER = (Engine("OriginalSimpler")
+           .drives(PB.filter, "Filter/Slot/Value/SimplerFilter/Freq")
+           .drives(PB.release, "VolumeAndPan/Envelope/ReleaseTime", over=RELEASE))
+
+PD1 = (Rack.instrument("PD1", PB)
+       .chain("FM", FM)
+       .chain("Sample", SAMPLER))
 ```
 
 Both engines bind the same layout slots to their own parameters, so one
-knob moves the same musical idea through different synthesis.
+knob moves the same musical idea through different synthesis. An engine
+profile is a value, so it is declared once and used by every rack that
+wants that engine.
 
 Most of the vocabulary is Live's. A few terms are this project's own:
 
@@ -95,8 +108,10 @@ Most of the vocabulary is Live's. A few terms are this project's own:
 | **pad** | Live | a drum rack chain, chosen by a MIDI note instead of a zone |
 | **variation** | Live | a stored position for every macro, recalled as one. Live's UI says Variations, the XML says Snapshots |
 | **engine** | PatchBay | one chain and the device in it, treated as one way of making the sound |
-| **slot** | PatchBay | one position in the layout. Slot N is macro N |
-| **layout** | PatchBay | the ordered list of slot NAMES, shared by every rack that uses it |
+| **slot** | PatchBay | one position in the layout. Slot N is macro N, and it carries its own name, opening position and label |
+| **layout** | PatchBay | the ordered list of slots, shared by every rack that uses it |
+| **engine profile** | PatchBay | how one device answers a layout: a value, reusable across racks |
+| **role** | PatchBay | what a rack asks its wildcard slot to do. An engine `offers` roles, a rack `spends` a slot on one |
 | **mapping** | Live | the stored link from a macro to a parameter. What a binding compiles INTO |
 | **binding** | PatchBay | one slot pointed at one parameter of one device |
 | **range** | PatchBay | the span of that parameter the macro drives, in the parameter's own units |
@@ -126,8 +141,8 @@ through every engine without being written per engine, and it can select
 its own engine on the way:
 
 ```python
-rack.variations(Variation("dark", instrument=rack.engine_macro("FM"),
-                          filter=30, release=110))
+PD1.variations(PB.variation("dark", instrument=PD1.engine_macro("FM"),
+                            filter=30, release=110))
 ```
 
 **A chain may hold a rack instead of a device.** Bindings are then outer
@@ -136,9 +151,14 @@ layout, so one knob reaches through however many levels lie between it and
 the parameter:
 
 ```python
-rack.nest("PADS", pd1())
-rack.nest("KEYS", ld1()).bind(filter="filter", release="release")
+VA1 = (Rack.instrument("VA1", PB)
+       .chain("PADS", PD1.chaining())
+       .chain("KEYS", LD1.chaining(PB.filter, PB.release)))
 ```
+
+`chaining()` with no slots keeps the identity default. Naming slots drives
+only those, and `PB.character.to(INNER.movement)` drives an inner slot with
+a different name.
 
 ## Everything here is guessed from empirical evidence
 

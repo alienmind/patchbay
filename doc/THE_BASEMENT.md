@@ -200,3 +200,79 @@ Donors survive for a different reason than the one they were adopted for.
 They carry configured values and tell you what a device can be asked to
 do, so they are about fidelity, not loadability. Generators may write
 partial device nodes.
+
+## The mutating DSL: `bind`, `nest`, engine functions and slot strings
+
+**Tried:** the first rack DSL. A rack was mutated in place, a chain came
+from `rack.engine(name, tag)` inside a `with` block, and every relation
+went through one verb:
+
+```python
+PATCHBAYGROUND = Layout("Instrument", "Sound", "Filter", ...,
+                        selector="Instrument",
+                        start={"Filter": 127, "Volume": 127},
+                        labels={"Instrument": "> Instrument"})
+
+rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
+            labels=paired("attack"))
+with rack.engine("FM", "Operator") as e:
+    e.bind(filter=[("Filter/Frequency", *CUTOFF),
+                   ("Filter/Resonance", *RESONANCE)],
+           release=("Operator.0/Envelope/ReleaseTime", *RELEASE_MS))
+rack.nest("PADS", pd1()).bind(filter="filter")
+```
+
+It built all six racks of `examples/patchbayground.py` correctly for the
+whole of Phase 0 to 5. It was replaced because of what it cost to READ and
+to EXTEND, not because anything it wrote was wrong.
+
+**What killed it**, in the order the costs showed up:
+
+- **`bind` was four relations under one name.** `e.bind(filter="...")`
+  mapped a slot to a device parameter; `n.bind(filter="filter")` mapped an
+  outer slot to an inner one. The value was `str`, or `(path, lo, hi)`, or
+  a list of either. All four were the same shape at the call site, and
+  which one a line meant depended on whether its receiver came from
+  `engine()` or from `nest()`.
+- **A slot name was a string in four places.** `selector=`, `start={}`,
+  `labels={}` and every `bind` keyword each named the slot again, and each
+  did its own typo check. A layout declaring `start={"Filter": 127}` said
+  "Filter" twice within three lines. Slots that are not Python identifiers
+  were worse off: `KIT` declares `Send A`, `Send B` and `Send Vol`, and
+  none could be written as a keyword.
+- **There was no value for "how a device answers to the layout."** That is
+  the thing this project is about, and the spec had to express it as five
+  functions that take a rack, mutate it and return it.
+  `meld(drift(wavetable(rack)))` is a rack read inside out, and the profile
+  could not be shared, extended or inspected.
+- **The wildcard role was threaded by hand.** Five engine functions carried
+  a `character: str | None` parameter, a module-level `WILDCARD` table
+  mapped role to path per device, and a `_bind` helper filtered the misses.
+  The role was then stated two to four times per rack.
+- **Ranges were anonymous tuples doing arithmetic.** `("Filter/Frequency",
+  *CUTOFF)` splatted a pair into a triple, `RELEASE_MS = tuple(v * 1000.0
+  for v in RELEASE)` rebuilt one by comprehension, and a trim helper
+  returned another to be splatted again. Nothing said which was Hz and
+  which was dB, which is exactly what Q14 cost a rack to find out.
+- **Deriving a layout copied dicts by hand.** `PAD = Layout(*PB.slots,
+  selector="Sound", start=dict(PB.start), labels=...)`. A derivation that
+  forgets `start=` produces a rack that loads silent, and nothing says so.
+  It happened, by accident, while testing something else.
+
+**One rule reversed on the way.** A second `bind` of a slot REPLACED the
+first, because a bulk keyword call reads as an edit. `.drives` on the same
+slot ACCUMULATES, because a per-slot call reads as a second mapping, which
+is what the Meld case wants. Neither rule is more correct; each matches
+how its own call site reads.
+
+**Replaced by:** `Slot`, `Range`, `Layout`, `Engine`, `Rack` as they are in
+`DSL.md`. The migration was gated on output identity rather than on
+judgement: all six racks, DR1's 178,960 facts included, digest identical
+before and after, so not one Live check was asked for at any step.
+
+**Two shapes went with it and are not coming back.** `pad(name, note,
+device=...)` versus `pad(name, note, rack=...)` became one positional
+argument, because the outer rack does not care which it got and the two
+keyword form could be given both or neither. And the `with rack.engine(...)
+as e:` block bought scoping for an object that was already mutable and
+already appended to the rack, so it read as a transaction and was not one.

@@ -238,10 +238,10 @@ down. The finding has value; the scaffolding that produced it is noise.
 
 `build/` is for what gets deleted. A module that has been PROVED against
 the shipping code and is waiting on a call in `TODO.md` is not scratch, and
-losing it means re-deriving it: `patchbay/experimental/` and
-`examples/experimental/` are tracked for that case. `patchbay/experimental/`
-is still under rule 6, so a spec with rack names in it goes in the examples
-half.
+losing it means re-deriving it: create `patchbay/experimental/` and
+`examples/experimental/` for that case. Neither exists most of the time,
+which is correct. `patchbay/experimental/` is still under rule 6, so a spec
+with rack names in it goes in the examples half.
 
 Nothing in `patchbay/` imports from `experimental/`. A module leaves in one
 of two directions, never by accumulating: into the library when the

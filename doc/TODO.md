@@ -275,64 +275,16 @@ drift.
 run in a browser unchanged. Twenty minutes to find out, and it would make
 the whole question moot.*
 
-**T9. Migrate to the proposed DSL surface.** The shape, the argument for
-it and what was verified are the last section of `DSL.md`. Slots are
-values carrying their own start, label and selector flag; an engine profile
-is a value with `drives` and `offers`; `bind` splits into one verb per
-relation; ranges are a `Range` with a unit and methods.
+*`TS-PORT.md` predates the DSL migration and quotes the old syntax. What
+it measures is the XML layer, which did not move, so the analysis stands.*
 
-**Class 1 throughout: NO LIVE CHECK, at any step.** Not a format change.
-`tests/golden.txt` holds a digest per rack, so every step below proves
-itself by `uv run pytest`. If a step needs the goldens regenerated, that
-step has moved the output and is wrong.
-
-T9a has landed: the types are in `patchbay/dsl.py` beside `LegacyLayout`,
-`LegacyEngine`, `LegacyNest` and `LegacyRack`, which are the old surface
-under new names and are what `examples/patchbayground.py`,
-`patchbay/extract.py` and most of `tests/test_patchbay.py` still import.
-`examples/experimental/patchbayground2.py` declares the five sample-free
-racks in the new types and is gated on the same goldens, and
-`test_the_new_surface_builds_the_same_drum_kit` covers the nested pad that
-the goldens cannot reach without `samples/`.
-
-Order matters, because the round trip test is what holds the rest honest.
-
-**T9b. Move `examples/patchbayground.py`.** Six racks including DR1 at
-three levels, which is where `spends`, `pad` and `deriving` are actually
-exercised. Deletes `_bind`, the `character=` parameter on five engine
-functions, and the `fm(sampler(rack))` nesting.
-*Gate: `tests/golden.txt` unchanged. DR1 is not in it and needs a machine
-with `samples/`; add its digest there while you are on one.*
-
-**T9c. Move `patchbay/extract.py`.** The emitter writes DSL source, so it
-writes the new syntax or the round trip breaks. This is the step that
-proves the new surface expresses everything the old one did, because the
-extractor is a complete enumeration of it.
-*Gate: `test_extract_round_trips_structure` passes unchanged in what it
-asserts.*
-
-**T9d. Delete the old surface.** Tests, then `DSL.md`'s code blocks, then
-the `Legacy*` classes and the `as Layout` import aliases that point at
-them. `Rack._realise` goes with them: the new `Rack` hands its declaration
-to `LegacyRack` to turn into XML, so that machinery moves into it here.
-`compile.AnyRack` collapses back to one class. The proposal section at the
-end of `DSL.md` folds into the body once it is no longer a proposal.
-
-Both rules are asserted, one per surface:
-`test_binding_a_slot_twice_replaces_rather_than_accumulates` on the legacy
-one, `test_a_slot_driven_twice_accumulates` on the new one. The first goes
-with the classes it tests.
-
-*Wants nothing. Blocks nothing. It is worth doing before T1 and T6c add
-callers to a surface that is going to move.*
-
-**T1. Drum rack pads in the DSL.** What DR1 still needs now that nesting
-is done. `clone.py` already sets `ReceivingNote` and allocates free notes,
-and `Rack.nest` already puts a rack inside a chain; nothing joins them up.
-A drum rack declares pads by note rather than chains by zone, so
-`RackKind.DRUM` needs a pad-shaped entry point rather than `engine`, and
-zone distribution does not apply to a pad.
-*Blocks: DR1. Wants Q6 for the return selectors; samples are done.*
+**T1. Drum rack return chains.** The pad half is done: `Rack.pad` takes a
+note and a content, zone distribution skips pads, and DR1 builds eight pads
+each holding a rack of eight samples, three levels deep. What is left is
+the RETURN side, which nothing in the DSL reaches: a drum rack's return
+chains, their per-pad send levels, and a selector across several reverbs
+and delays so a macro swaps the effect rather than its level.
+*Wants Q6, which is where that combination is untested.*
 
 **T4. Extend the `ableton-mcp` remote script** (KICKOFF Phase 6, revised).
 `create_audio_track`, `create_return_track` and an output-routing setter

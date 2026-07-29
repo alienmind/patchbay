@@ -21,11 +21,15 @@ from pathlib import Path
 
 from . import find, io, mappings, params as P, samples, variations
 
+#: Rack device tag -> the `Rack` constructor that builds one. A midi effect
+#: rack has no constructor because `RackKind` has no member for it, and the
+#: emitted `Rack.midi_effect(...)` fails loudly rather than building the
+#: wrong kind of rack silently.
 KIND_OF = {
-    "InstrumentGroupDevice": "RackKind.INSTRUMENT",
-    "AudioEffectGroupDevice": "RackKind.AUDIO_EFFECT",
-    "MidiEffectGroupDevice": "RackKind.MIDI_EFFECT",
-    "DrumGroupDevice": "RackKind.DRUM",
+    "InstrumentGroupDevice": "instrument",
+    "AudioEffectGroupDevice": "audio_effect",
+    "MidiEffectGroupDevice": "midi_effect",
+    "DrumGroupDevice": "drum",
 }
 
 
@@ -109,9 +113,9 @@ def _bindings_for(branch, device, rack_dev) -> dict[int, list[str | tuple]]:
 
 
 def _fmt_binding(spec) -> str:
-    """A binding as source. Range numbers go in bare, not as strings."""
+    """A binding as arguments to `drives`. Range numbers go in bare."""
     if isinstance(spec, tuple):
-        return f"({spec[0]!r}, {spec[1]}, {spec[2]})"
+        return f"{spec[0]!r}, over=Range({spec[1]}, {spec[2]})"
     return repr(spec)
 
 
@@ -215,27 +219,28 @@ def _selector_slot(rack_dev) -> int | None:
 
 
 def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
-               depth: int = 0) -> str:
-    """Emit one rack and everything under it. Returns its variable name."""
+               depth: int = 0) -> tuple[str, str]:
+    """Emit one rack and everything under it.
+
+    Returns its variable name and its layout's variable name. A parent needs
+    both: the rack to sit in a chain, and the layout to name the inner slots
+    an outer slot chains into.
+    """
     rack_dev = find.rack_device(preset_el)
-    tag = rack_dev.tag
-    kind = KIND_OF.get(tag, "RackKind.INSTRUMENT")
+    kind = KIND_OF.get(rack_dev.tag, "instrument")
 
     user = rack_dev.find("UserName")
     name = (user.get("Value") if user is not None else "") or name_hint
     var = _ident(name, used)
+    layout_var = _ident(f"{name}_layout", used)
 
     n = _macro_count(preset_el, rack_dev)
-    # Underscore, not a space: the emitted `e.bind(macro_1=...)` has to be a
-    # keyword argument, and Layout lookup is case insensitive on the exact
-    # string. "Macro 1" would emit code that cannot address its own layout.
-    slots = ", ".join(f'"Macro_{i + 1}"' for i in range(n))
     sel = _selector_slot(rack_dev)
-    sel_arg = f', selector="Macro_{sel}"' if sel else ", selector=None"
+    starts = _starts(rack_dev, n)
 
     # Children first, so a nested rack exists as a variable before its
     # parent references it.
-    children: dict[int, str] = {}
+    children: dict[int, tuple[str, str]] = {}
     branches = find.branches(preset_el)
     for i, branch in enumerate(branches):
         nested = [d for d in branch.iter("GroupDevicePreset")]
@@ -246,28 +251,34 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             hint = hint if hint != "" else f"{name}_{i}"
             children[i] = _emit_rack(nested[0], hint, used, lines, depth + 1)
 
-    lines.append(f'{var} = Rack({name!r}, Layout({slots}{sel_arg}), kind={kind})')
-
-    # The emitted layout is positional, so a label that matches its own
-    # slot name carries nothing. One that does not is the only record of
-    # what this rack called the knob.
-    shown = {}
+    # The slot list. A slot carries its own position, opening value, label
+    # and selector flag, so the layout is the whole of what this rack's
+    # macros are and there is nothing left to state per rack.
+    #
+    # Slot names are positional, `Macro 1`, and answer to `macro_1` in
+    # Python. Guessing a name from a parameter path would be inventing
+    # intent, which CLAUDE.md rule 1 forbids for exactly the reason that
+    # makes it tempting: the guess is usually right, and silently wrong the
+    # rest of the time.
+    lines.append(f"{layout_var} = Layout(")
     for i in range(n):
+        display = f"Macro {i + 1}"
+        args = [repr(display)]
+        if i + 1 in starts:
+            args.append(f"start={starts[i + 1]}")
+        # A label that matches the positional name carries nothing. One that
+        # does not is the only record of what this rack called the knob, and
+        # Live's own default happens to BE the positional name.
         el = rack_dev.find(f"MacroDisplayNames.{i}")
         text = None if el is None else el.get("Value")
-        # Live's own default, "Macro 1", is emitted too. It differs from the
-        # positional slot name "Macro_1" by the underscore the slot needs to
-        # be a keyword argument, and dropping it renames every knob on a
-        # rack that was never labelled.
-        if text:
-            shown[f"Macro_{i + 1}"] = text
-    if shown:
-        lines.append(f'{var}.label(**{shown!r})')
+        if text is not None and text != display:
+            args.append(f"label={text!r}")
+        if sel == i + 1:
+            args.append("selects=True")
+        lines.append(f"    Slot({', '.join(args)}),")
+    lines.append(")")
 
-    starts = _starts(rack_dev, n)
-    if starts:
-        args = ", ".join(f"macro_{k}={v}" for k, v in sorted(starts.items()))
-        lines.append(f'{var}.start({args})')
+    call = [f"{var} = (Rack.{kind}({name!r}, {layout_var})"]
 
     for i, branch in enumerate(branches):
         # The stored name, empty string included. Live leaves a chain
@@ -275,86 +286,74 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
         bname_el = branch.find("Name")
         bname = bname_el.get("Value") if bname_el is not None else f"chain{i}"
         note = _receiving_note(branch)
+        verb = f".pad({bname!r}, {note}," if note is not None else f".chain({bname!r},"
+        zone = _zone_of(branch)
 
         if i in children:
-            call = (f'{var}.pad({bname!r}, {note}, rack={children[i]})'
-                    if note is not None else
-                    f'{var}.nest({bname!r}, {children[i]})')
+            child_var, child_layout = children[i]
             # WHICH slots chain must be emitted, never left to the default.
-            # `nest()` with no arguments chains every slot the inner rack
+            # `chaining()` with no arguments chains every slot the inner rack
             # drives, which is one mapping more than the original wherever
             # the author deliberately left a slot out. VA1 does exactly that
-            # with its selector, and a bare nest silently puts it back.
-            chain = _chained_slots(branch)
-            if chain:
-                args = ", ".join(f'macro_{o}="macro_{i2}"'
-                                 for o, i2 in sorted(chain.items()))
-                call += f'.bind({args})'
-            zone = _zone_of(branch)
+            # with its selector, and a bare chaining silently puts it back.
+            pairs = ", ".join(
+                f"{layout_var}.macro_{o}.to({child_layout}.macro_{inner})"
+                for o, inner in sorted(_chained_slots(branch).items()))
+            content = f"{child_var}.chaining({pairs})"
             if zone and note is None:
-                call += f'.zone({zone[0]}, {zone[1]})'
-            lines.append(call)
+                content += f".zone({zone[0]}, {zone[1]})"
+            call.append(f"        {verb} {content})")
             continue
 
         devices = find.devices(branch)
         if not devices:
-            lines.append(f'# {bname!r}: chain has no device, skipped')
+            call.append(f"        # {bname!r}: chain has no device, skipped")
             continue
         device = devices[0]
 
-        if note is not None:
-            lines.append(
-                f'with {var}.pad({bname!r}, {note}, '
-                f'device={device.tag!r}) as e:')
-        else:
-            lines.append(f'with {var}.engine({bname!r}, {device.tag!r}) as e:')
+        content = [f"Engine({device.tag!r})"]
 
-        # Before the bindings, because `sample()` replaces the whole
-        # MultiSampleMap on some devices and a binding written first would
-        # be emitted against a map that is about to go.
-        #
         # Only the first target: a device with several samples is a
         # multi-sampled instrument, which `sample()` cannot express and Q3
         # gates. Emitting one of them silently would be a lie about what
         # rebuilt.
         got_samples = _sample_targets(device)
         if got_samples:
-            lines.append(f'    e.sample({got_samples[0]!r})')
+            content.append(f".sample({got_samples[0]!r})")
             if len(got_samples) > 1:
-                lines.append(f'    # {len(got_samples) - 1} further sample(s) '
-                             f'not emitted: multi-sampling is Q3')
+                content.append(f"  # {len(got_samples) - 1} further sample(s) "
+                               f"not emitted: multi-sampling is Q3")
 
         binds = _bindings_for(branch, device, rack_dev)
-        if binds:
-            args = ", ".join(
-                f"macro_{k}=" + (_fmt_binding(v[0]) if len(v) == 1
-                                 else "[" + ", ".join(map(_fmt_binding, v)) + "]")
-                for k, v in sorted(binds.items()))
-            lines.append(f'    e.bind({args})')
-        else:
-            lines.append('    pass  # no macro drives this chain')
-
-        zone = _zone_of(branch)
+        for macro, specs in sorted(binds.items()):
+            for spec in specs:
+                content.append(
+                    f".drives({layout_var}.macro_{macro}, {_fmt_binding(spec)})")
         if zone and note is None:
-            lines.append(f'    e.zone({zone[0]}, {zone[1]})')
+            content.append(f".zone({zone[0]}, {zone[1]})")
+
+        joined = ("\n" + " " * 12).join(content)
+        call.append(f"        {verb}\n            {joined})")
 
     got = variations.read(rack_dev)
     if got:
         # One call, not one per variation: `variations()` appends, so
         # splitting it would still work and reads as though order were
-        # negotiable. It is not - a variation is recalled by index.
+        # negotiable. It is not, a variation is recalled by index.
         made = []
         for v in got:
             args = ", ".join(f"macro_{m}={P.fmt(p)}"
                              for m, p in sorted(v["values"].items()))
-            made.append(f'Variation({(v["name"] or "")!r}{", " + args if args else ""})')
-        lines.append(f"{var}.variations(")
+            made.append(f'{layout_var}.variation({(v["name"] or "")!r}'
+                        f'{", " + args if args else ""})')
+        call.append("        .variations(")
         for m in made:
-            lines.append(f"    {m},")
-        lines.append(")")
+            call.append(f"            {m},")
+        call.append("        )")
 
+    lines.append("\n".join(call) + ")")
     lines.append("")
-    return var
+    return var, layout_var
 
 
 def source(path: Path | str) -> str:
@@ -371,12 +370,11 @@ def source(path: Path | str) -> str:
         "slots to whatever this rack means, and the bindings follow.",
         '"""',
         "",
-        "from patchbay.dsl import (LegacyLayout as Layout, "
-        "LegacyRack as Rack, RackKind, Variation)",
+        "from patchbay.dsl import Engine, Layout, Rack, Range, Slot",
         "",
     ]
     used: set[str] = set()
-    var = _emit_rack(preset_el, Path(path).stem, used, lines)
+    var, _ = _emit_rack(preset_el, Path(path).stem, used, lines)
     lines.append(f"RACKS = [{var}]")
     return "\n".join(lines) + "\n"
 
