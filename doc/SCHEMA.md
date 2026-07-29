@@ -1384,6 +1384,60 @@ each engine's own maximum, because one knob position should mean one
 frequency on every engine, which is the sound family constraint. Nothing
 audible is lost: 18.5 kHz is already above where a sweep reads as pitch.
 
+## Q16. Drift's modulation routing - ANSWERED
+
+**Files:** `racks/q16_a.adg` (LFO -> LP Frequency at 80%),
+`racks/q16_b.adg` (same rack, that row set to Env 1 / None / 0%). Both are
+BS1 saved out of Live 12.4.3, so the Drift under test is the one PatchBay
+built.
+
+`patchbay diff` moved three facts and one rename:
+
+| element | a | b |
+|---|---|---|
+| `Drift/ModulationMatrix_Source1@Value` | 2 | 0 |
+| `Drift/ModulationMatrix_Target1@Value` | 6 | 0 |
+| `Drift/ModulationMatrix_Amount1/Manual@Value` | 0.8000000119 | 0 |
+
+So a modulation row is three sibling elements with a shared index, and the
+routing is NOT in the parameter list. `find.params` does not return
+`Source1` or `Target1`, and `library.Device.search` cannot find them,
+which is why a macro bound to `Lfo_Amount` resolved, wrote a valid
+`KeyMidi`, and moved nothing audible.
+
+**Two classes of element, and only one is mappable.**
+
+| kind | elements | children | takes a KeyMidi |
+|---|---|---|---|
+| routing | `ModulationMatrix_Source{1,2,3}`, `_Target{1,2,3}`, `Filter_ModSource{1,2}`, `Lfo_ModSource` | none. The value is the element's own attribute | no |
+| depth | `ModulationMatrix_Amount{1,2,3}`, `Filter_ModAmount{1,2}`, `Lfo_Amount` | `LomId`, `Manual`, `MidiControllerRange`, `AutomationTarget`, `ModulationTarget` | yes |
+
+A routing selector is a bare `<ModulationMatrix_Target1 Value="6" />` with
+no `Manual`, so nothing can drive it and it can only be SET. That is a
+capability the DSL did not have: every write it makes is either a mapping
+or a value on a parameter.
+
+**Two enums, indexed from 0, and the target list is Drift's own dropdown
+order:** `None, Osc 1 Gain, Osc 1 Shape, Osc 2 Gain, Osc 2 Detune, Noise
+Gain, LP Frequency, LP Resonance, HP Frequency, LFO Rate, Cyc Env Rate,
+Main Volume`. Target 6 is LP Frequency, read off the file rather than
+counted off the dropdown. The SOURCE enum is a different list and only two
+of its members are pinned by this diff: 2 is LFO, 0 is Env 1.
+
+**The donor carries a live row of its own**, and every Drift PatchBay
+builds has inherited it: `Source1=5, Target1=8, Amount1=0.8`. Target 8 is
+HP Frequency. So BS1 and PD1W ship with something modulating the high-pass
+at 80% because a donor happened to, which is the fidelity-not-loadability
+argument arriving as a defect. A rack that means to modulate nothing has
+to say so.
+
+**What is still open is which knob is the depth**, and it is an ears
+question rather than a file one. `Lfo_Amount` (the LFO tab) and
+`ModulationMatrix_Amount1` (the Mod tab row) are both real parameters and
+both mappable, and nothing in the file says whether the first gates the
+second or whether they are independent. In `q16_a` the LFO tab read 0.0%
+while the row read 80%.
+
 ## S11. .als track structure
 
 TBD - routing, sidechain source, return tracks.

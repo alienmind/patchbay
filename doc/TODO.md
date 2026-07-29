@@ -69,7 +69,7 @@ Ordered by what unblocks the most. Report by check number.
 
 | Round | What | Why here |
 |---|---|---|
-| **Q16** | One diff, Drift's LFO routing | Unblocks Macro 5 on every rack. Nothing else does |
+| **Q16b** | One knob, Drift's LFO depth | The diff landed. This decides which parameter Macro 5 binds |
 | **K** | Two donor racks, one load check | Widens the vocabulary and gates 54 donors nothing has loaded yet |
 | **H** | The new slots 3 and 6 | The reshape has never been HEARD. Its structure is now a test |
 | **I** | Labels on Push | Eyes only. Nothing about a display is in the file |
@@ -160,24 +160,36 @@ What a test cannot say is whether 20 s is the right ceiling.
 
 Expected still broken: Macro 5 on Wavetable and Meld, until Q16.
 
-### Q16. Drift's LFO reaches nothing
+### Q16. Drift's LFO routing - DIFFED, one question left
 
-Held over from round B. `Lfo_Amount` is the right parameter and moves.
-What is missing is the routing, and it is NOT in the parameter list: Drift
-keeps it in plain `Value` elements next to the parameters, as
-`Filter_ModSource1`, `ModulationMatrix_Source1` / `_Target1` / `_Amount1`
-and their numbered siblings. The donor has `ModulationMatrix_Source1=5,
-Target1=8, Amount1=0.8` and `Lfo_ModSource=5`, so the enums are guessable
-and therefore exactly what must not be guessed.
+The file half is ANSWERED and written up in `SCHEMA.md` against
+`racks/q16_a.adg` and `racks/q16_b.adg`. A modulation row is three sibling
+elements sharing an index. `ModulationMatrix_Source1=2` is the LFO,
+`_Target1=6` is LP Frequency, `_Amount1` is an ordinary mappable
+parameter, and the two selectors are bare `Value` elements with no
+`Manual`, so they can only be SET and never driven.
 
-One change diff, and it answers the whole thing at once:
+Two things fall out, one of them a defect:
 
-| # | Do this | Save as |
-|---|---|---|
-| Q16 | Load `build/BS1.adg`, select Drift, set ONE modulation matrix row to LFO -> Filter Frequency, nothing else | `racks/q16_a.adg`, and the same rack with that row cleared as `racks/q16_b.adg` |
+**The DSL cannot set a plain value.** Every write it makes is a mapping or
+a value on a parameter. Writing a routing row needs a third verb.
 
-Until it lands, Macro 5 does nothing audible on any engine: Wavetable's
-LFO depth is not in the parameter list at all, and Meld has no equivalent.
+**Every Drift PatchBay builds carries the donor's own row**,
+`Source1=5, Target1=8, Amount1=0.8`, which is something modulating the
+high-pass at 80% that nobody asked for. BS1 and PD1W ship with it today.
+
+What is left is which knob is the DEPTH, and only ears answer it.
+`Lfo_Amount` and `ModulationMatrix_Amount1` are both mappable and the file
+does not say whether the first gates the second. Macro 5 is on
+`Lfo_Amount` today.
+
+| # | Rack | Do this | Should happen |
+|---|---|---|---|
+| Q16b | BS1, rebuilt with the routing written and `Amount1` at full | Select Drift, turn Macro 5 across its travel | Cutoff wobbles, and the wobble deepens with the knob. If NOTHING moves, `Lfo_Amount` is not the depth and Macro 5 belongs on `ModulationMatrix_Amount1` |
+
+One binary check, and it decides the binding for Drift on every rack.
+Wavetable's LFO depth is still not in the parameter list at all and Meld
+has no equivalent, so Macro 5 stays empty on those two either way.
 
 ### D. DR1 in depth
 

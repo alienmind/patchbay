@@ -6,12 +6,9 @@ readily as a literal does.
 
 ## Why a DSL rather than a config file
 
-`PATCHBAYGROUND.md` line 60: *"This consistency is the actual product, more
-than any individual rack."* The macro layout is identical across every
+Becasue code can be reused: macro layout is identical across every
 instrument rack. Six racks sharing one layout is a program, not a
-document - in YAML you would copy the layout six times and watch it drift.
-
-Three further pressures point the same way:
+document. But moreover:
 
 **Parameter names are not guessable.** Saturator's Drive knob is
 `PreDrive`. Simpler's filter cutoff is
@@ -19,6 +16,8 @@ Three further pressures point the same way:
 paths like `Operator.0/Envelope/DecayTime`. A binding written from
 imagination is wrong; one written against the harvested device library is
 checkable, and wrong paths fail with a suggestion.
+
+And this is code that can be unit tested.
 
 **Variations are combinatorial.** ~692 sounds across 18 engines, generated
 by permuting macro values. That is a loop, not a list.
@@ -87,21 +86,6 @@ reaching the other. `PD1.variations(...)` is a new rack; `PD1` is not
 touched.
 
 An earlier surface had neither, and what that cost is in `THE_BASEMENT.md`.
-
-## Why it is called a Layout
-
-The object is an ordered list of named slots, plus which one drives the
-chain selector, plus where each knob rests. A rack takes one as an
-argument and binds its own parameters to it.
-
-QWERTY is the analogy and it is exact. A keyboard layout is shared across
-many different physical keyboards precisely so the skill transfers, the
-position carries the meaning, and the keycap is local paint. That is this
-object, slot for slot, and it is what `PATCHBAYGROUND.md` has claimed from
-its first draft: "identical across every instrument rack so muscle memory
-transfers".
-
-It was called a Grammar until it was not. See `THE_BASEMENT.md`.
 
 ## A slot carries everything about itself
 
