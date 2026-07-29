@@ -77,10 +77,37 @@ soak, stretch, fade. Which device serves which is a taste call and yours.
 indexed already; ARP1 needs the donors in K2.
 *Cheap once the donors land.*
 
-**C3. EQC.** Five devices, and only partly automatable: the sidechain
-inside it is absent from the file format AND from the Live Object Model, so
-that part stays a manual step whatever else happens. See `THE_BASEMENT.md`.
+**C3. EQC.** Five devices, carrying Lo-Hi EQ, EQ dry/wet, compressor
+dry/wet, gain, and the sidechain.
 *Donors: `ChannelEq` and `Utility` are missing.*
+
+**C4. The sidechain, on every track.** This is the tedious one, and it was
+wrongly written off as manual. `PATCHBAYGROUND.md` sidechains EQC's
+compressor from DR1 with the sidechain EQ on a low band, so it tracks the
+kick and ignores hats, and it does the same on the reverb returns. Eight
+tracks plus returns, each with an enable, an EQ mode, a frequency, a Q, a
+dry/wet and a source: that is the shape of thing this project exists to
+stop doing by hand.
+
+**Most of it is reachable today.** Reading the `Compressor2` donor rather
+than searching for the feature turns up the whole mechanism, and every part
+but the source is an ordinary parameter that `sets` writes:
+
+    SideChain/OnOff                       enable
+    SideChainEq/On /Mode /Freq /Q /Gain   the low band that ignores hats
+    SideChain/DryWet                      how much of the duck lands
+    SideChain/RoutedInput/Volume          input trim
+
+So C4 splits. The compressor's whole sidechain CONFIGURATION can be
+declared now, with no new capability and no donor. What is unknown is the
+SOURCE, which is Q18 below, and until that lands the manual step shrinks
+from configuring a sidechain per track to picking a source from a dropdown
+per track.
+
+**No ghost track**, per the spec: the source is DR1 itself. That matters
+for Q18, because a reference to a real track is exactly the kind that may
+not survive being dragged into a different Set.
+*Wants Q18 for the source. Everything else can start now.*
 
 ### K. Donors: three racks to save, one file to load
 
@@ -244,6 +271,26 @@ EFFECT rather than the send level. The pieces are known separately, the
 combination is untested. **C1 is the same mechanism one level up**, so
 building AFX1 answers most of this for free.
 
+**Q18. Where the sidechain source lives, and whether it travels.** The
+enable, the EQ and the dry/wet are ordinary parameters and need no spike.
+The SOURCE is a plain setting,
+`SideChain/RoutedInput/Routable/Target`, reading `AudioIn/None` in the
+donor, beside `UpperDisplayString = No Output`. Two things are unknown and
+one diff plus one drag answers both.
+
+| # | Do this | Save as |
+|---|---|---|
+| Q18a | In a Set with a DR1 track, put a Compressor on another track, sidechain OFF, defaults. Drag that track's device chain to the browser | `racks/q18_a.adg` |
+| Q18b | Turn the sidechain ON and set its source to the DR1 track. Change nothing else. Drag it out again | `racks/q18_b.adg` |
+| Q18c | Drag `racks/q18_b.adg` onto a track in a DIFFERENT Set, one with no track named DR1 | report what the sidechain source reads |
+
+Q18a and Q18b give the `Target` string for a real track. Q18c is the one
+that decides whether this is worth automating at all: if the reference is
+by track id it will not resolve in another Set, and if it is by NAME it
+will, which is also what `MCP.md` flags as the fragile part of routing.
+Either answer is useful. A source that does not travel means PatchBay
+writes the configuration and a person picks the source once per track.
+
 **Q17. Meld's glide mode.** `MeldVoice_Engine{A,B}_GlideMode` reads 0 and
 the enum is undiffed, so LD1's Macro 6 moves Meld's glide TIME and glides
 nothing. The last of the mapped-but-switched-off family. Load
@@ -301,8 +348,9 @@ is what made the project feel bigger than it is.
   so are declared and tested; whether the result is musical is ears.
 - Assembling the Set: eight tracks, naming, routing, returns, tempo. Half
   an hour, once. See `THE_BASEMENT.md` for why this is not automated.
-- Sidechain source. Absent from the LOM and not found in the file format.
-  One setting per track, not a system.
+- Picking the sidechain SOURCE, if Q18c shows the reference does not
+  survive a drag into another Set. The configuration around it is not
+  manual: see C4.
 - Confirming a mapped macro DOES something. WHICH mappings exist is not
   manual: `patchbay mappings` reads them out of the file, the matrix is
   asserted in tests, and as of round H so is the switch behind each

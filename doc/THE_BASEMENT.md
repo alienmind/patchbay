@@ -98,13 +98,39 @@ dependency that costs more than it returns.
 **Replaced by:** `io.py`, and `TODO.md` T6 for the emitter, which no
 external library could supply because the DSL is ours.
 
-## Sidechain source, at any level
+## Sidechain source, at any level - WRONG, and dug back up
 
-Absent from the Live Object Model, and not found in the file format
-either. `PATCHBAYGROUND.md` needs it for DR1.
+**The claim was:** absent from the Live Object Model, and not found in the
+file format either, so it stays manual at one setting per track. It carried
+its own revisit condition: *"Revisit only if that proves annoying in
+practice."*
 
-It stays manual. It is one setting per track, priced at one afternoon.
-Revisit only if that proves annoying in practice.
+**The LOM half stands. The file format half was wrong.** Reading the
+indexed `Compressor2` donor rather than searching for the word
+"sidechain" turns up the whole mechanism:
+
+    SideChain/OnOff                                    parameter, false
+    SideChain/DryWet                                   parameter, 1
+    SideChain/RoutedInput/Volume                       parameter, 1
+    SideChainEq/On /Mode /Freq /Q /Gain                parameters
+    SideChain/RoutedInput/Routable/Target              AudioIn/None
+    SideChain/RoutedInput/Routable/UpperDisplayString  No Output
+
+Everything but the source is an ordinary parameter, settable today. The
+SOURCE is a plain `Target` string, which is the same shape as Drift's
+routing: a value with no `Manual`, invisible to `find.params` and to
+`library.Device.search`.
+
+**Why it was missed:** the search was for a device or a parameter named
+after the feature. The routing lives under `RoutedInput/Routable`, which
+names the mechanism rather than the feature, and the enable is three levels
+down a path. The same mistake as Q16, made twice: a control that is not a
+parameter does not answer a parameter search.
+
+**Where it went:** `Q18` in `TODO.md`. What remains genuinely unknown is
+what `Target` holds when it points at a real track, and whether that
+reference survives dragging the rack into a different Set. One diff answers
+the first; a load answers the second.
 
 ## The `OriginalCrc` algorithm
 
