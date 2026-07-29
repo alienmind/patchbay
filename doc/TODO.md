@@ -125,7 +125,13 @@ each parameter's native range.
 
 | # | Do this | Should happen |
 |---|---|---|
-| K3 | Drag in `build/K3_als_donor.adg`. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+| K3 | Drag `build/K3_als_donor.adg` onto an **AUDIO track**, or onto a MIDI track that already holds an instrument. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
+
+**It is an `AudioEffectGroupDevice`, so a bare MIDI track will not take it**
+and the cursor never arms. That is Live's rule about where audio effects can
+live, not a verdict on the file, and it is a different outcome from Live
+reading the file and refusing it. Asked for on a MIDI track once, and the
+answer was "not even draggable", which says nothing about Q9 either way.
 
 K3 is a real risk, not a formality. Every harvested donor was lifted out of
 a `.als`, and whether a device node is serialised identically in Set form

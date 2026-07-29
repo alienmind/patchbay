@@ -138,6 +138,12 @@ Do NOT re-explain how racks work, or what a macro is. That is known.
 >
 > Expected still broken: macros 5-13 are unbound.
 
+**Name the TRACK TYPE when the rack is not an instrument.** An
+`AudioEffectGroupDevice` cannot go on a bare MIDI track: Live refuses the
+drop before reading the file, the cursor never arms, and "not even
+draggable" is not the same result as "Live rejected it". Say "onto an audio
+track" and the check answers the question it was asked.
+
 **DRAG IT IN. Never double-click an `.adg`.** Double-clicking starts a
 SECOND Live instance, which hangs for a few seconds and loads nothing.
 That is indistinguishable from Live rejecting the file, and it already
