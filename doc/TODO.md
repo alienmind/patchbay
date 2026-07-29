@@ -276,27 +276,26 @@ run in a browser unchanged. Twenty minutes to find out, and it would make
 the whole question moot.*
 
 **T9. Migrate to the proposed DSL surface.** The shape, the argument for
-it and what was verified are the last section of `DSL.md`. Slots become
+it and what was verified are the last section of `DSL.md`. Slots are
 values carrying their own start, label and selector flag; an engine profile
-becomes a value with `drives` and `offers`; `bind` splits into one verb per
-relation; ranges become a `Range` with a unit and methods.
+is a value with `drives` and `offers`; `bind` splits into one verb per
+relation; ranges are a `Range` with a unit and methods.
 
-**Class 1 throughout: NO LIVE CHECK, at any step.** Not a format change. A
-prototype front end, `patchbay/experimental/dsl2.py` driven by
-`examples/experimental/patchbayground2.py`, declared PD1, PD1W, BS1, LD1
-and VA1, plus a drum rack
-holding a nested pad, and every one diffed identical against what the
-current syntax builds. `tests/golden.txt` holds the digests, so every step
-below proves itself by `uv run pytest`. If a step needs the goldens
-regenerated, that step has moved the output and is wrong.
+**Class 1 throughout: NO LIVE CHECK, at any step.** Not a format change.
+`tests/golden.txt` holds a digest per rack, so every step below proves
+itself by `uv run pytest`. If a step needs the goldens regenerated, that
+step has moved the output and is wrong.
+
+T9a has landed: the types are in `patchbay/dsl.py` beside `LegacyLayout`,
+`LegacyEngine`, `LegacyNest` and `LegacyRack`, which are the old surface
+under new names and are what `examples/patchbayground.py`,
+`patchbay/extract.py` and most of `tests/test_patchbay.py` still import.
+`examples/experimental/patchbayground2.py` declares the five sample-free
+racks in the new types and is gated on the same goldens, and
+`test_the_new_surface_builds_the_same_drum_kit` covers the nested pad that
+the goldens cannot reach without `samples/`.
 
 Order matters, because the round trip test is what holds the rest honest.
-
-**T9a. The types, beside the current ones.** `Slot`, `Range`, `Layout`,
-`Engine`, `Rack` in `patchbay/dsl.py`, with the current classes still
-exported and still passing their tests. Nothing else moves yet.
-*Gate: the prototype's five racks, declared in the new types, digest equal
-to `tests/golden.txt`.*
 
 **T9b. Move `examples/patchbayground.py`.** Six racks including DR1 at
 three levels, which is where `spends`, `pad` and `deriving` are actually
@@ -313,14 +312,16 @@ extractor is a complete enumeration of it.
 asserts.*
 
 **T9d. Delete the old surface.** Tests, then `DSL.md`'s code blocks, then
-the classes. The proposal section at the end of that file folds into the
-body once it is no longer a proposal.
+the `Legacy*` classes and the `as Layout` import aliases that point at
+them. `Rack._realise` goes with them: the new `Rack` hands its declaration
+to `LegacyRack` to turn into XML, so that machinery moves into it here.
+`compile.AnyRack` collapses back to one class. The proposal section at the
+end of `DSL.md` folds into the body once it is no longer a proposal.
 
-One rule reverses on the way: `.drives` on the same slot twice accumulates,
-where a second `bind` of a slot replaces.  `DSL.md` says why.
-`test_binding_a_slot_twice_replaces_rather_than_accumulates` asserts the
-old behaviour and is the one test that must change rather than pass; no
-other caller relies on it.
+Both rules are asserted, one per surface:
+`test_binding_a_slot_twice_replaces_rather_than_accumulates` on the legacy
+one, `test_a_slot_driven_twice_accumulates` on the new one. The first goes
+with the classes it tests.
 
 *Wants nothing. Blocks nothing. It is worth doing before T1 and T6c add
 callers to a surface that is going to move.*

@@ -371,7 +371,8 @@ def source(path: Path | str) -> str:
         "slots to whatever this rack means, and the bindings follow.",
         '"""',
         "",
-        "from patchbay.dsl import Layout, Rack, RackKind, Variation",
+        "from patchbay.dsl import (LegacyLayout as Layout, "
+        "LegacyRack as Rack, RackKind, Variation)",
         "",
     ]
     used: set[str] = set()

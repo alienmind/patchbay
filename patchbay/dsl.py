@@ -6,20 +6,23 @@ identical across every instrument rack, so the thing worth expressing is
 not "build a rack" but "bind this engine's parameters to the standard
 layout".
 
-    PUSH = Layout("Engine", "Cutoff", "Resonance", "Decay",
-                   "Drive", "Movement", "Space", "Character")
+    PUSH = Layout(Slot("Engine", selects=True), Slot("Cutoff"),
+                  Slot("Decay"))
 
-    rack = Rack("PD1", PUSH, kind=RackKind.INSTRUMENT)
+    FM = (Engine("Operator")
+          .drives(PUSH.cutoff, "Filter/Frequency", over=Range(200, 8000, "Hz"))
+          .drives(PUSH.decay, "Filter/Envelope/DecayTime"))
 
-    with rack.engine("FM", "Operator") as e:
-        e.bind(cutoff=("Filter/Frequency", 200, 8000),
-               decay="Filter/Envelope/DecayTime")
+    SAMPLE = (Engine("OriginalSimpler")
+              .drives(PUSH.cutoff, "Filter/Slot/Value/SimplerFilter/Freq",
+                      over=Range(200, 8000, "Hz"))
+              .drives(PUSH.decay,
+                      "Filter/Slot/Value/SimplerFilter/Envelope/DecayTime"))
 
-    with rack.engine("Sample", "OriginalSimpler") as e:
-        e.bind(cutoff=("Filter/Slot/Value/SimplerFilter/Freq", 200, 8000),
-               decay="Filter/Slot/Value/SimplerFilter/Envelope/DecayTime")
-
-    rack.variations(Variation("dark", cutoff=30, decay=110))
+    rack = (Rack.instrument("PD1", PUSH)
+            .chain("FM", FM)
+            .chain("Sample", SAMPLE)
+            .variations(PUSH.variation("dark", cutoff=30, decay=110)))
 
     rack.save("build/PD1.adg")
 
@@ -40,12 +43,21 @@ Three things fall out of that shape rather than being programmed:
 
 What this is not: a general graph DSL. It expresses the racks in
 PATCHBAYGROUND.md and stops there.
+
+Two surfaces live here during T9. `Slot`, `Range`, `Layout`, `Engine` and
+`Rack` are the one above. `LegacyLayout`, `LegacyEngine`, `LegacyNest` and
+`LegacyRack` are the previous one, still exported and still what
+`examples/patchbayground.py` and `extract.py` are written against; T9d
+deletes them. The new types hold the declaration and realise it through
+the legacy ones, which is why the output cannot move: `tests/golden.txt`
+gates both.
 """
 
 from __future__ import annotations
 
 import copy
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from pathlib import Path
 from typing import Iterator, Mapping, Sequence, Union
@@ -100,7 +112,7 @@ class RackKind(str, Enum):
         }[self]
 
 
-class Layout:
+class LegacyLayout:
     """An ordered list of macro slots, shared by every rack that uses it.
 
     Slot 1 is macro 1. Lookup is case insensitive, so `cutoff` finds the
@@ -169,7 +181,7 @@ class Layout:
         return iter(self.slots)
 
     def __repr__(self) -> str:
-        return f"<Layout {len(self.slots)} slots: {', '.join(self.slots)}>"
+        return f"<LegacyLayout {len(self.slots)} slots: {', '.join(self.slots)}>"
 
 
 @dataclass(slots=True)
@@ -214,10 +226,10 @@ class Variation:
 
 
 @dataclass(slots=True)
-class Engine:
+class LegacyEngine:
     """One chain, and the bindings from its parameters to layout slots."""
 
-    rack: "Rack"
+    rack: "LegacyRack"
     name: str
     device_tag: str
     #: Slot -> the parameters it drives. A list because one macro driving
@@ -225,14 +237,14 @@ class Engine:
     #: engines behind one device and binding only the A side filters half
     #: the sound, which is audible and passes every structural check.
     bindings: dict[str, list[BoundParam]] = field(default_factory=dict)
-    #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
+    #: A drum pad's MIDI note. None on an ordinary chain. See LegacyRack.pad.
     note: int | None = None
     #: Sample file this chain's device plays. None leaves the donor's own.
     sample_path: Path | None = None
     #: Explicit chain-select bounds, or None to take an even share. See zone.
     zone_bounds: tuple[int, int] | None = None
 
-    def bind(self, **slots: Binding | list[Binding]) -> "Engine":
+    def bind(self, **slots: Binding | list[Binding]) -> "LegacyEngine":
         """Bind layout slots to this device's parameters.
 
         Each value is a parameter path, or a (path, lo, hi) tuple to also
@@ -259,7 +271,7 @@ class Engine:
         path, lo, hi = spec
         return BoundParam(slot, path, float(lo), float(hi))
 
-    def zone(self, lo: int, hi: int) -> "Engine":
+    def zone(self, lo: int, hi: int) -> "LegacyEngine":
         """Where on the 0..127 selector this chain answers.
 
         The default is an even share of the scale among the chains that are
@@ -281,7 +293,7 @@ class Engine:
         self.zone_bounds = (lo, hi)
         return self
 
-    def sample(self, path: Path | str) -> "Engine":
+    def sample(self, path: Path | str) -> "LegacyEngine":
         """Point this chain's device at a sample file.
 
         Refuses a path that does not exist. Live would load the rack and
@@ -296,7 +308,7 @@ class Engine:
         self.sample_path = p
         return self
 
-    def __enter__(self) -> "Engine":
+    def __enter__(self) -> "LegacyEngine":
         return self
 
     def __exit__(self, *exc: object) -> bool:
@@ -304,7 +316,7 @@ class Engine:
 
 
 @dataclass(slots=True)
-class Nest:
+class LegacyNest:
     """One chain holding another rack, and the macro-to-macro bindings.
 
     Nesting is how DR1 is shaped: a drum pad whose chain is an instrument
@@ -319,21 +331,21 @@ class Nest:
     layout.
     """
 
-    rack: "Rack"
+    rack: "LegacyRack"
     name: str
-    inner: "Rack"
+    inner: "LegacyRack"
     bindings: dict[str, str] = field(default_factory=dict)
-    #: A drum pad's MIDI note. None on an ordinary chain. See Rack.pad.
+    #: A drum pad's MIDI note. None on an ordinary chain. See LegacyRack.pad.
     note: int | None = None
     #: Explicit chain-select bounds, or None to take an even share.
     zone_bounds: tuple[int, int] | None = None
 
-    def zone(self, lo: int, hi: int) -> "Nest":
-        """Where on the 0..127 selector this chain answers. See Engine.zone."""
-        Engine.zone(self, lo, hi)
+    def zone(self, lo: int, hi: int) -> "LegacyNest":
+        """Where on the 0..127 selector this chain answers. See LegacyEngine.zone."""
+        LegacyEngine.zone(self, lo, hi)
         return self
 
-    def bind(self, **slots: str) -> "Nest":
+    def bind(self, **slots: str) -> "LegacyNest":
         """Bind outer layout slots to inner ones. `cutoff="cutoff"`.
 
         Calling this at all replaces the identity default, so a partial
@@ -353,23 +365,23 @@ class Nest:
         return {s: s for s in self.rack.layout if s.lower() in driven
                 and s in self.inner.layout}
 
-    def __enter__(self) -> "Nest":
+    def __enter__(self) -> "LegacyNest":
         return self
 
     def __exit__(self, *exc: object) -> bool:
         return False
 
 
-Chain = Union[Engine, Nest]
+LegacyChain = Union[LegacyEngine, LegacyNest]
 
 
-class Rack:
+class LegacyRack:
     """A rack described by its engines and their layout bindings."""
 
     def __init__(
         self,
         name: str,
-        layout: Layout,
+        layout: LegacyLayout,
         kind: RackKind = RackKind.INSTRUMENT,
         library: Library | None = None,
         skeleton: Path | str | None = None,
@@ -379,7 +391,7 @@ class Rack:
         self.layout = layout
         self.kind = kind
         self.library: Library = library or Library.default()
-        self.engines: list[Chain] = []
+        self.engines: list[LegacyChain] = []
         self.variation_set: list[Variation] = []
         self.starts: dict[str, float] = dict(layout.start)
         self.display: dict[str, str] = dict(layout.labels)
@@ -390,18 +402,18 @@ class Rack:
         self._branch_template: Element | None = None
         self._wrapper_template: Element | None = None
 
-    def engine(self, name: str, device_tag: str) -> Engine:
+    def engine(self, name: str, device_tag: str) -> LegacyEngine:
         """Add an engine. One engine is one chain."""
         if device_tag not in self.library:
             raise KeyError(
                 f"no donor for {device_tag!r}. Available: "
                 f"{', '.join(self.library)}. Save a rack containing one "
                 f"into donors/ and re-harvest.")
-        e = Engine(self, name, device_tag)
+        e = LegacyEngine(self, name, device_tag)
         self.engines.append(e)
         return e
 
-    def nest(self, name: str, inner: "Rack") -> Nest:
+    def nest(self, name: str, inner: "LegacyRack") -> LegacyNest:
         """Add a chain holding another rack. One nested rack is one chain.
 
         An instrument cannot live in an audio effect chain, and Live will
@@ -414,12 +426,12 @@ class Rack:
             raise ValueError(
                 f"{inner.kind.name.lower()} rack {inner.name!r} cannot go in an "
                 f"audio effect chain; Live refuses the preset")
-        n = Nest(self, name, inner)
+        n = LegacyNest(self, name, inner)
         self.engines.append(n)
         return n
 
     def pad(self, name: str, note: int, device: str | None = None,
-            rack: "Rack | None" = None) -> Chain:
+            rack: "LegacyRack | None" = None) -> LegacyChain:
         """Add a drum pad: one chain, triggered by a MIDI note.
 
         A pad is a chain like any other, with one thing swapped. An
@@ -453,7 +465,7 @@ class Rack:
         chain.note = note
         return chain
 
-    def label(self, **slots: str) -> "Rack":
+    def label(self, **slots: str) -> "LegacyRack":
         """Rename this rack's knobs on the display. The slot keys do not move.
 
         The keyword form of the `labels=` argument, for a rack built up in
@@ -464,7 +476,7 @@ class Rack:
             self.display[slot.lower()] = text
         return self
 
-    def start(self, **slots: float) -> "Rack":
+    def start(self, **slots: float) -> "LegacyRack":
         """Move this rack's knobs off the layout's opening position.
 
         The layout sets where a slot opens; this is for the rack that
@@ -478,7 +490,7 @@ class Rack:
 
     # --- variations -------------------------------------------------------
 
-    def variations(self, *added: Variation) -> "Rack":
+    def variations(self, *added: Variation) -> "LegacyRack":
         """Add variations. Slots are checked against the layout at once.
 
         Whether the slot is actually *driven* by anything is checked at
@@ -502,7 +514,7 @@ class Rack:
         """
         out: set[str] = set()
         for chain in self.engines:
-            if isinstance(chain, Nest):
+            if isinstance(chain, LegacyNest):
                 out |= {s.lower() for s in chain.resolved()}
             else:
                 out |= {slot.lower() for slot, bound in chain.bindings.items()
@@ -551,7 +563,7 @@ class Rack:
         self._map_engine_selector(rack_dev)
 
         for chain, branch in zip(self.engines, branches):
-            if isinstance(chain, Nest):
+            if isinstance(chain, LegacyNest):
                 self._apply_nest(chain, branch)
             else:
                 self._apply_bindings(chain, branch)
@@ -741,7 +753,7 @@ class Rack:
             for child in list(devices):
                 devices.remove(child)
 
-            if isinstance(chain, Nest):
+            if isinstance(chain, LegacyNest):
                 devices.append(self._nested_preset(chain))
             else:
                 wrapper = self._device_wrapper()
@@ -759,7 +771,7 @@ class Rack:
             made.append(branch)
         return made
 
-    def _nested_preset(self, nest: Nest) -> Element:
+    def _nested_preset(self, nest: LegacyNest) -> Element:
         """The inner rack's GroupDevicePreset, ready to sit in a chain.
 
         A nested preset carries an Id and a top-level one does not - the
@@ -807,7 +819,7 @@ class Rack:
         would express a choice a drum rack does not make.
 
         Any engine carrying explicit bounds turns the whole rack explicit;
-        see Engine.zone.
+        see LegacyEngine.zone.
         """
         pairs = [(b, self.engines[i]) for i, b in enumerate(branches)
                  if self.engines[i].note is None]
@@ -869,7 +881,7 @@ class Rack:
                 (v.name, {self.layout.macro_of(s): p for s, p in v.values.items()}))
         variations.write(rack_dev, snapshots)
 
-    def _apply_nest(self, nest: Nest, branch: Element) -> None:
+    def _apply_nest(self, nest: LegacyNest, branch: Element) -> None:
         """Map this rack's macros onto the nested rack's macros.
 
         Nothing here knows how deep it is: a KeyMidi on the inner rack's
@@ -892,7 +904,7 @@ class Rack:
                     f"{nest.name}: nested rack has no macro for slot {inner!r}")
             params.map_to_macro(target, self.layout.macro_of(outer))
 
-    def _apply_bindings(self, engine: Engine, branch: Element) -> None:
+    def _apply_bindings(self, engine: LegacyEngine, branch: Element) -> None:
         devices = find.devices(branch)
         if not devices:
             raise ValueError(f"{engine.name}: chain has no device")
@@ -921,4 +933,469 @@ class Rack:
                     f"so there is nothing for sample() to point at.")
 
     def __repr__(self) -> str:
-        return f"<Rack {self.name!r} {self.kind.name} {len(self.engines)} engines>"
+        return f"<LegacyRack {self.name!r} {self.kind.name} {len(self.engines)} engines>"
+
+
+# --- the T9 surface -------------------------------------------------------
+#
+# Everything below is the syntax `doc/DSL.md` argues for: a slot carries its
+# own start, label and selector flag, an engine profile is a value with
+# `drives` and `offers`, `bind` splits into one verb per relation, and a
+# range states its unit. The types hold the declaration and hand it to the
+# legacy classes above to realise, so the XML written is the same XML, which
+# is what `tests/golden.txt` asserts. T9d folds the realisation in here and
+# deletes the legacy half.
+
+
+def _key(display: str) -> str:
+    """The Python name for a slot displayed as `display`.
+
+    "Send A" -> send_a. Live's macro name is free text; a Python identifier
+    is not, and the two are allowed to differ.
+    """
+    k = re.sub(r"[^0-9a-zA-Z]+", "_", display).strip("_").lower()
+    if not k or k[0].isdigit():
+        k = f"slot_{k}"
+    return k
+
+
+@dataclass(frozen=True, slots=True)
+class Range:
+    """A range a macro drives a parameter across, in the parameter's units.
+
+    `unit` is documentation. Nothing reads it, because nothing can: the
+    format records none, and the same slot is in Hz on one engine and dB on
+    the next. It is here so the constant says which it is, which is the
+    fact Q14 cost a rack to find.
+    """
+
+    lo: float
+    hi: float
+    unit: str = ""
+
+    def scaled(self, factor: float) -> "Range":
+        """The same range in units `factor` times smaller. Seconds to ms."""
+        return Range(self.lo * factor, self.hi * factor, self.unit)
+
+    def capped(self, hi: float) -> "Range":
+        """The same floor, a lower ceiling."""
+        return replace(self, hi=hi)
+
+    def as_tuple(self) -> tuple[float, float]:
+        return (self.lo, self.hi)
+
+
+@dataclass(frozen=True, slots=True)
+class Slot:
+    """One macro: its position, what it is called, where it opens.
+
+    Everything about a slot in one place, so it is named once. The legacy
+    surface spreads the same facts across `selector=`, `start={}` and
+    `labels={}`, each keyed by the slot name written again as a string.
+    """
+
+    display: str
+    start: float | None = None
+    label: str | None = None
+    selects: bool = False
+    #: Filled in by Layout. 1-based, as in Live's UI.
+    number: int = 0
+
+    @property
+    def key(self) -> str:
+        return _key(self.display)
+
+    def to(self, inner: "Slot") -> "SlotPair":
+        """This outer slot drives a differently named inner one."""
+        return SlotPair(self, inner)
+
+    def __repr__(self) -> str:
+        return f"<{self.display} m{self.number}>"
+
+
+@dataclass(frozen=True, slots=True)
+class SlotPair:
+    outer: Slot
+    inner: Slot
+
+
+class Layout:
+    """An ordered list of slots, and the namespace that names them.
+
+    `PATCHBAYGROUND.filter` is the slot itself, not the string "Filter", so
+    a typo raises here rather than at the binding that uses it. `Send A`
+    answers to `send_a`: the word on the hardware and the Python name are
+    already two things, and this finishes the split.
+    """
+
+    def __init__(self, *slots: Slot | str) -> None:
+        placed = []
+        for i, s in enumerate(slots):
+            s = Slot(s) if isinstance(s, str) else s
+            placed.append(replace(s, number=i + 1))
+        self.slots: tuple[Slot, ...] = tuple(placed)
+
+        self._by_key: dict[str, Slot] = {}
+        for s in self.slots:
+            if s.key in self._by_key:
+                raise ValueError(
+                    f"slots {self._by_key[s.key].display!r} and {s.display!r} "
+                    f"both mean {s.key!r} in Python; rename one")
+            self._by_key[s.key] = s
+
+        selecting = [s for s in self.slots if s.selects]
+        if len(selecting) > 1:
+            raise ValueError(
+                f"{', '.join(s.display for s in selecting)} all claim the "
+                f"chain selector; a rack has one")
+        self.selector: Slot | None = selecting[0] if selecting else None
+
+        self._legacy = LegacyLayout(
+            *[s.display for s in self.slots],
+            selector=self.selector.display if self.selector else None,
+            start={s.display: s.start for s in self.slots if s.start is not None},
+            labels={s.display: s.label for s in self.slots if s.label is not None},
+        )
+
+    def __getattr__(self, name: str) -> Slot:
+        try:
+            return self.__dict__["_by_key"][name]
+        except KeyError:
+            raise AttributeError(
+                f"{name!r} is not a slot here. Slots: "
+                f"{', '.join(s.key for s in self.slots)}") from None
+
+    def __getitem__(self, name: str) -> Slot:
+        return getattr(self, _key(name))
+
+    def __iter__(self) -> Iterator[Slot]:
+        return iter(self.slots)
+
+    def __len__(self) -> int:
+        return len(self.slots)
+
+    def __repr__(self) -> str:
+        return (f"<Layout {len(self.slots)} slots: "
+                f"{', '.join(s.display for s in self.slots)}>")
+
+    def deriving(self, selects: Slot | None = None,
+                 relabel: Mapping[Slot, str] | None = None) -> "Layout":
+        """The same slots in the same order, with the selector or a label moved.
+
+        PAD is PATCHBAYGROUND with the selector on Sound instead of
+        Instrument. Written out by hand that is the slot list splatted and
+        every dict copied, and a start silently dropped is not visible: it
+        happened while testing something else and produced a rack that
+        loads silent.
+        """
+        out = []
+        for s in self.slots:
+            s = replace(s, selects=False, number=0)
+            if selects is not None and s.key == selects.key:
+                s = replace(s, selects=True)
+            for slot, text in (relabel or {}).items():
+                if slot.key == s.key:
+                    s = replace(s, label=text)
+            out.append(s)
+        return Layout(*out)
+
+    def variation(self, name: str, _at: Mapping[Slot, float] | None = None,
+                  **by_key: float) -> Variation:
+        """One sound, as a position per slot. Checked against THIS layout.
+
+        `_at` takes slot objects, for values computed in a loop. The kwargs
+        form takes slot keys, which is what a hand written sound uses.
+        """
+        values: dict[str, float] = {}
+        for slot, pos in (_at or {}).items():
+            values[self[slot.display].display] = float(pos)
+        for key, pos in by_key.items():
+            values[getattr(self, key).display] = float(pos)
+        return Variation(name, **values)
+
+
+@dataclass(frozen=True, slots=True)
+class Drive:
+    """One slot driving one device parameter, over an optional range."""
+
+    slot: Slot | None
+    path: str
+    over: Range | None = None
+
+
+class Engine:
+    """How one device answers to a layout. A value, reusable across racks.
+
+    This is the thing the project is about and the legacy surface had no
+    value for: `examples/patchbayground.py` expresses it as five functions
+    that take a rack, mutate it and return it. Every builder call here
+    returns a NEW Engine, so a profile can be extended without disturbing a
+    rack that already holds it.
+    """
+
+    __slots__ = ("device", "_drives", "_offers", "_sample", "_zone")
+
+    def __init__(self, device: str, _drives=(), _offers=None,
+                 _sample=None, _zone=None) -> None:
+        self.device = device
+        self._drives: tuple[Drive, ...] = tuple(_drives)
+        self._offers: dict[str, tuple[Drive, ...]] = dict(_offers or {})
+        self._sample: Path | None = _sample
+        self._zone: tuple[int, int] | None = _zone
+
+    def _copy(self, **kw) -> "Engine":
+        base = dict(_drives=self._drives, _offers=self._offers,
+                    _sample=self._sample, _zone=self._zone)
+        base.update(kw)
+        return Engine(self.device, **base)
+
+    def drives(self, slot: Slot, *paths: str,
+               over: Range | None = None) -> "Engine":
+        """This slot drives these parameters, over this range.
+
+        Several paths in one call is the Meld case: two synthesis engines
+        behind one device, every A path with a B twin, one knob.
+
+        Repeating the call ACCUMULATES, where a second legacy `bind` of the
+        same slot replaced it. A per-slot fluent call reads as a second
+        mapping, so the reading and the behaviour agree instead of a
+        docstring having to say which one won.
+        """
+        added = tuple(Drive(slot, p, over) for p in paths)
+        return self._copy(_drives=self._drives + added)
+
+    def offers(self, role: str, *paths: str,
+               over: Range | None = None) -> "Engine":
+        """What this engine can serve when a rack asks for `role`.
+
+        A rack spends its wildcard slot on one role and asks the whole
+        family for it. An engine that does not offer it leaves the slot
+        empty rather than substituting something else.
+        """
+        offers = dict(self._offers)
+        offers[role] = tuple(Drive(None, p, over) for p in paths)
+        return self._copy(_offers=offers)
+
+    def sample(self, path: Path | str) -> "Engine":
+        """Point this chain's device at a sample file. See LegacyEngine.sample."""
+        return self._copy(_sample=Path(path))
+
+    def zone(self, lo: int, hi: int) -> "Engine":
+        """Where on the 0..127 selector this chain answers. See LegacyEngine.zone."""
+        return self._copy(_zone=(int(lo), int(hi)))
+
+    def _for(self, role: str | None, wildcard: Slot | None) -> tuple[Drive, ...]:
+        """Every drive this engine writes in a rack that asked for `role`."""
+        out = self._drives
+        if role and wildcard is not None and role in self._offers:
+            out = out + tuple(replace(d, slot=wildcard) for d in self._offers[role])
+        return out
+
+    def __repr__(self) -> str:
+        return f"<Engine {self.device} {len(self._drives)} drives>"
+
+
+class Nested:
+    """A rack sitting in a chain, and which outer slots reach into it."""
+
+    __slots__ = ("rack", "items", "_zone")
+
+    def __init__(self, rack: "Rack", items=(), zone=None) -> None:
+        self.rack = rack
+        self.items = tuple(items)
+        self._zone = zone
+
+    def zone(self, lo: int, hi: int) -> "Nested":
+        """Where on the 0..127 selector this chain answers. See LegacyEngine.zone."""
+        return Nested(self.rack, self.items, (int(lo), int(hi)))
+
+
+Content = Union[Engine, "Rack", Nested]
+
+
+@dataclass(frozen=True, slots=True)
+class _Chain:
+    name: str
+    content: Content
+    note: int | None = None
+
+
+class Rack:
+    """A rack, assembled by chaining. Each call returns a new Rack.
+
+    A profile or a sub-rack can therefore sit in two racks without one
+    build reaching the other.
+    """
+
+    __slots__ = ("name", "layout", "kind", "_chains", "_variations",
+                 "_labels", "_starts", "_role", "_wildcard", "_library")
+
+    def __init__(self, name, layout, kind, chains=(), variations=(),
+                 labels=None, starts=None, role=None, wildcard=None,
+                 library=None):
+        self.name = name
+        self.layout = layout
+        self.kind = kind
+        self._chains: tuple[_Chain, ...] = tuple(chains)
+        self._variations: tuple[Variation, ...] = tuple(variations)
+        self._labels: dict[str, str] = dict(labels or {})
+        self._starts: dict[str, float] = dict(starts or {})
+        self._role: str | None = role
+        self._wildcard: Slot | None = wildcard
+        self._library: Library | None = library
+
+    @classmethod
+    def instrument(cls, name: str, layout: Layout,
+                   library: Library | None = None) -> "Rack":
+        return cls(name, layout, RackKind.INSTRUMENT, library=library)
+
+    @classmethod
+    def audio_effect(cls, name: str, layout: Layout,
+                     library: Library | None = None) -> "Rack":
+        return cls(name, layout, RackKind.AUDIO_EFFECT, library=library)
+
+    @classmethod
+    def drum(cls, name: str, layout: Layout,
+             library: Library | None = None) -> "Rack":
+        return cls(name, layout, RackKind.DRUM, library=library)
+
+    def _with(self, **kw) -> "Rack":
+        base = dict(name=self.name, layout=self.layout, kind=self.kind,
+                    chains=self._chains, variations=self._variations,
+                    labels=self._labels, starts=self._starts, role=self._role,
+                    wildcard=self._wildcard, library=self._library)
+        base.update(kw)
+        return Rack(**base)
+
+    # --- assembly ---------------------------------------------------------
+
+    def chain(self, name: str, content: Content) -> "Rack":
+        """Add a chain. Its content is an engine profile or another rack.
+
+        One verb per relation: nesting cannot be misread as parameter
+        binding, and this takes either because the outer rack does not care
+        which it got.
+        """
+        return self._with(chains=self._chains + (_Chain(name, content),))
+
+    def pad(self, name: str, note: int, content: Content) -> "Rack":
+        """Add a drum pad: a chain selected by a MIDI note, not a zone."""
+        return self._with(chains=self._chains + (_Chain(name, content, note),))
+
+    def spends(self, slot: Slot, role: str, label: str | None = None) -> "Rack":
+        """Spend the wildcard slot on one role, for every chain at once.
+
+        The role is a rack decision and every engine answers it or does
+        not, so it is stated here rather than repeated per chain. The knob
+        takes the role's name unless a label says otherwise.
+        """
+        return self._with(role=role, wildcard=slot,
+                          labels={**self._labels,
+                                  slot.display: label or role.title()})
+
+    def label(self, slot: Slot, text: str) -> "Rack":
+        """Rename one knob on the display. The slot itself does not move."""
+        return self._with(labels={**self._labels, slot.display: text})
+
+    def start(self, slot: Slot, pos: float) -> "Rack":
+        """Move one knob off the layout's opening position, for this rack."""
+        return self._with(starts={**self._starts, slot.display: float(pos)})
+
+    def variations(self, *added: Variation) -> "Rack":
+        return self._with(variations=self._variations + added)
+
+    def chaining(self, *items: Union[Slot, SlotPair]) -> Nested:
+        """Use this rack as a chain, driven by these outer slots.
+
+        A bare Slot chains to the inner slot of the same name. `Slot.to`
+        names an inner slot that differs. No items at all keeps the
+        identity default across every slot the inner rack drives.
+        """
+        return Nested(self, items)
+
+    # --- realisation ------------------------------------------------------
+
+    @property
+    def engines(self) -> tuple[_Chain, ...]:
+        """The chains declared so far, under the name `compile.report` reads."""
+        return self._chains
+
+    def _realise(self) -> LegacyRack:
+        """This declaration as a LegacyRack, which owns the XML.
+
+        T9d moves that machinery here. Until it does, the two surfaces
+        write the same bytes by construction rather than by agreement, and
+        `tests/golden.txt` is what says so.
+        """
+        rack = LegacyRack(self.name, self.layout._legacy, kind=self.kind,
+                          library=self._library, labels=self._labels)
+        rack.start(**self._starts)
+
+        for ch in self._chains:
+            content = ch.content
+            if isinstance(content, Rack):
+                content = Nested(content, ())
+
+            if isinstance(content, Nested):
+                inner = content.rack._realise()
+                node = (rack.pad(ch.name, ch.note, rack=inner)
+                        if ch.note is not None else rack.nest(ch.name, inner))
+                pairs = {}
+                for item in content.items:
+                    if isinstance(item, SlotPair):
+                        pairs[item.outer.display] = item.inner.display
+                    else:
+                        pairs[item.display] = item.display
+                if pairs:
+                    node.bind(**pairs)
+                if content._zone:
+                    node.zone(*content._zone)
+            else:
+                node = (rack.pad(ch.name, ch.note, device=content.device)
+                        if ch.note is not None
+                        else rack.engine(ch.name, content.device))
+                grouped: dict[str, list[Binding]] = {}
+                for d in content._for(self._role, self._wildcard):
+                    assert d.slot is not None
+                    spec: Binding = (d.path if d.over is None
+                                     else (d.path, d.over.lo, d.over.hi))
+                    grouped.setdefault(d.slot.display, []).append(spec)
+                if grouped:
+                    node.bind(**grouped)
+                if content._sample is not None:
+                    node.sample(content._sample)
+                if content._zone:
+                    node.zone(*content._zone)
+
+        rack.variations(*self._variations)
+        return rack
+
+    def engine_macro(self, chain: str | int) -> float:
+        """The macro position that selects a chain, at its zone's centre.
+
+        Pads are excluded: a pad answers to its note, and the selector is
+        shared out among the chains that are not pads.
+        """
+        names = [c.name for c in self._chains if c.note is None]
+        if not names:
+            raise ValueError(f"rack {self.name!r} has no chains on the selector")
+        if isinstance(chain, int):
+            i = chain
+        else:
+            if chain not in names:
+                raise KeyError(f"{chain!r} is not a chain here: {names}")
+            i = names.index(chain)
+        lo, hi = LegacyRack._zone_bounds(i, len(names))
+        return (lo + hi) / 2
+
+    def driven_slots(self) -> set[str]:
+        return self._realise().driven_slots()
+
+    def build(self) -> Element:
+        return self._realise().build()
+
+    def save(self, path: Path | str) -> Path:
+        return self._realise().save(path)
+
+    def __repr__(self) -> str:
+        return f"<Rack {self.name!r} {self.kind.name} {len(self._chains)} chains>"

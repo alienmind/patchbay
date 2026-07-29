@@ -59,7 +59,8 @@ from __future__ import annotations
 from itertools import product
 from pathlib import Path
 
-from patchbay.dsl import Layout, Rack, RackKind, Variation
+from patchbay.dsl import (LegacyLayout as Layout, LegacyRack as Rack,
+                          RackKind, Variation)
 
 # ===========================================================================
 # The layout

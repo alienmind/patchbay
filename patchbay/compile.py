@@ -31,7 +31,13 @@ from pathlib import Path
 from types import ModuleType
 from typing import Sequence
 
-from .dsl import Rack
+from .dsl import LegacyRack, Rack
+
+#: Both DSL surfaces, for as long as T9 has two. A spec written in either
+#: compiles; `isinstance` against one of them alone silently builds nothing
+#: from a spec written in the other.
+AnyRack = (Rack, LegacyRack)
+
 
 class SpecError(Exception):
     """A spec that cannot be loaded or contains nothing to build."""
@@ -41,7 +47,7 @@ class SpecError(Exception):
 class Built:
     """One realised target."""
 
-    rack: Rack
+    rack: Rack | LegacyRack
     path: Path
 
     @property
@@ -76,19 +82,19 @@ def load_spec(path: Path | str) -> ModuleType:
     return module
 
 
-def racks_in(module: ModuleType) -> list[Rack]:
+def racks_in(module: ModuleType) -> list[Rack | LegacyRack]:
     """The racks a spec declares, by whichever convention it used."""
     racks = getattr(module, "RACKS", None)
     if racks is None and callable(getattr(module, "build", None)):
         racks = module.build()
     if racks is None:
-        racks = [v for v in vars(module).values() if isinstance(v, Rack)]
+        racks = [v for v in vars(module).values() if isinstance(v, AnyRack)]
 
-    if isinstance(racks, Rack):
+    if isinstance(racks, AnyRack):
         racks = [racks]
     racks = list(racks or [])
 
-    bad = [r for r in racks if not isinstance(r, Rack)]
+    bad = [r for r in racks if not isinstance(r, AnyRack)]
     if bad:
         raise SpecError(f"RACKS contains non-Rack values: {bad[:3]}")
     return racks

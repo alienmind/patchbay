@@ -64,36 +64,11 @@ parameters to the standard layout"**. Everything else follows:
 - the same layout slot means the same macro in every engine, which *is*
   the sound family constraint
 
-## Why it is called a Layout
-
-The object is an ordered list of named slots, plus which one drives the
-chain selector, plus where each knob rests. A rack takes one as an argument
-and binds its own parameters to it.
-
-QWERTY is the analogy and it is exact. A keyboard layout is shared across
-many different physical keyboards precisely so the skill transfers, the
-position carries the meaning, and the keycap is local paint. That is this
-object, slot for slot, and it is what `PATCHBAYGROUND.md` has claimed from
-its first draft: "identical across every instrument rack so muscle memory
-transfers".
-
-It was called a Grammar until it was not. A grammar has production rules,
-composition and a notion of well-formedness, and this has none of the
-three: nothing is parsed and nothing is generated. In a project that
-describes itself as a Python DSL the word also reads as the grammar OF the
-language, which it never was. See `THE_BASEMENT.md`.
-
-## The selector slot is named, not fixed
+## The Layout selector
 
 `Layout(..., selector="Instrument")` says which slot drives the chain
 selector. It defaults to `"engine"` and may be `None` for a layout with
 no selector at all, such as a drum kit whose macro 1 is Tune.
-
-This was hardcoded to `"engine"` once. Renaming the slot then produced a
-rack that compiled, passed every check the tooling has, loaded in Live,
-and whose first macro moved nothing, because the code silently found no
-slot to map. A layout is a contract the caller writes; the library must
-not also assume one of its words.
 
 ## A chain may name its own sample
 
@@ -507,12 +482,19 @@ out. 56 devices are indexed today, from 8 before it existed.
 
 ## The surface this should grow into
 
-Not built. This section is the shape the next version of the syntax takes,
-and `T9` in `TODO.md` is the migration. What is written here compiles: the
-five sample-free racks of `examples/patchbayground.py`, plus a drum rack
-with a nested pad, were declared through
-`patchbay/experimental/dsl2.py` and diff clean against the racks the
-current syntax builds.
+Built, and not yet the only one. `Slot`, `Range`, `Layout`, `Engine` and
+`Rack` are in `patchbay/dsl.py` as of T9a, beside `LegacyLayout`,
+`LegacyEngine`, `LegacyNest` and `LegacyRack`, which are everything above
+this section and are what `examples/patchbayground.py` and `extract.py` are
+still written against. `T9` in `TODO.md` is the rest of the migration; T9d
+deletes the legacy half and folds this section into the body.
+
+The new types hold the declaration and realise it through the legacy ones,
+so the two surfaces cannot drift while both exist. What is written here
+compiles: the five sample-free racks of `examples/patchbayground.py`, plus
+a drum rack with a nested pad, are declared through it in
+`examples/experimental/patchbayground2.py` and diff clean against the racks
+the legacy syntax builds.
 
 ### What the current surface costs
 
@@ -646,26 +628,31 @@ without one build reaching the other.
 
 ### One rule reverses
 
-`.drives` on the same slot twice ACCUMULATES. Today a second `bind` of a
+`.drives` on the same slot twice ACCUMULATES. A second legacy `bind` of a
 slot replaces the first, and that rule exists because `bind` is a bulk
 keyword call where a second call reads as an edit. A per-slot fluent call
 reads as a second mapping, which is what the Meld case wants, so the
 reading and the behaviour agree instead of the docstring having to say
-which won.
+which won. Both rules are asserted, one per surface, in
+`tests/test_patchbay.py`.
 
 ### What was verified
 
-`patchbay/experimental/dsl2.py` is a front end over the current
-`patchbay.dsl`, and `examples/experimental/patchbayground2.py` declares
-PD1, PD1W, BS1, LD1 and VA1 through it. Every one diffs identical against
-the rack the current syntax builds, and a drum rack holding a nested pad
-rack was checked the same way. So this is a surface change and not a format
-change, which is what makes the migration mechanical.
+`examples/experimental/patchbayground2.py` declares PD1, PD1W, BS1, LD1 and
+VA1 through the new types. Every one digests equal to `tests/golden.txt`,
+which the legacy spec writes, and a drum rack holding a nested pad diffs
+identical against the legacy kit. So this is a surface change and not a
+format change, which is what makes the migration mechanical, and no step of
+it asks a human to open Live.
 
-Rebuild both sides and compare:
+The gate is a test, not a procedure:
+
+    uv run pytest tests/ -q
+
+To see a difference rather than a digest, build both sides and diff a rack:
 
     uv run patchbay build examples/patchbayground.py -o build/old
-    uv run python examples/experimental/patchbayground2.py build/new
+    uv run patchbay build examples/experimental/patchbayground2.py -o build/new
     patchbay diff build/old/PD1.adg build/new/PD1.adg
 
 One near-miss is worth keeping. The drum rack diff did not come out clean
@@ -682,5 +669,6 @@ breaks. That gate is also the reason the migration is safe to attempt: it
 is a complete enumeration of what the syntax has to express.
 
 `examples/patchbayground.py`, `tests/test_patchbay.py` and every code block
-in this document move too. `compile.py` picks racks out of a spec by
-`isinstance`, so it takes the new type.
+in this document move too. `compile.py` picked racks out of a spec by
+`isinstance` against one class; it now takes either, so a spec written in
+either surface compiles.

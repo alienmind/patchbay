@@ -14,8 +14,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from patchbay import io, find, params, clone, diff, mappings, ids, variations  # noqa: E402
-from patchbay.dsl import Layout, Rack, RackKind, Variation   # noqa: E402
+from patchbay import io, find, params, clone, diff, dsl, mappings, ids, variations  # noqa: E402
+from patchbay.dsl import (LegacyLayout as Layout, LegacyRack as Rack,  # noqa: E402
+                          RackKind, Variation)
 
 RACKS = Path(__file__).resolve().parent.parent / "racks"
 GOLDEN = Path(__file__).resolve().parent / "golden.txt"
@@ -1094,6 +1095,141 @@ def test_no_carriage_returns_in_tracked_text():
     assert not offenders, (
         f"carriage returns in {len(offenders)} tracked text file(s): "
         f"{offenders[:5]}. This is an LF repo; see .gitattributes.")
+
+
+# --- the T9 surface -------------------------------------------------------
+#
+# `dsl.Slot`, `dsl.Range`, `dsl.Layout`, `dsl.Engine` and `dsl.Rack` are the
+# new types. This module's `Layout` and `Rack` are the legacy ones, so the
+# new surface is written out in full here rather than imported by name.
+
+
+def _digest(rack) -> str:
+    import hashlib
+
+    facts = diff.flatten(rack.build())
+    text = "\n".join(f"{k}={v}" for k, v in sorted(facts.items()))
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+
+def test_the_new_surface_builds_the_same_bytes():
+    """T9's gate. Two surfaces, one output, asserted rather than agreed.
+
+    `examples/experimental/patchbayground2.py` declares PD1, PD1W, BS1, LD1
+    and VA1 through the new types; `examples/patchbayground.py` declares the
+    same five through the legacy ones and writes `tests/golden.txt`. So a
+    migration step that moves the output fails here, and NO step of T9 asks
+    a human to open Live.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent
+                           / "examples" / "experimental"))
+    import patchbayground2
+
+    golden = dict(line.split() for line in
+                  GOLDEN.read_text().splitlines() if line.strip())
+    for rack in patchbayground2.RACKS:
+        assert _digest(rack) == golden[rack.name], (
+            f"{rack.name} on the new surface is not the rack the legacy "
+            f"surface builds. `patchbay diff` the two.")
+
+
+def test_a_slot_driven_twice_accumulates():
+    """The one rule T9 reverses. See DSL.md, and the test above this one.
+
+    A second legacy `bind` of a slot REPLACES, because it is a bulk keyword
+    call and a repeat reads as an edit. A per-slot fluent call reads as a
+    second mapping, which is what the Meld case wants.
+    """
+    g = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Filter"))
+    meld = (dsl.Engine("InstrumentMeld")
+            .drives(g.filter, "MeldVoice_EngineA_Filter_Frequency")
+            .drives(g.filter, "MeldVoice_EngineB_Filter_Frequency"))
+    rack = dsl.Rack.instrument("X", g).chain("M", meld)
+
+    on_two = [m["target"] for m in mappings.find(rack.build()) if m["macro"] == 2]
+    assert on_two == ["MeldVoice_EngineA_Filter_Frequency",
+                      "MeldVoice_EngineB_Filter_Frequency"]
+
+
+def test_the_new_surface_builds_the_same_drum_kit():
+    """The nested pad, which `golden.txt` cannot cover without `samples/`.
+
+    A pad reaches the file by a different route on each surface, so the two
+    are diffed rather than assumed: `Rack.pad` takes the content and decides
+    what it is, where the legacy call takes `device=` or `rack=`.
+    """
+    inner_layout = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Cutoff"))
+    simpler = dsl.Engine("OriginalSimpler").drives(
+        inner_layout.cutoff, "Filter/Slot/Value/SimplerFilter/Freq")
+    inner = dsl.Rack.instrument("KICK", inner_layout).chain("S1", simpler)
+    kit = (dsl.Rack.drum("DR1", dsl.Layout(dsl.Slot("Tune"), dsl.Slot("Decay")))
+           .pad("KICK", 36, inner)
+           .pad("RIM", 37, dsl.Engine("OriginalSimpler")))
+
+    assert diff.flatten(kit.build()) == diff.flatten(_kit().build())
+
+
+def test_a_range_states_its_unit_and_does_its_own_arithmetic():
+    """Release is one interval in two spellings, seconds and milliseconds."""
+    release = dsl.Range(0.01, 20.0, "s")
+    assert release.scaled(1000.0) == dsl.Range(10.0, 20000.0, "s")
+    assert release.capped(5.0).as_tuple() == (0.01, 5.0)
+
+
+def test_deriving_a_layout_carries_what_was_not_named():
+    """The failure this exists to stop: a start silently dropped.
+
+    `Layout(*PB.slots, selector="Sound")` on the legacy surface rebuilds the
+    slot list and loses the starts and labels with it, which loads as a rack
+    whose filter is shut and whose volume is down.
+    """
+    pb = dsl.Layout(
+        dsl.Slot("Instrument", label="> Instrument", selects=True),
+        dsl.Slot("Sound"),
+        dsl.Slot("Filter", start=127))
+    pad = pb.deriving(selects=pb.sound, relabel={pb.sound: "> Sound"})
+
+    assert pad.selector.display == "Sound"
+    assert pad.sound.label == "> Sound"
+    assert pad.filter.start == 127, "the start survived a derivation"
+    assert pad.instrument.label == "> Instrument"
+    assert [s.display for s in pad] == [s.display for s in pb]
+
+
+def test_a_layout_refuses_two_slots_that_mean_one_python_name():
+    """`Send A` answers to `send_a`, so `Send-A` beside it is unreachable."""
+    try:
+        dsl.Layout(dsl.Slot("Send A"), dsl.Slot("Send-A"))
+    except ValueError as e:
+        assert "send_a" in str(e)
+    else:
+        raise AssertionError("two slots collided on one key and were accepted")
+
+
+def test_an_engine_profile_is_a_value_and_does_not_mutate():
+    """Two racks may hold one profile; extending it in one cannot reach the other."""
+    g = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Filter"))
+    base = dsl.Engine("OriginalSimpler").drives(
+        g.filter, "Filter/Slot/Value/SimplerFilter/Freq")
+    wider = base.drives(g.filter, "Filter/Slot/Value/SimplerFilter/Res")
+
+    assert len(base._drives) == 1 and len(wider._drives) == 2
+    assert dsl.Rack.instrument("A", g).chain("S", base)._chains[0].content is base
+
+
+def test_a_wildcard_slot_reaches_only_the_engines_that_offer_the_role():
+    """`spends` states the role once; an engine without it leaves the slot empty."""
+    g = dsl.Layout(dsl.Slot("Engine", selects=True), dsl.Slot("Character"))
+    offering = dsl.Engine("OriginalSimpler").offers(
+        "attack", "VolumeAndPan/Envelope/AttackTime")
+    silent = dsl.Engine("OriginalSimpler").offers("glide", "Globals/PortamentoTime")
+    rack = (dsl.Rack.instrument("X", g)
+            .spends(g.character, "attack")
+            .chain("A", offering)
+            .chain("B", silent))
+
+    on_two = [m["target"] for m in mappings.find(rack.build()) if m["macro"] == 2]
+    assert on_two == ["AttackTime"], "the leaf, as mappings.find reports it"
 
 
 if __name__ == "__main__":

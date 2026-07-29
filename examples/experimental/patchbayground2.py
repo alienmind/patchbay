@@ -8,21 +8,21 @@ Read the two files side by side to see what the migration buys: no `_bind`,
 no `character=` threaded through five engine functions, no
 `meld(drift(wavetable(rack)))` read inside out.
 
-    uv run python examples/experimental/patchbayground2.py build/new
+    uv run patchbay build examples/experimental/patchbayground2.py -o build/new
 
-NOT `patchbay build`. `compile.py` picks racks out of a spec with
-`isinstance(v, Rack)` against the shipping class, so it does not see these.
-That is on T9's list of what moves, and until then this file writes its own
-output.
+This is T9a's gate. `test_the_new_surface_builds_the_same_bytes` digests
+these five racks and compares them with `tests/golden.txt`, which the old
+spec writes, so the two surfaces are held to one output.
 
-Deleted along with the module it exercises when T9a lands.
+T9b moves `examples/patchbayground.py` onto these types, and this file goes
+with the move.
 """
 
 from __future__ import annotations
 
 from itertools import product
 
-from patchbay.experimental.dsl2 import Engine, Layout, Range, Rack, Slot
+from patchbay.dsl import Engine, Layout, Range, Rack, Slot
 
 # Everything about a slot in one place: position, label, opening knob
 # position, and which one drives the chain selector.
