@@ -76,6 +76,12 @@ MAX_MACROS: int = 16
 
 Element = etree._Element
 
+#: Emptied skeleton trees by (file, rack kind), and the file each kind
+#: resolves to. Both are pure functions of what is on disk, and both were
+#: recomputed once per rack. See _load_skeleton.
+_SKELETONS: dict = {}
+_SKELETON_PATHS: dict = {}
+
 
 def _macro_pos(slot: str, pos: float) -> float:
     """A macro position, checked against the only scale macros have.
@@ -837,8 +843,21 @@ class Rack:
 
         Donor-based like everything else: rather than synthesising a
         GroupDevicePreset, take one Live wrote and empty it.
+
+        Emptying it is deterministic per (file, kind), so the result is
+        memoised and copied out. DR1 is 87 racks and was re-reading and
+        re-emptying the same two files 87 times.
         """
         src = self._skeleton or self._find_skeleton()
+        key = (Path(src).resolve(), self.kind.value)
+        cached = _SKELETONS.get(key)
+        if cached is not None:
+            root, wrapper, branch = cached
+            self._wrapper_template = (None if wrapper is None
+                                      else copy.deepcopy(wrapper))
+            self._branch_template = copy.deepcopy(branch)
+            return copy.deepcopy(root)
+
         root = io.load(src)
         preset = self._preset_of_kind(root)
         if preset is None:
@@ -873,6 +892,11 @@ class Rack:
             container.remove(child)
         if self._branch_template is None:
             raise ValueError(f"{src} skeleton has no chains to model on")
+
+        _SKELETONS[key] = (copy.deepcopy(root),
+                           None if self._wrapper_template is None
+                           else copy.deepcopy(self._wrapper_template),
+                           copy.deepcopy(self._branch_template))
         return root
 
     @staticmethod
@@ -920,6 +944,13 @@ class Rack:
         if named.exists():
             return named
 
+        # The search reads every .adg in donors/ and racks/ to find one rack
+        # of this kind, and the answer depends only on the kind. Memoised for
+        # the same reason the library is: DR1 ran it 9 times for 15 seconds.
+        hit = _SKELETON_PATHS.get(self.kind.value)
+        if hit is not None:
+            return hit
+
         # A plain donor first, meaning a file named after the single device
         # it carries. Without that preference the skeleton is whichever rack
         # of the right kind sorts first, so adding a file with an unrelated
@@ -936,10 +967,12 @@ class Rack:
                 except Exception:
                     continue
                 if candidate.stem in self.library:
+                    _SKELETON_PATHS[self.kind.value] = candidate
                     return candidate
                 if fallback is None:
                     fallback = candidate
         if fallback is not None:
+            _SKELETON_PATHS[self.kind.value] = fallback
             return fallback
 
         raise FileNotFoundError(

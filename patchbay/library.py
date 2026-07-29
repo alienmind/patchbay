@@ -32,17 +32,24 @@ NOT_A_DEVICE = {
 class Device:
     """One harvested device node, plus what it can be asked to do."""
 
-    def __init__(self, tag, element, source, named=False):
+    def __init__(self, tag, element, source, named=False, params=None):
         self.tag = tag
         self._element = element
         self.source = source
         #: True when the file is named after the device, which breaks ties.
         self.named = named
+        # Harvest has already walked this subtree to count parameters, and
+        # walking Operator's 217 again per access is what made a DR1 build
+        # spend 27 seconds in all_params. The element is never mutated in
+        # place - `instance` deepcopies - so the map cannot go stale.
+        self._params = params
 
     @property
     def params(self):
         """{path: element} for every parameter, at any depth."""
-        return find.all_params(self._element)
+        if self._params is None:
+            self._params = find.all_params(self._element)
+        return self._params
 
     def search(self, *words):
         """Parameter paths containing all these words. Case insensitive."""
@@ -59,6 +66,15 @@ class Device:
 
     def __repr__(self):
         return f"<Device {self.tag} {len(self.params)} params from {self.source}>"
+
+
+#: One Library per root, built on first ask. See Library.default.
+_DEFAULTS: dict = {}
+
+
+def _forget():
+    """Drop the memoised default libraries. For a test that adds a donor."""
+    _DEFAULTS.clear()
 
 
 class Library:
@@ -84,9 +100,18 @@ class Library:
 
         donors/ is the curated asset; racks/ is spike evidence that happens
         to contain usable devices, which is why it comes second.
+
+        Memoised per root. Every rack build asks for this, so a DR1 build
+        asked 87 times and re-read 7,511 gzip files to get the same 56
+        devices back. Add a donor while a process is running and it is not
+        seen; `_forget` drops the cache for a test that needs to.
         """
-        root = Path(root or Path(__file__).resolve().parent.parent)
-        return cls.from_paths(root / "donors", root / "racks")
+        root = Path(root or Path(__file__).resolve().parent.parent).resolve()
+        cached = _DEFAULTS.get(root)
+        if cached is None:
+            cached = _DEFAULTS[root] = cls.from_paths(root / "donors",
+                                                      root / "racks")
+        return cached
 
     def harvest_all(self, path):
         """Index one file, or every Ableton file in one directory.
@@ -124,14 +149,15 @@ class Library:
                 continue
             if el.find("LomId") is None:
                 continue
-            n = len(find.all_params(el))
+            found = find.all_params(el)
+            n = len(found)
             if n < 2:
                 continue
             named = Path(path).stem == el.tag
             best = self._devices.get(el.tag)
             if best is None or (n, named) > (len(best.params), best.named):
                 self._devices[el.tag] = Device(el.tag, el, Path(path).name,
-                                               named=named)
+                                               named=named, params=found)
         return self
 
     def __contains__(self, tag):
