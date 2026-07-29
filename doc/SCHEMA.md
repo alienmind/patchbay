@@ -1431,12 +1431,24 @@ at 80% because a donor happened to, which is the fidelity-not-loadability
 argument arriving as a defect. A rack that means to modulate nothing has
 to say so.
 
-**What is still open is which knob is the depth**, and it is an ears
-question rather than a file one. `Lfo_Amount` (the LFO tab) and
-`ModulationMatrix_Amount1` (the Mod tab row) are both real parameters and
-both mappable, and nothing in the file says whether the first gates the
-second or whether they are independent. In `q16_a` the LFO tab read 0.0%
-while the row read 80%.
+**`Lfo_Amount` IS the depth**, confirmed by ear in Live 12.4.3 with the row
+written and `Amount1` at full: Macro 5 wobbles the cutoff and the wobble
+deepens with the knob. So the LFO tab's Amount gates the matrix row rather
+than being independent of it, and the macro stays where it was. The row was
+what was missing, not the binding.
+
+**The same defect exists on Operator and takes the same fix**, found by
+round H. `Lfo/LfoOn` and `Filter/LfoOn` both default false, so Macro 5
+drove the amount of a switched-off LFO into a filter it was not connected
+to; `Globals/PortamentoOn` defaults false, so the glide slot moved a time
+that gated nothing. All three are plain booleans, all three confirmed by
+ear once set. The general rule this leaves:
+
+**A mapped modulator is not a working modulator.** Live writes a valid
+`KeyMidi`, the knob moves the target, and whether anything is HEARD depends
+on switches and routing the parameter list does not mention.
+`test_a_bound_modulator_is_switched_on` asserts the pairing for both
+devices, so this fails in pytest rather than in a room.
 
 ## S11. .als track structure
 

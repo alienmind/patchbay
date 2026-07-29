@@ -69,9 +69,8 @@ Ordered by what unblocks the most. Report by check number.
 
 | Round | What | Why here |
 |---|---|---|
-| **Q16b** | One knob, Drift's LFO depth | The diff landed. This decides which parameter Macro 5 binds |
 | **K** | Two donor racks, one load check | Widens the vocabulary and gates 54 donors nothing has loaded yet |
-| **H3b/H6b** | Two knobs on LD1 and PD1 | The switches are on now. Confirm the knobs finally do something |
+| **H3c** | One knob on LD1 | Whether the new glide range is right end to end |
 
 
 | **D2b** | One knob inside a pad | Sound is the second macro, not the first |
@@ -128,10 +127,21 @@ The glide enable sits on the RACK, not on the FM profile: PD1 and VA1 hold
 the same profile and spend slot 6 on attack, and portamento there would
 smear every pad they play.
 
+H3b, H6b and Q16b all passed on the rebuilt racks. Macro 5 wobbles the
+filter on Operator and on Drift, Macro 6 glides on Operator, and
+`Lfo_Amount` is confirmed as Drift's DEPTH rather than a gate. Q16 is
+closed and written up in `SCHEMA.md`.
+
+H3b also found the glide range. Operator keeps portamento in milliseconds
+over 0.1..10000 and the macro follows the parameter's logarithmic taper
+(Q15), so half the knob's travel sat under 32 ms and glided nothing
+audible. Slot 6 now carries `GLIDE = 0.01..2 s`, the intersection across
+all four engines, with Drift's 0..2 s capping it. Macro 64 lands near
+140 ms.
+
 | # | Rack | Do this | Should happen |
 |---|---|---|---|
-| H3b | LD1 | Macro 6 on the FM chain, playing a legato line | Notes now GLIDE. Report if the 50 ms donor default is too short to hear |
-| H6b | LD1, PD1 | Macro 5 on the FM chain | Filter wobbles, deepening with the knob |
+| H3c | LD1 | Macro 6 across its travel on the FM chain | Usable end to end. Report if 2 s at the top is too long, or the bottom still too short |
 
 Meld's half of glide is NOT fixed and is E6 below: its
 `MeldVoice_Engine{A,B}_GlideMode` is 0, an enum nobody has diffed, and a
@@ -172,38 +182,6 @@ What a test cannot say is whether 20 s is the right ceiling.
 
 J3 passed: 30 is playable and neither end is useless. The 0.01..20 s
 ceiling stands and round J is closed.
-
-### Q16. Drift's LFO routing - DIFFED, one question left
-
-The file half is ANSWERED and written up in `SCHEMA.md` against
-`racks/q16_a.adg` and `racks/q16_b.adg`. A modulation row is three sibling
-elements sharing an index. `ModulationMatrix_Source1=2` is the LFO,
-`_Target1=6` is LP Frequency, `_Amount1` is an ordinary mappable
-parameter, and the two selectors are bare `Value` elements with no
-`Manual`, so they can only be SET and never driven.
-
-Both consequences are BUILT. `Engine.sets` writes a control that no
-mapping can reach, `patchbay extract` recovers it, and DRIFT in
-`examples/patchbayground.py` now states its own row, which also stamps out
-the donor's `Source1=5, Target1=8` that had every Drift here modulating
-the high-pass at 80% unasked. `tests/golden.txt` was regolded for BS1 and
-PD1W, deliberately: those are the two racks with a Drift in them.
-
-What is left is which knob is the DEPTH, and only ears answer it.
-`Lfo_Amount` and `ModulationMatrix_Amount1` are both mappable and the file
-does not say whether the first gates the second. Macro 5 is on
-`Lfo_Amount`, and the row it feeds is now open at full.
-
-| # | Do this | Should happen |
-|---|---|---|
-| Q16b | Load `build/BS1.adg`, Macro 1 to the middle for the Drift chain, hold a note and turn Macro 5 through its travel | The cutoff wobbles, and the wobble deepens as the knob rises |
-
-If NOTHING moves, `Lfo_Amount` is not the depth: Macro 5 moves to
-`ModulationMatrix_Amount1` and `Lfo_Amount` becomes a `sets` at full. One
-line either way.
-
-Wavetable's LFO depth is still not in the parameter list at all and Meld
-has no equivalent, so Macro 5 stays empty on those two regardless.
 
 ### D. DR1 in depth - ANSWERED, with one thing to re-check
 
