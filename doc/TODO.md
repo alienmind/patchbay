@@ -9,6 +9,33 @@ completed entry. See "The routine" at the bottom.
 
 Live version for every finding below: **12.4.3**.
 
+## What is left, at a glance
+
+Everything below this table is detail. **You** means a human in Live;
+nothing in that column can be done from code.
+
+| # | Who | Task | Unblocks |
+|---|---|---|---|
+| **K3b** | you | Drag `build/K3_als_donor.adg` onto any track. Loads clean? | 48 donors, and with them C1 to C4 |
+| **K1** | you | Audio Effect Rack: Channel EQ, Tuner, Spectrum, Auto Shift, one chain, defaults, save `donors/AM_fx.adg` | C3 |
+| **K2** | you | MIDI Effect Rack: Arpeggiator, Note Length, defaults, save `donors/AM_midi.adg` | C2 |
+| **K4** | you | Audio Effect Rack: Phaser-Flanger, Resonators, Utility, defaults, save `donors/AM_fx2.adg` | C1, VOL1 |
+| **Q18a/b** | you | Compressor in a rack, sidechain off then on and sourced from DR1. Save `racks/q18_a.adg` / `_b.adg` | C4's source half |
+| **Q18c** | you | Drag `q18_b.adg` into a Set with no DR1 track. Does the source survive? | Decides if C4 is fully automatable |
+| **F1** | you | Drag `build/Q7_bad_zone.adg`. Repaired, refused, or broken? | Whether the DSL guards the zone invariant |
+| **C1** | code | AFX1: eight effects behind one selector | The last big tedium. Answers Q6 on the way |
+| **C2** | code | ARP1 and MFX1 | Channel strip |
+| **C3** | code | EQC | Channel strip |
+| **C4** | code | Sidechain config on every track and return | The tedium this was reopened for |
+| **T8** | you | DECIDE: do slots 5 and 6 change meaning inside a drum pad | DR1's final shape |
+| **T10** | you | DECIDE: TypeScript port, or not | Nothing. Here so it is not decided by drift |
+| **T1** | code | Drum rack return chains | DR1's sends. Cheaper after C1 |
+| **T6c** | code | Read racks out of a `.als`. Needs Q9 finished first | Turning Sets you own into specs |
+
+Optional spikes, none blocking: **Q17** (Meld glide mode), **Q2**
+(aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
+(send taper), the **S10** and **Q5** tails.
+
 ## Status
 
 Phase 0 discovery is closed: 12 spikes answered, 1 retired, both kill
