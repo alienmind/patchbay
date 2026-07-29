@@ -641,20 +641,16 @@ class Rack:
     __slots__ = ("name", "layout", "kind", "_chains", "_returns",
                  "_variations", "_labels", "_starts", "_role", "_wildcard",
                  "_library", "_skeleton", "_branch_template",
-                 "_wrapper_template", "_return_template", "_send_template",
-                 "_send_slots")
+                 "_wrapper_template", "_return_template", "_send_template")
 
     def __init__(self, name: str, layout: Layout, kind: RackKind, chains=(),
                  variations=(), labels=None, starts=None, role=None,
-                 wildcard=None, library=None, skeleton=None, returns=(),
-                 send_slots=None):
+                 wildcard=None, library=None, skeleton=None, returns=()):
         self.name = name
         self.layout = layout
         self.kind = kind
         self._chains: tuple[_Chain, ...] = tuple(chains)
         self._returns: tuple[_Chain, ...] = tuple(returns)
-        #: Return name -> the slot whose macro drives every chain's send.
-        self._send_slots: dict[str, Slot] = dict(send_slots or {})
         self._variations: tuple[Variation, ...] = tuple(variations)
         self._labels: dict[str, str] = dict(labels or {})
         self._starts: dict[str, float] = dict(starts or {})
@@ -686,7 +682,7 @@ class Rack:
     def _with(self, **kw) -> "Rack":
         base = dict(name=self.name, layout=self.layout, kind=self.kind,
                     chains=self._chains, returns=self._returns,
-                    send_slots=self._send_slots, variations=self._variations,
+                    variations=self._variations,
                     labels=self._labels, starts=self._starts, role=self._role,
                     wildcard=self._wildcard, library=self._library,
                     skeleton=self._skeleton)
@@ -722,21 +718,6 @@ class Rack:
         """
         return self._with(returns=self._returns + (
             _Chain(name, self._checked_return(content)),))
-
-    def sending(self, slot: Slot, ret: str) -> "Rack":
-        """This slot drives EVERY chain's send to that return.
-
-        One knob for "how much of the whole kit goes to the reverb", which
-        is what a send slot means at kit level. It is one mapping per chain,
-        written into each chain's own `SendInfos` entry, because a send
-        belongs to a chain and not to the rack.
-
-        A send is shaped exactly like a mappable parameter and the mapping
-        is addressed by containment like every other, so nothing here is a
-        special case. Whether Live HONOURS a macro on a send is not verified
-        - see ARCHITECTURE.md section 12.
-        """
-        return self._with(send_slots={**self._send_slots, ret: slot})
 
     def _checked_return(self, content: Content) -> Content:
         inner = content.rack if isinstance(content, Nested) else content
@@ -880,7 +861,6 @@ class Rack:
                     out |= {d.slot.key
                             for d in engine._for(self._role, self._wildcard)
                             if d.slot is not None}
-        out |= {s.key for s in self._send_slots.values()}
         if self.layout.selector is not None:
             out.add(self.layout.selector.key)
         return out
@@ -1291,11 +1271,10 @@ class Rack:
                 info.set("Id", str(index))
                 info.find("Index").set("Value", str(index))
                 level = chain.sends.get(name, SEND_FLOOR)
-                send = info.find("Send")
-                params.set_value(send, level)
-                slot = self._send_slots.get(name)
-                if slot is not None:
-                    params.map_to_macro(send, self.layout[slot.display].number)
+                # A send takes a VALUE and not a macro. It is shaped like a
+                # mappable parameter and Live ignores a KeyMidi written into
+                # one: the knob moved, the send stayed at -inf. See Q23.
+                params.set_value(info.find("Send"), level)
                 infos.append(info)
 
     def _nested_preset(self, inner: "Rack") -> Element:
@@ -1323,6 +1302,9 @@ class Rack:
         device.set("Id", "0")
         clone.strip_macro_mappings(device)
         clone.fill_empty_int64_fields(device)
+        # The third thing a donor drags in: a path written in two formats at
+        # once, which Live refuses outright. See Q22.
+        clone.strip_legacy_path_elements(device)
         holder.append(device)
         wrapper.set("Id", str(slot))
         return wrapper

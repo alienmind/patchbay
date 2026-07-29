@@ -618,21 +618,23 @@ def dr1() -> Rack | None:
     dived into on Push to move its own.
 
     **Slots 5 and 6 mean different things at different depths, and that is
-    decided rather than accidental.** At kit level they are the two sends,
-    because a send is a kit-level idea: it exists once per return and every
-    pad has one. Inside a pad they stay Movement and Character, which is
-    what a single voice has to offer. The cost is that the layout is a
-    contract per LEVEL rather than per rack, and the label on each knob is
-    what says which level you are on.
+    decided rather than accidental.** At kit level they are the two sends;
+    inside a pad they stay Movement and Character, which is what a single
+    voice has to offer. So the layout is a contract per LEVEL rather than
+    per rack.
+
+    **The two kit send knobs drive nothing, and cannot.** A send takes a
+    value, not a macro: Live ignores a mapping written into one, verified in
+    12.4.3 (Q23). Per-pad send LEVELS below are real and work; the knobs
+    that would sweep them do not exist. The slots keep their names because
+    the send column is where a player sets them by hand.
     """
     kit = (Rack.drum("DR1", KIT)
            # `unchained`, not `chaining`: a return's effects answer their
            # own three knobs and no kit knob at all. The kit reaches a return
            # through its send, which is what `sending` writes.
            .ret("A-Rvb:Short", SHORT_FX.unchained())
-           .ret("A-Dly:Long", LONG_FX.unchained())
-           .sending(KIT.send_a, "A-Rvb:Short")
-           .sending(KIT.send_b, "A-Dly:Long"))
+           .ret("A-Dly:Long", LONG_FX.unchained()))
     chained = (KIT.sound, KIT.filter, KIT.drive, KIT.volume)
 
     built = 0
@@ -822,21 +824,26 @@ AFXS1 = (Rack.audio_effect("AFXS1", AFX)
                 .drives(AFX.amount, "DryWet")
                 .drives(AFX.tone, "Warmth")
                 .drives(AFX.motion, "Rate"))
+         # Tone sweeps the MODE here, not a frequency. Live 12.4.3, S1e:
+         # PhaserNew ships in Doubler, where CenterFrequency reaches
+         # nothing, so the knob moved and nothing happened. Phaser, Flanger
+         # and Doubler are three different effects behind one device, which
+         # is what this slot is for.
          .chain("sweep", Engine("PhaserNew")
                 .drives(AFX.amount, "DryWet")
-                .drives(AFX.tone, "CenterFrequency")
+                .drives(AFX.tone, "Mode")
                 .drives(AFX.motion, "Modulation_Amount"))
          .chain("ring", Engine("Resonator")
                 .drives(AFX.amount, "DryWet")
                 .drives(AFX.tone, "ResColor")
                 .drives(AFX.motion, "ResDecay"))
+         # Same again: Tone picks Stereo, Ping Pong or Mid/Side rather than
+         # a cutoff. A delay's character is which way it moves across the
+         # stereo field, and Echo ships in Stereo.
          .chain("echo", Engine("Echo")
                 .drives(AFX.amount, "DryWet")
-                .drives(AFX.tone, "Filter_LowPassFrequency")
-                .drives(AFX.motion, "Feedback")
-                # Echo's filter section ships off, so Tone would reach a
-                # bypassed filter. Q16 again, on a third device.
-                .sets("Filter_On", True)))
+                .drives(AFX.tone, "ChannelMode")
+                .drives(AFX.motion, "Feedback")))
 
 
 VOL = Layout(

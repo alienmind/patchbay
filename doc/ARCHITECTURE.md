@@ -829,17 +829,15 @@ This is a **third scale** in the format. Keep them straight:
 
 **[?]** Whether the send knob is linear in amplitude or in dB is untested.
 
-**[?] A send is SHAPED like a mappable parameter.** `Send` carries `LomId`,
+**[V] A send takes a VALUE and not a macro.** `Send` carries `LomId`,
 `Manual`, `MidiControllerRange`, `AutomationTarget` and `ModulationTarget`,
-which is the shape every macro-driven parameter has, and a mapping is
-addressed by containment (§5) so a `KeyMidi` written inside one names the
-rack whose `BranchPresets` it sits under. `Rack.sending` writes exactly
-that, and DR1's Send A and Send B knobs are it.
+which is the shape every macro-driven parameter has, so a `KeyMidi` written
+inside one is a valid mapping addressed by containment like any other. Live
+12.4.3 ignores it: the file loads, `patchbay mappings` reports the mapping,
+the send column shows the send, and turning the knob leaves it at -inf
+(Q23). Being shaped like a parameter is not being one.
 
-What is NOT verified is whether Live HONOURS it. Nothing here has turned
-that knob in Live, and Q16 is the standing reminder that a mapping which
-resolves is not a mapping that moves anything. Treat the send slots as
-written but unheard until a check says otherwise.
+So a spec states send levels and a player moves them by hand.
 
 ### View state worth knowing
 

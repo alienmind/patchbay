@@ -1590,3 +1590,68 @@ it is not in a `.adg`. Whether an `.als` stores it by track name or by id
 is still unknown, and only matters if PatchBay ever writes a Set.
 
 
+
+## Q22. A path written in two formats at once - ANSWERED
+
+**Evidence:** `build/ARP1.adg`, `build/MFX1.adg` and `build/AFX1.adg`, all
+refused by Live 12.4.3 on the correct track type:
+
+    Exception: Base types can't have children
+    Exception: The document "...\build\ARP1.adg" is corrupt and cannot be
+    loaded.  (Base types can't have children (at line 951, column 57))
+
+Line 951 is a `RelativePath` carrying a `Value` AND child elements:
+
+```xml
+<RelativePath Value="">
+  <RelativePathElement Id="24" Dir="Devices" />
+  <RelativePathElement Id="25" Dir="Midi Effects" />
+  <RelativePathElement Id="26" Dir="Velocity" />
+</RelativePath>
+```
+
+Two eras of the same field. Older Live wrote the path as a LIST of
+directory elements; 12.4.3 writes it as a string on the node. A node that
+has both is a base type with children, and Live gives up on the document.
+
+| source | `RelativePath` |
+|---|---|
+| the 28 racks Live 12.4.3 saved here | a Value, no children, 366 of them |
+| 6 of 54 donors | a Value AND children |
+
+The six: `CrossDelay`, `Gate`, `MidiNoteLength`, `MidiVelocity`,
+`Overdrive`, `Redux`. Nothing about those devices is wrong; they came out
+of files an older Live wrote.
+
+**Fixed** by `clone.strip_legacy_path_elements`, which drops the child form
+and keeps the Value, next to the other two donor repairs in
+`_make_chains`. `clone.legacy_path_elements` refuses a tree that still has
+one.
+
+**This is the third defect of one shape**, and the shape is worth naming: a
+donor carries whatever the file it was cut from happened to contain, and
+some of that is not merely unwanted but invalid HERE. The other two are the
+missing `Id` and the blank int64 fields, both under Q9.
+
+## Q23. A send takes a value and not a macro - ANSWERED
+
+**Evidence:** `build/DR1.adg` in Live 12.4.3, kit macros 5 and 6 mapped to
+every pad's send with `Rack.sending`, checks S1g and S1h.
+
+The mapping is written exactly as every other one: a `KeyMidi` inside the
+`Send` element, which carries `LomId`, `Manual`, `MidiControllerRange`,
+`AutomationTarget` and `ModulationTarget` - the same shape as any
+macro-driven parameter - and is addressed by containment like the rest.
+
+**The send column was visible and every send stayed at -inf whatever the
+knob did.** So Live ignores the mapping. Being shaped like a parameter is
+not being one.
+
+**What this means for a spec.** A send LEVEL is declarable and works:
+`sends={"A-Rvb:Short": 0.35}` writes a value a player sees in the chain
+list and can move by hand. A knob that sweeps sends is not available at
+all, and `Rack.sending` is buried in `THE_BASEMENT.md`.
+
+**One more instance of the Q16 rule**, and the sharpest: the mapping
+resolved, `patchbay mappings` reported it, the file loaded, and nothing
+moved. Structure cannot tell you a knob works.

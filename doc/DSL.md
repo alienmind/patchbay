@@ -458,7 +458,6 @@ racks look intractable - see `THE_BASEMENT.md`.
 kit = (Rack.drum("DR1", KIT)
        .ret("A-Rvb:Short", SHORT_FX.unchained())
        .ret("A-Dly:Long", LONG_FX.unchained())
-       .sending(KIT.send_a, "A-Rvb:Short")
        .pad("KICK", 36, KICK.chaining(KIT.sound), sends={"A-Rvb:Short": 0.35}))
 ```
 
@@ -476,10 +475,12 @@ the rack does not have raises.
 returns, at the silent floor. That is what Live does, and a rack missing
 one is inconsistent rather than merely sparse.
 
-`sending` puts one macro on every chain's send to one return: one knob for
-how much of the whole kit goes there. Writing sends also flips
-`AreSendsVisible`, because Live ships it false and a rack whose sends are
-written but hidden looks exactly like a rack whose sends failed.
+**A send cannot be driven by a macro at all.** It is shaped like a
+mappable parameter and Live ignores a mapping written into one, checked in
+12.4.3 and buried in `THE_BASEMENT.md` with the knob that proved it. A spec
+states levels; a player moves them in the chain list. Writing sends flips
+`AreSendsVisible`, because Live ships it false and sends nobody can see
+look exactly like sends that failed to write.
 
 **`unchained()` is not `chaining()`.** With no arguments `chaining` means
 the IDENTITY default, every slot the inner rack drives from the matching

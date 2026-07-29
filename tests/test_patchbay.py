@@ -932,16 +932,22 @@ def test_a_send_to_a_return_that_does_not_exist_is_refused():
         raise AssertionError("a send naming no return must be refused")
 
 
-def test_a_send_slot_drives_every_chains_send():
-    """T8's kit half: one knob for how much of the whole kit goes to a return."""
-    g, kit = _kit_with_return()
-    preset = find.preset(kit.sending(g.verb, "verb").build())
+def test_a_send_carries_a_value_and_no_mapping():
+    """Q23: Live ignores a macro written onto a send.
+
+    The element is shaped exactly like a mappable parameter, the mapping
+    resolves, and turning the knob in Live 12.4.3 left the send at -inf. So
+    the DSL writes levels and refuses to pretend a knob can sweep them.
+    """
+    _, kit = _kit_with_return()
+    preset = find.preset(kit.build())
     for branch in find.branches(preset):
-        got = {(m["macro"], m["target"]) for m in mappings.find(branch)}
-        assert (2, "Send") in got, f"{branch.find('Name').get('Value')}: no send mapping"
+        for info in branch.iter("AudioBranchSendInfo"):
+            assert info.find("Send/KeyMidi") is None, (
+                "a mapping on a send resolves and moves nothing; see Q23")
     dev = find.rack_device(preset)
     assert dev.find("AreSendsVisible").get("Value") == "true", (
-        "sends written but hidden in the chain list reads as sends that failed")
+        "the send column is where a player sets these by hand")
 
 
 def test_a_nested_rack_may_be_driven_by_nothing():

@@ -211,6 +211,40 @@ def strip_macro_mappings(device):
 INT64_FILEREF_FIELDS = ("OriginalFileSize", "OriginalCrc")
 
 
+def legacy_path_elements(root):
+    """`RelativePath` nodes carrying BOTH a Value and child elements.
+
+    Two eras of the same field. Live 12.4.3 writes the path as a string on
+    the node, 366 times across the racks here with no exception; older Live
+    wrote it as a list of `RelativePathElement` children, one per directory.
+    A donor cut from an old file arrives with both, and Live refuses the
+    document outright:
+
+        Exception: Base types can't have children
+        The document "..." is corrupt and cannot be loaded.
+
+    Six donors carry it: CrossDelay, Gate, MidiNoteLength, MidiVelocity,
+    Overdrive, Redux. Nothing about the device is wrong; the path is
+    written twice in two formats.
+    """
+    out = []
+    for rp in root.iter("RelativePath"):
+        if rp.get("Value") is not None and len(rp):
+            out.append(rp.get("Value") or "<empty>")
+    return out
+
+
+def strip_legacy_path_elements(root):
+    """Drop the child form, keep the Value. Returns how many were cleared."""
+    cleared = 0
+    for rp in root.iter("RelativePath"):
+        if rp.get("Value") is not None and len(rp):
+            for child in list(rp):
+                rp.remove(child)
+            cleared += 1
+    return cleared
+
+
 def empty_int64_fields(root):
     """FileRef int64 fields carrying an empty Value, as a list of paths.
 
@@ -260,6 +294,14 @@ def assert_loadable(root):
             f"{', '.join(sorted(set(no_id)))}. Live refuses the whole "
             f"document with 'Not all list members have Ids'. A donor "
             f"harvested from a .als carries no Id here; see Q9.")
+
+    legacy = legacy_path_elements(root)
+    if legacy:
+        raise ValueError(
+            f"{len(legacy)} RelativePath node(s) carrying both a Value and "
+            f"child elements. Live refuses the whole document with 'Base "
+            f"types can't have children'. A donor cut from an older Live "
+            f"arrives with the path written twice; see Q22.")
 
     blank = empty_int64_fields(root)
     if blank:

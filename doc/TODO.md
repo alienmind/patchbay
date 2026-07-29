@@ -16,13 +16,14 @@ nothing in that column can be done from code.
 
 | # | Who | Task | Unblocks |
 |---|---|---|---|
-| **S1** | you | Drag the six strip racks and DR1 in, play them, report by number | Whether the bindings are the right ones |
+| **S2** | you | Re-drag the three racks Q22 refused, and check two enum knobs | Whether the strip is done |
 | **T6c** | you then code | Save `racks/q9_b.als`, the Set form of a rack we already have as `.adg` | Reading racks out of Sets |
 
 Optional spikes, none blocking: **Q19** (the sidechain EQ mode enum),
 **Q20** (how a named scale is stored), **Q17** (Meld glide mode), **Q2**
 (aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
-(send taper), the **Q7**, **Q9**, **S10** and **Q5** tails.
+(send taper), **Q21** (the Eq8 band mode enum, for a swept sub-cut), the
+**Q7**, **Q9**, **S10** and **Q5** tails.
 
 Donors for the whole channel strip are in: `ChannelEq`, `Tuner`,
 `SpectrumAnalyzer`, `AutoShift`, `MidiArpeggiator`, `MidiNoteLength`,
@@ -51,13 +52,15 @@ human dragging files into Live.
 and VOL1, from about a hundred lines of declaration. AFX1 alone is eight
 effects, 24 bindings and a selector. That took three capabilities the
 instrument racks never needed - several devices in ONE chain, MIDI effect
-racks, and return chains with sends - and all three are in `DSL.md`. None
-of the six has been heard.
+racks, and return chains with sends - and all three are in `DSL.md`. Three
+of the six loaded first time; three were refused by Q22 and have not been
+re-checked.
 
 **DR1 has returns.** Two of them, each holding a rack of two effects behind
-a selector, with the kit's Send A and Send B driving every pad's send to
-them. That closes Q6 structurally: a return chain holds a rack exactly as
-any chain does.
+a selector. That closes Q6 structurally: a return chain holds a rack
+exactly as any chain does. The per-pad send LEVELS are declarable; the kit
+knobs that would sweep them are not, because a send takes a value and not a
+macro (Q23).
 
 ## Scope, deliberately narrowed
 
@@ -79,28 +82,50 @@ the Set and chooses the sounds.
 
 ## In progress
 
-### S1. Play what has been built
+### S1 has run. What it found
 
-Ten racks build from `examples/patchbayground.py`. Six have been loaded and
-played in Live 12.4.3; four never have, and DR1 has changed since it was.
+Live 12.4.3, checks S1a to S1h.
 
-| # | Do this | Report |
+| # | result |
+|---|---|
+| S1a | ARP1 and MFX1 REFUSED: *"Base types can't have children"*. Q22 |
+| S1b | EQC loads and works |
+| S1c | The sidechain arrives configured, source empty as designed |
+| S1d | AFX1 refused, same as S1a |
+| S1e | AFXS1 loads. Tone reached nothing on the Phaser, and the Echo's character knob was on a filter rather than its stereo mode |
+| S1f | VOL1 stops exactly where Ceiling says |
+| S1g | **A macro on a send moves nothing.** Q23 |
+| S1h | The send column is visible and reads -inf whatever the knob does |
+
+**Two defects fixed, both in `SCHEMA.md`.**
+
+Q22 is the third donor-shape defect and the same shape as the other two: a
+donor carries whatever the file it came out of contained, and six of them
+came out of an older Live that wrote `RelativePath` as a list of directory
+elements rather than a string. Both forms on one node is a base type with
+children, and Live refuses the document. `clone.strip_legacy_path_elements`
+drops the child form as the device is placed.
+
+Q23 is not a defect, it is an answer: a send takes a value and not a macro.
+`Rack.sending` is buried, DR1's kit slots 5 and 6 drive nothing, and per-pad
+send LEVELS still work and are what a spec states.
+
+**S1e's two rebindings are in.** AFXS1's sweep chain puts Tone on
+PhaserNew's `Mode`, so the knob picks Phaser, Flanger or Doubler rather
+than a frequency the shipped mode ignores; the echo chain puts Tone on
+Echo's `ChannelMode` for Stereo, Ping Pong or Mid/Side. Both are enums
+swept as knobs, and neither guesses what any value means.
+
+### S2. Re-run the three that were refused
+
+| # | Do this | Should happen |
 |---|---|---|
-| S1a | Drag `build/ARP1.adg` and `build/MFX1.adg` onto a **MIDI track**, before the instrument | Do they load? Does Style step through arpeggio modes, Rate change speed |
-| S1b | Drag `build/EQC.adg` onto that track AFTER the instrument | Loads? Lo/Mid/Hi cut and boost, Comp and Duck do something audible |
-| S1c | On EQC's compressor, is External already ON with the sidechain EQ on and its band near 100 Hz | Yes or no. The SOURCE is expected empty, that is Q18 |
-| S1d | Drag `build/AFX1.adg` in. Sweep Effect through all eight | Eight distinct effects: glitch, tear, erode, grind, reduce, soak, stretch, fade. Amount and Tone do something on each |
-| S1e | Same with `build/AFXS1.adg` | Four: swirl, sweep, ring, echo |
-| S1f | Drag `build/VOL1.adg` in last. Turn Ceiling down | Output stops where the knob says. Sub Cut removes low end |
-| S1g | Drag `build/DR1.adg` onto a MIDI track. Play a pad, then turn **Send A** | Does the pad get wetter? This is the one structural unknown: a macro on a send is written but has never been turned |
-| S1h | On DR1, is the send column visible in the chain list | Yes or no |
+| S2a | Drag `build/ARP1.adg` then `build/MFX1.adg` onto a MIDI track | Both load. Style steps arpeggio modes, Rate changes speed, Gate shortens notes |
+| S2b | Drag `build/AFX1.adg` onto that track after the instrument | Loads. Effect sweeps eight distinct characters |
+| S2c | On `build/AFXS1.adg`, select sweep and turn Tone. Then select echo and turn Tone | Sweep steps Phaser / Flanger / Doubler. Echo steps Stereo / Ping Pong / Mid-Side |
+| S2d | On `build/DR1.adg`, play a pad and raise its send in the CHAIN LIST by hand | The pad gets wetter. This is the send working as a value, which is all Q23 leaves |
 
-S1g is the one that matters. Everything else here is taste; that one is a
-claim about the format that no test can settle, and the answer decides
-whether `Rack.sending` stays or gets buried. See section 12 of
-`ARCHITECTURE.md`.
-
-Expected still broken: nothing. The sidechain source is empty by design.
+Expected still broken: nothing.
 
 ### C. What is left of the strip
 

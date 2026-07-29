@@ -207,8 +207,8 @@ def _branch_name(branch, fallback: str) -> str:
     return got or fallback
 
 
-def _sends_of(branch, names) -> tuple[dict[str, str], dict[int, str]]:
-    """This chain's send levels by return name, and any macro on them.
+def _sends_of(branch, names) -> dict[str, str]:
+    """This chain's send levels, by return name.
 
     `Index` is positional (S9), so the names come from the return list and
     the level is read back as the string the file holds - a send is linear
@@ -218,7 +218,6 @@ def _sends_of(branch, names) -> tuple[dict[str, str], dict[int, str]]:
     does not already write, so it is left out.
     """
     levels: dict[str, str] = {}
-    driven: dict[int, str] = {}
     for info in branch.iter("AudioBranchSendInfo"):
         idx = info.find("Index")
         send = info.find("Send")
@@ -231,10 +230,7 @@ def _sends_of(branch, names) -> tuple[dict[str, str], dict[int, str]]:
         manual = send.find("Manual")
         if manual is not None and manual.get("Value") != FLOOR:
             levels[name] = manual.get("Value")
-        for m in mappings.find(send):
-            if m["macro"]:
-                driven[m["macro"]] = name
-    return levels, driven
+    return levels
 
 
 def _zone_of(branch) -> tuple[str, str] | None:
@@ -381,8 +377,6 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
     lines.append(")")
 
     call = [f"{var} = (Rack.{kind}({name!r}, {layout_var})"]
-    #: Macro -> return name, for the slots that drive every chain's send.
-    send_slots: dict[int, str] = {}
 
     for i, branch in enumerate(branches + returns):
         # The stored name, empty string included. Live leaves a chain
@@ -397,8 +391,7 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             verb = (f".pad({bname!r}, {note}," if note is not None
                     else f".chain({bname!r},")
         zone = _zone_of(branch)
-        levels, driven = _sends_of(branch, return_names)
-        send_slots.update(driven)
+        levels = _sends_of(branch, return_names)
         # A return sends to nothing, so only a chain carries one.
         tail = "" if is_return or not levels else ", sends={%s}" % ", ".join(
             f"{k!r}: {v}" for k, v in sorted(levels.items()))
@@ -468,9 +461,6 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
 
         joined = ("\n" + " " * 12).join(content)
         call.append(f"        {verb}\n            {joined})")
-
-    for macro, ret_name in sorted(send_slots.items()):
-        call.append(f"        .sending({layout_var}.macro_{macro}, {ret_name!r})")
 
     got = variations.read(rack_dev)
     if got:

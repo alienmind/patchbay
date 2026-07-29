@@ -443,3 +443,27 @@ spends a working, gated toolchain to get it.
 **What survives:** `TS-PORT.md` stays as the measurement. If a
 browser-hosted version is ever wanted, Pyodide ships lxml and running the
 existing compiler unchanged is the cheap thing to try first.
+
+## `Rack.sending`, a macro across every chain's send
+
+**Built, shipped in DR1, and disproved by one knob turn.** The idea was
+that a `Send` is shaped exactly like a mappable parameter - `LomId`,
+`Manual`, `MidiControllerRange`, `AutomationTarget`, `ModulationTarget` -
+and mappings are addressed by containment, so writing a `KeyMidi` into one
+should give a kit-level knob for how much of the whole rack goes to a
+return.
+
+The file was valid, the mapping resolved, `patchbay mappings` listed it,
+Live loaded it, the send column showed the sends. Turning the knob moved
+nothing: every send stayed at -inf. Q23 in `SCHEMA.md` has the check.
+
+**What replaced it:** send LEVELS, which work. `sends={"A-Rvb:Short": 0.35}`
+on a chain writes a value the player sees and can move by hand. DR1's kit
+slots 5 and 6 keep the names Send A and Send B and drive nothing, which is
+the honest state.
+
+**What it cost, and what it bought:** one session, and the third example of
+the rule that a mapping which resolves is not a mapping that moves
+anything. The first two were switched-off modulators (Q16, H6). This one is
+different in kind and worth remembering separately: the target was not
+switched off, it was never mappable.
