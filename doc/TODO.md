@@ -16,19 +16,17 @@ nothing in that column can be done from code.
 
 | # | Who | Task | Unblocks |
 |---|---|---|---|
-| **C1** | code | AFX1: eight effects behind one selector | The last big tedium. Answers Q6 on the way |
-| **C2** | code | ARP1 and MFX1 | Channel strip |
-| **C3** | code | EQC | Channel strip |
-| **C4** | code | Sidechain config on every track and return | The tedium this was reopened for |
+| **C5** | code | AFXS1 and VOL1, the last two strip racks | Finishes the strip |
+| **S1** | you | Drag the four strip racks in and play them | Whether the bindings are the right ones |
 | **T8** | you | DECIDE: do slots 5 and 6 change meaning inside a drum pad | DR1's final shape |
 | **T10** | you | DECIDE: TypeScript port, or not | Nothing. Here so it is not decided by drift |
 | **T1** | code | Drum rack return chains | DR1's sends. Cheaper after C1 |
 | **T6c** | code | Read racks out of a `.als`. Needs the Q9 tail first | Turning Sets you own into specs |
 
-**Nothing in this table is waiting on a human.** Optional spikes, none
-blocking: **Q17** (Meld glide mode), **Q2** (aftertouch), **Q3** (key and
-velocity zones, needed only for SR1), **Q8** (send taper), the **Q7**,
-**Q9**, **S10** and **Q5** tails.
+Optional spikes, none blocking: **Q19** (the sidechain EQ mode enum),
+**Q20** (how a named scale is stored), **Q17** (Meld glide mode), **Q2**
+(aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
+(send taper), the **Q7**, **Q9**, **S10** and **Q5** tails.
 
 Donors for the whole channel strip are in: `ChannelEq`, `Tuner`,
 `SpectrumAnalyzer`, `AutoShift`, `MidiArpeggiator`, `MidiNoteLength`,
@@ -53,11 +51,11 @@ removed.
 supposed to move the output proves it by `uv run pytest` rather than by a
 human dragging files into Live.
 
-**What is left of the original scope is the CHANNEL STRIP**, and it was
-never on this list until now. `PATCHBAYGROUND.md` puts the same seven
-devices on every track, five of them racks with their own layouts, and none
-of them exist. That is a bigger gap than everything else here combined, and
-it is the last part that is genuinely tedious by hand.
+**Four of the strip racks now build too**: ARP1, MFX1, EQC and AFX1, from
+about sixty lines of declaration. AFX1 alone is eight effects, 24 bindings
+and a selector. What that took was two capabilities the instrument racks
+never needed - several devices in ONE chain, and a MIDI effect rack - and
+both are in `DSL.md`. None of the four has been heard.
 
 ## Scope, deliberately narrowed
 
@@ -85,50 +83,35 @@ the Set and chooses the sounds.
 
     ARP1   MFX1   <instrument>   EQC   AFX1   AFXS1   Channel EQ   VOL1
 
-Build the racks once, paste the strip across eight tracks by hand. Copying
-a device chain in Live is two minutes; building AFX1's eight effect chains
-and their mappings by mouse is not.
+**Four of them are built** and compile from `examples/patchbayground.py`:
+ARP1, MFX1, EQC and AFX1. None has been loaded into Live yet.
 
-**C1. AFX1.** Eight character effects behind ONE selector, so a knob swaps
-the effect rather than layering it. The biggest remaining piece of real
-tedium, and the DSL already does all of it: a selector slot, eight chains,
-zones distributed, one macro each.
+| rack | kind | devices | macros |
+|---|---|---|---|
+| ARP1 | MIDI | Arpeggiator, Random, Velocity | 8 |
+| MFX1 | MIDI | Velocity, Pitcher, Scale | 5 |
+| EQC | audio | Channel EQ, Compressor, Utility | 6 |
+| AFX1 | audio | eight character effects, one selector | 4 |
 
-`PATCHBAYGROUND.md` asks for a spread across degradation, time and space
-rather than eight flavours of one idea: glitch, tear, erode, grind, reduce,
-soak, stretch, fade. Which device serves which is a taste call and yours.
-*Donors: all 11 candidates are indexed.*
+**C5. AFXS1 and VOL1 are left.** AFXS1 is a second effect slot, freely
+editable, which is AFX1 with the chains a person picks. VOL1 is Sub-Cut,
+Pre-Gain and Limiter, three devices in series with every donor indexed.
+Channel EQ stays stock, per the spec.
 
-**C2. ARP1 and MFX1.** Two small MIDI racks, every device indexed.
+**The strip is not per-track yet.** `PATCHBAYGROUND.md` names each instance
+for its track, `EQC_BS1` on BS1. One rack per track is a loop over a name,
+and it is worth writing once the bindings have been played rather than
+before.
 
-**C3. EQC.** Five devices, carrying Lo-Hi EQ, EQ dry/wet, compressor
-dry/wet, gain, and the sidechain. Every device indexed; Utility is
-`StereoGain`.
+**S1. Play the four.** Which parameter each knob should reach is a taste
+call, not a structural one, and the ones chosen here have never been heard.
+AFX1's eight roles especially: glitch, tear, erode, grind, reduce, soak,
+stretch and fade are one device each, and swapping one is a one-line edit.
 
-**C4. The sidechain, on every track.** This is the tedious one, and it was
-wrongly written off as manual. `PATCHBAYGROUND.md` sidechains EQC's
-compressor from DR1 with the sidechain EQ on a low band, so it tracks the
-kick and ignores hats, and it does the same on the reverb returns. Eight
-tracks plus returns, each with an enable, an EQ mode, a frequency, a Q, a
-dry/wet and a source: that is the shape of thing this project exists to
-stop doing by hand.
-
-**Everything but the source is reachable today**, as ordinary parameters
-that `sets` writes:
-
-    SideChain/OnOff                       the External toggle
-    SideChainEq/On /Mode /Freq /Q /Gain   the low band that ignores hats
-    SideChain/DryWet                      how much of the duck lands
-    SideChain/RoutedInput/Volume          input trim
-    SideListen                            audition the sidechain input
-
-**The source is not automatable, and Q18 settled why.** A device preset
-does not carry it: `Target` reads `AudioIn/None` in a file saved with the
-source pointed at DR1, and a rack dropped into another Set comes back with
-the enable ON and the source at `No input`. Picking it is one dropdown per
-track, by hand, and it is on the Standing manual work list. See Q18 in
-`SCHEMA.md`.
-*Ready to build. Nothing blocks it.*
+Track types: ARP1 and MFX1 are MIDI racks and want a MIDI track. EQC and
+AFX1 are audio effect racks. On a MIDI track an audio effect rack goes
+AFTER the instrument, so a MIDI track carrying an instrument takes all
+four.
 
 ### Rounds A to J are closed
 
@@ -258,6 +241,20 @@ to hold a selector across several reverbs and delays, so a macro swaps the
 EFFECT rather than the send level. The pieces are known separately, the
 combination is untested. **C1 is the same mechanism one level up**, so
 building AFX1 answers most of this for free.
+
+**Q19. The sidechain EQ mode enum.** `SideChainEq/Mode` reads 5 in the
+`Compressor2` donor and the enum is undiffed, so EQC sets the band
+frequency and leaves the mode where the donor left it. PATCHBAYGROUND.md
+asks for a low band only. Diff a compressor with the sidechain EQ set to
+each mode in turn: `racks/q19_low.adg`, `racks/q19_band.adg`,
+`racks/q19_high.adg`.
+
+**Q20. How a named scale is stored.** `MidiScale` carries twelve
+`Mapping.N` parameters, one per semitone, and no single parameter that
+selects a scale by name. So MFX1 binds Root and Transpose and leaves Scale
+Selector unbound rather than binding a knob to twelve mappings, which is a
+different control from the one the spec asks for. Save the same MIDI rack
+with two different scales chosen and diff.
 
 **Q17. Meld's glide mode.** `MeldVoice_Engine{A,B}_GlideMode` reads 0 and
 the enum is undiffed, so LD1's Macro 6 moves Meld's glide TIME and glides

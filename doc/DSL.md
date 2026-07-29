@@ -411,6 +411,42 @@ out then raises. The alternative is a rack that mixes a stated bound with
 an even share computed from a different chain count, which puts a chain
 somewhere nobody wrote.
 
+## A chain may hold several devices in series
+
+```python
+EQC = Rack.audio_effect("EQC", EQ).chain(
+    "strip",
+    Engine("ChannelEq").drives(EQ.lo, "LowShelfGain")
+    .then(Engine("Compressor2").drives(EQ.comp, "DryWet"))
+    .then(Engine("StereoGain").drives(EQ.gain, "Gain")))
+```
+
+`then` puts the next device AFTER this one in the same chain. A chain is a
+signal path, and the channel strip is the shape that needs saying: EQC is
+an EQ into a compressor into a gain, all reached by one set of macros.
+
+This is the opposite of what an instrument rack's chains mean. There, each
+chain is an ALTERNATIVE and the selector picks one. Here the devices are
+stages and all of them are in circuit, which is why they are one chain
+rather than eight.
+
+The zone belongs to the chain, so it is declared on the series and an
+engine that already carries one is refused. A chain has one position on the
+selector however many devices sit in it.
+
+Each device keeps its own bindings, its own `sets`, its own sample. What is
+shared is the layout: `EQ.gain` is macro 6 whichever device answers it.
+
+## A rack has four kinds, and a MIDI rack is one of them
+
+`Rack.instrument`, `Rack.audio_effect`, `Rack.midi_effect`, `Rack.drum`.
+The kind picks the rack device tag and the branch tag - a
+`MidiEffectGroupDevice` holds `MidiEffectBranchPreset`, read off
+`donors/AM_midi.adg` rather than guessed - and it decides what may nest
+inside. An effect rack takes only its own kind, because Live refuses the
+preset otherwise, and the refusal happens at `chain()` rather than on the
+drop.
+
 ## A chain may be another rack
 
 DR1 is three levels deep and VA1 nests a rack per chain, so a chain has to

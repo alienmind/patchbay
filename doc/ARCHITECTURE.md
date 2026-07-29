@@ -546,6 +546,16 @@ a complete device.
 is a `KeyMidi` *inside* that parameter (Â§5). Mappings to *other* parameters
 survive untouched and still work.
 
+**[V] A donor brings the mappings of the rack it was cut from.** The same
+containment that makes a mapping survive cloning makes it survive
+harvesting: `donors/Compressor2.adg` carries five `KeyMidi` blocks, on
+`Threshold`, `Ratio`, `Gain`, `DryWet` and `On`, all naming macro 4 of a
+rack that no longer exists. Placed unchanged, one knob of the new rack
+moves all five. `clone.strip_macro_mappings` clears a device as it is
+placed, for the same reason a Drift arrives with somebody's modulation row:
+a donor is for the parameter list and its ranges, never for anybody's
+decisions.
+
 ## 9. Save-time nondeterminism
 
 **[V]** Two things change on every save regardless of edits. Both are

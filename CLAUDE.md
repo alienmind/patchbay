@@ -199,6 +199,10 @@ re-derive it.
 - **A device loads with every parameter removed.** Live fills defaults.
   Donors are for FIDELITY, not loadability: they carry configured values
   and tell you what a device can be asked to do.
+- **A donor also carries the MAPPINGS of the rack it came from.**
+  `Compressor2.adg` brings five, all on macro 4. Placed unchanged, one knob
+  moves five parameters nobody bound. `clone.strip_macro_mappings` clears a
+  device as it is placed.
 - **A blank value is not a missing value.** A device lifted out of a
   `.als` carries `OriginalFileSize=""` and `OriginalCrc=""` on its
   `LastPresetRef`, which a `.als` accepts and a `.adg` refuses with
