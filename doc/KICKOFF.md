@@ -284,10 +284,20 @@ It cannot verify that macros are mapped correctly. That still needs a person.
 
 ## Definition of done
 
+**Superseded. `TODO.md` holds the current one.** What is below is the ask as
+it was written on day one, kept because this file is the historical brief
+and not a live document.
+
 `python build.py` produces a `.als` that opens in Live 12, presents eight
 correctly named and routed tracks, with racks whose macros are mapped
 according to the layout in `PATCHBAYGROUND.md`, playable from Push 3 without
 touching a mouse.
+
+Two of those turned out to be the wrong target. Generating a `.als` was
+killed early, in favour of racks plus Live's own API; and driving that API
+to assemble the Set was killed later, because eight tracks and their routing
+is half an hour by hand while a single rack is six figures of XML. Both are
+in `THE_BASEMENT.md`.
 
 ## Start here
 
