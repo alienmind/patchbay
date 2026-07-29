@@ -671,12 +671,16 @@ DR1 = dr1()
 
 ARP = Layout(
     Slot("Style"),          # which arpeggio pattern
-    Slot("Rate"),
+    # 78 lands on SyncedRate 8, which is 1/8. A rate knob that opens at the
+    # bottom of its range opens on the fastest division there is.
+    Slot("Rate", start=78),
     Slot("Retrigger"),
     Slot("Chance"),         # how often a note is replaced
     Slot("Choices"),        # how far the replacement may stray
     Slot("Steps"),
-    Slot("Gate"),
+    # 31.75 of 127 over 1..200% is 50%, the device's own default. At 0 the
+    # gate is 1% and every note is a click.
+    Slot("Gate", start=31.75),
     Slot("Vel Rand"),
 )
 
@@ -684,9 +688,17 @@ ARP = Layout(
 # switching them on: Live stores both as plain numbered modes, and a knob
 # that walks the mode list is a control in its own right. Nothing here
 # guesses which number means which mode, because nothing here has to.
+#
+# `SyncState` is the one that had to be set. The arpeggiator ships FREE, in
+# milliseconds, where `SyncedRate` reaches nothing at all - checked in Live
+# 12.4.3, S2a: the Rate knob did nothing until the toggle was moved from ms
+# to the metronome by hand. It is a boolean with two states and the other
+# one is synced, so this is a switch behind a binding, exactly like
+# Operator's `Lfo/LfoOn`. Q24.
 ARP1 = Rack.midi_effect("ARP1", ARP).chain(
     "strip",
     Engine("MidiArpeggiator")
+    .sets("SyncState", True)
     .drives(ARP.style, "Mode")
     .drives(ARP.rate, "SyncedRate")
     .drives(ARP.retrigger, "Retrigger")
@@ -700,27 +712,37 @@ ARP1 = Rack.midi_effect("ARP1", ARP).chain(
 
 
 MFX = Layout(
-    Slot("Vel Range"),
+    # Full velocity range is the pass-through, and it is the top of the
+    # parameter rather than the bottom.
+    Slot("Vel Range", start=127),
     Slot("Vel Rand"),
-    Slot("Pitch"),
+    # 63.5 of 127 over -24..24 is exactly 0 semitones. A bipolar parameter
+    # is the case where an unplaced knob is not merely wrong but silent:
+    # MidiPitcher's native range is -128..128 and macro 0 shipped MFX1
+    # transposing everything down 128 semitones. S2a.
+    Slot("Pitch", start=63.5),
     Slot("Root"),
-    Slot("Transpose"),
 )
 
-# Scale Selector is in PATCHBAYGROUND.md and is NOT here: MidiScale stores a
-# scale as twelve `Mapping.N` parameters, one per semitone, and no single
-# parameter selects a named scale. Binding one knob to twelve mappings would
-# be a different control from the one the spec asks for. Root and Transpose
-# are real parameters and are bound.
+# Two things this rack does NOT carry.
+#
+# Scale Selector, from PATCHBAYGROUND.md: MidiScale stores a scale as twelve
+# `Mapping.N` parameters, one per semitone, and no single parameter selects a
+# named scale. Binding one knob to twelve mappings is a different control
+# from the one the spec asks for. Q20.
+#
+# Transpose. MidiScale's `Transpose` and MidiPitcher's `Pitch` both move
+# incoming notes by semitones, so two knobs for one idea, and S2a found them
+# confusing on the hardware exactly as declaring them predicted. Pitch keeps
+# the slot because it is the wider control and needs no scale to work.
 MFX1 = Rack.midi_effect("MFX1", MFX).chain(
     "strip",
     Engine("MidiVelocity")
     .drives(MFX.vel_range, "Range")
     .drives(MFX.vel_rand, "Random")
-    .then(Engine("MidiPitcher").drives(MFX.pitch, "Pitch"))
-    .then(Engine("MidiScale")
-          .drives(MFX.root, "Base")
-          .drives(MFX.transpose, "Transpose")))
+    .then(Engine("MidiPitcher")
+          .drives(MFX.pitch, "Pitch", over=Range(-24.0, 24.0, "st")))
+    .then(Engine("MidiScale").drives(MFX.root, "Base")))
 
 
 EQ = Layout(

@@ -883,6 +883,46 @@ def test_a_device_with_no_id_is_refused_before_it_is_written():
         raise AssertionError("a document Live refuses must not pass the guard")
 
 
+def test_a_bipolar_binding_opens_off_centre_or_not_at_all():
+    """A macro at 0 drives its target to the BOTTOM of the range.
+
+    Harmless where the bottom is the neutral value - off, dry, silent - and
+    not harmless where the parameter is bipolar. MFX1 shipped with
+    MidiPitcher over its native -128..128 and macro 2 at 0, so every note
+    arrived 128 semitones down and the rack made no sound at all (S2a).
+
+    So: a mapping whose range crosses zero must have its macro placed. What
+    the right position IS cannot be checked here - that is the spec's call -
+    but zero on a bipolar parameter is never it.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    bad = []
+    for rack in patchbayground.RACKS:
+        root = rack.build()
+        for m in mappings.find(root):
+            if not m["macro"]:
+                continue
+            param = m["element"].getparent()
+            rng = param.find("MidiControllerRange")
+            if rng is None:
+                continue
+            lo = float(rng.find("Min").get("Value"))
+            hi = float(rng.find("Max").get("Value"))
+            if not (lo < 0.0 < hi):
+                continue
+            owner = mappings._owning_rack(param)
+            macro = find.macro(owner, m["macro"])
+            at = float(macro.find("Manual").get("Value"))
+            if at == 0.0:
+                bad.append(f"{rack.name} macro {m['macro']} -> {m['target']} "
+                           f"({lo:g}..{hi:g}) opens at {lo:g}")
+    assert not bad, (
+        "a bipolar parameter driven from a macro at 0 sits at its minimum: "
+        + "; ".join(bad))
+
+
 def _kit_with_return(**kw):
     g = Layout(Slot("Tune"), Slot("Verb"))
     return g, (Rack.drum("K", g)

@@ -1655,3 +1655,46 @@ all, and `Rack.sending` is buried in `THE_BASEMENT.md`.
 **One more instance of the Q16 rule**, and the sharpest: the mapping
 resolved, `patchbay mappings` reported it, the file loaded, and nothing
 moved. Structure cannot tell you a knob works.
+
+## Q24. The arpeggiator ships FREE, so a synced rate reaches nothing - ANSWERED
+
+**Evidence:** `build/ARP1.adg` in Live 12.4.3, check S2a. Rate is bound to
+`SyncedRate`. The knob did nothing until the device's own toggle was moved
+from `ms` to the metronome by hand, after which it worked as declared.
+
+`MidiArpeggiator/SyncState` is a boolean and ships `false`, which is FREE
+mode, where the rate comes from `FreeRate` in milliseconds and `SyncedRate`
+is not in the signal path at all. Two states, and the other one is synced.
+
+**This is the Q16 family again**, with a fourth device and a new twist: the
+switch does not gate the parameter, it selects between TWO parameters, and
+the one a spec binds is the one that is off. The others were
+`Lfo/LfoOn`, `Filter/LfoOn` and `Globals/PortamentoOn` on Operator, Drift's
+modulation row, and Echo's `Filter_On`.
+
+**Fixed** by `sets("SyncState", True)` beside the binding. The general form
+is worth stating: where a device offers the same control in two units,
+binding one of them is half the declaration and the mode is the other half.
+
+## Q25. A macro at 0 puts a bipolar parameter at its minimum - ANSWERED
+
+**Evidence:** `build/MFX1.adg` in Live 12.4.3, check S2a. MidiPitcher was
+bound over its native range and the rack made no sound: `Pitch` is
+`-128..128` semitones, macro 3 opened at 0, and 0 through that binding is
+-128 semitones. MidiScale's `Transpose` is `-36..36` and sat at -35 for the
+same reason.
+
+The mechanism is not new - a macro at 0 drives its target to the bottom of
+the mapping range, which is why every layout slot carries a `start`. What is
+new is that the bottom of a BIPOLAR range is not a neutral value but an
+extreme, so the usual reasoning about neutral positions inverts.
+
+**Fixed** with a range and a placed knob: `over=Range(-24, 24)` and
+`start=63.5`, which is exactly 0 semitones because 63.5 of 127 is half.
+Macro positions are floats, so the centre of an odd-numbered scale is
+reachable.
+
+**Guarded** by `test_a_bipolar_binding_opens_off_centre_or_not_at_all`,
+which fails on any mapping whose range crosses zero while its macro sits at
+0. It cannot check that a start is the RIGHT position; it can check that a
+bipolar parameter is not left at its extreme.
