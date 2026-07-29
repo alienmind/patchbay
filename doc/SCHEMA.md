@@ -1457,7 +1457,7 @@ built entirely from donors harvested out of a `.als`. Live 12.4.3 refused
 it, on an audio track and on a MIDI track alike:
 
     Exception: Not all list members have Ids.
-    Exception: The document "...uild\K3_als_donor.adg" is corrupt and
+    Exception: The document "build/K3_als_donor.adg" is corrupt and
     cannot be loaded. (Not all list members have Ids. (at line 450,
     column 19))
 

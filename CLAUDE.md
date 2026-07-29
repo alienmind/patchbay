@@ -159,11 +159,14 @@ and `Another instance` before concluding anything.
    `Filter/Slot/Value/SimplerFilter/Freq`. Operator has 217 parameters.
    Use `library.Device.search("filter", "freq")` and read what comes back.
    A wrong name does not error, it produces a rack with a missing mapping.
-2. **An `Id` must be unique among its SIBLINGS.** Nothing else about it
-   matters: not contiguity, not matching the index, not file-wide
-   uniqueness. Give two sibling branches the same `Id` and Live refuses
-   the ENTIRE preset. `clone.assert_loadable()` catches it before writing;
-   do not route around it.
+2. **An `Id` must be unique among its SIBLINGS, and a list member must
+   HAVE one.** Nothing else about uniqueness matters: not contiguity, not
+   matching the index, not file-wide uniqueness. Give two sibling branches
+   the same `Id` and Live refuses the ENTIRE preset. Give a device node
+   none at all and Live refuses the entire document with "Not all list
+   members have Ids", which is what every `.als`-harvested donor did until
+   Q9. `clone.assert_loadable()` catches both before writing; do not route
+   around it.
 3. **Never byte-compare two `.adg` files.** Two semantically identical
    files differ by about 4 percent, because Live writes CRLF and `<X />`
    and lxml does not. Use `patchbay diff`, which compares the parsed tree.
