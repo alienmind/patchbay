@@ -301,6 +301,36 @@ a body already has a home: the constraint goes in a comment at that line,
 the evidence in `doc/SCHEMA.md`, the model in `doc/ARCHITECTURE.md`, the
 remaining work in `doc/SPIKES.md`.
 
+## Pull request summaries
+
+Same rule as a commit message, one level up: **STATE what was done.** The
+reasoning is already in the markdown, and repeating it in a PR body is
+where the grandiloquence gets in.
+
+A PR body is a list of facts a reviewer needs and nothing else. Tables
+where there is a set of things, prose only where a table would not carry
+it. No narrative of the session, no argument for the change, no adjectives
+about how large or important any of it was.
+
+Sections, in this order, dropping any that is empty:
+
+1. **The surface that changed**, as a bulleted list of what it now does.
+2. **A state table for the target**, one row per artefact: built, not
+   built, removed from scope. Name what is NOT done as plainly as what is.
+3. **Fixes**, one row each, with the scope affected. A fix that moved no
+   output says so.
+4. **Tests**, the count before and after, then what was added.
+5. **Spikes closed**, one line each, with what remains open on any that
+   only half closed.
+
+Numbers, file names and rack names, not judgements. "48 of 56 donors
+lacked one" belongs in a PR. "A mapped macro is not a working macro" does
+not: it is a conclusion, it reads as a slogan, and its evidence is in
+`SCHEMA.md` where a reader can check it.
+
+If a golden moved, the PR says which racks and how many times. A reviewer
+cannot see that from a diff of hashes.
+
 ## Fail loudly
 
 A corrupt `.adg` that Live silently half-loads is worse than one it
