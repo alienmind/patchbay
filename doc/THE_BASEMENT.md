@@ -310,3 +310,49 @@ cannot get from the knob's position.
 Live's field whole and is what the slot selects, but the eight slot names
 are gated and renaming one reopens `PATCHBAYGROUND.md`, `DSL.md` and
 `README.md` with it.
+
+## Building the Set through `ableton-mcp`
+
+**Tried:** the plan, never the code. The definition of done read *"`patchbay
+build` plus a driven `ableton-mcp` session produces a Set that opens in Live
+12, with eight correctly named and routed tracks"*. Three backlog items
+served it: extending the remote script with handlers for audio tracks,
+return tracks and output routing (T4), applying those by hand to a
+submodule (G1), and a smoke test that loaded a generated rack onto a track
+(T5). `MCP.md` establishes that all of it IS in the Live Object Model, so
+none of this failed technically.
+
+**What killed it: the work it automates is not tedious.** The project's own
+justification is one sentence in `PATCHBAYGROUND.md` - assembling a
+template by hand is thousands of macro mappings and tens of thousands of
+parameter values. That is true of a rack: DR1 is 178,960 facts from about
+thirty lines. It is not true of a Set. Eight tracks, their names, their
+routing, four returns and a tempo is around thirty minutes with a mouse,
+once, and it had already been done once by hand before any of this was
+written.
+
+So the ratio is backwards. Generating a rack replaces work no person would
+finish. Generating a track replaces one click.
+
+**And it is the most fragile thing in the project.** Everything else here
+is donor-based: no Ableton XML is ever synthesised, so a new Live version
+means re-harvesting donors and the specs still compile. The MCP path is the
+opposite. It depends on a third-party submodule, on Live's remote-script
+API, and on a running instance, and it is the one component whose breakage
+could not be caught by `uv run pytest`. Spending that risk on the least
+repetitive work available is the wrong trade.
+
+**Replaced by:** a narrower definition of done. Every rack is generated
+from a declaration; the Set is assembled by hand and the racks are dragged
+in. `TODO.md` now says so, and Set assembly is listed under standing manual
+work beside gain staging and sample choice, which is the same kind of job.
+
+**What survives:** `MCP.md` stays, because what it records is which
+operations Live's API exposes, and that is a finding rather than a plan.
+`mcp/remote_script_additions.py` stays on disk, unapplied. If a second Set
+ever needs building, or a hundred racks need loading in a batch, the
+argument reverses and the file is still there.
+
+**Not killed by this:** `patchbay extract` reading a `.als` (T6c). That is
+the opposite direction, reading Live's files rather than driving Live, it
+needs no remote script, and it turns Sets you already own into input.

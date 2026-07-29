@@ -210,6 +210,8 @@ Every item below was gated by loading the output in Live 12.4.3.
   one the donor happened to carry
 - extraction, the compiler backwards
 - donor harvesting from any saved file, Live Sets included
+- setting device controls no mapping can reach, which is how a modulation
+  routing gets written at all
 
 `patchbay extract` prints the declaration for a saved rack: chains, device
 types, bindings with their ranges, zones, samples, macro positions, labels,
@@ -228,10 +230,24 @@ own:
 patchbay harvest "path/to/Project"
 ```
 
-`uv run pytest tests/ -q` runs 59 tests asserting the library still agrees
+`uv run pytest tests/ -q` runs 78 tests asserting the library still agrees
 with every recorded finding. One of them clears the variations Live wrote
 in `racks/s8_c.adg`, writes them back through `patchbay`, and requires the
-diff to be empty.
+diff to be empty. Another holds a digest of every example rack, DR1's
+178,960 facts included, so a change that is not supposed to move the output
+proves it here rather than by dragging files into Live.
+
+## What it does not do
+
+`patchbay` authors RACKS. It does not assemble a Set: creating eight
+tracks, naming them, routing them and adding returns is half an hour with a
+mouse, once, against a rack that is six figures of XML nobody would type.
+Live's API can do it and `doc/MCP.md` records how, but the ratio does not
+justify depending on a remote script for it. See `doc/THE_BASEMENT.md`.
+
+Nor does it choose sounds. Which kick is good, whether one knob feels
+comparable across two synthesis engines, and where the mix sits are the
+parts worth doing by hand, and the tool exists to leave time for them.
 
 ## Install
 
