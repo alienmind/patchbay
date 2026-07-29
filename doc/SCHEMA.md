@@ -1522,10 +1522,28 @@ rack under two names moves them and they bury real findings. The field that
 refuses the document lives inside exactly that subtree, so no spike pair
 ever printed it. `patchbay diff --all` does.
 
-**What is still open** is whether these two are the ONLY differences. Two
-have now been found by loading one file, and a third is not ruled out by
-anything. T6c still needs the full mapping before it can read racks out of
-a Set, and K3b is the retest again.
+**K3b then loaded**, on an audio track, in Live 12.4.3: three chains, Auto
+Filter, EQ Eight and Echo, all present. Both fixes were needed and together
+they are enough for a rack built entirely from `.als`-harvested donors. The
+48 donors are usable.
+
+**What is still open** is whether these two are the ONLY differences. One
+file loading proves the two defects it carried are fixed; it does not prove
+the two serialisations agree everywhere, and T6c needs the full mapping
+before it can read racks out of a Set.
+
+## Q7. An inverted chain-select zone loads - PARTLY ANSWERED
+
+**Evidence:** `build/Q7_bad_zone.adg`, an instrument rack whose chain 2
+carries `Min 120, Max 20` with the crossfades outside both, breaking the
+`Min <= XfMin <= XfMax <= Max` invariant. Live 12.4.3 loaded it on a MIDI
+track.
+
+**So Live does not refuse an inverted zone**, and a DSL guard that raises
+on one would be stricter than the format. What is NOT known is whether Live
+REPAIRED the values on load or kept them as written; the answer is one drag
+back out to the browser and a diff, and nothing depends on it until a spec
+can state a zone directly.
 
 ## Q18. The sidechain source is not in preset form - ANSWERED
 

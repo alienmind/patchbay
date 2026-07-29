@@ -16,8 +16,6 @@ nothing in that column can be done from code.
 
 | # | Who | Task | Unblocks |
 |---|---|---|---|
-| **K3b** | you | Drag `build/K3_als_donor.adg` onto an AUDIO track. Loads clean? | 48 donors, and with them C1 to C4 |
-| **F1** | you | Drag `build/Q7_bad_zone.adg` onto a MIDI track. Repaired, refused, or broken? | Whether the DSL guards the zone invariant |
 | **C1** | code | AFX1: eight effects behind one selector | The last big tedium. Answers Q6 on the way |
 | **C2** | code | ARP1 and MFX1 | Channel strip |
 | **C3** | code | EQC | Channel strip |
@@ -25,11 +23,12 @@ nothing in that column can be done from code.
 | **T8** | you | DECIDE: do slots 5 and 6 change meaning inside a drum pad | DR1's final shape |
 | **T10** | you | DECIDE: TypeScript port, or not | Nothing. Here so it is not decided by drift |
 | **T1** | code | Drum rack return chains | DR1's sends. Cheaper after C1 |
-| **T6c** | code | Read racks out of a `.als`. Needs Q9 finished first | Turning Sets you own into specs |
+| **T6c** | code | Read racks out of a `.als`. Needs the Q9 tail first | Turning Sets you own into specs |
 
-Optional spikes, none blocking: **Q17** (Meld glide mode), **Q2**
-(aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
-(send taper), the **S10** and **Q5** tails.
+**Nothing in this table is waiting on a human.** Optional spikes, none
+blocking: **Q17** (Meld glide mode), **Q2** (aftertouch), **Q3** (key and
+velocity zones, needed only for SR1), **Q8** (send taper), the **Q7**,
+**Q9**, **S10** and **Q5** tails.
 
 Donors for the whole channel strip are in: `ChannelEq`, `Tuner`,
 `SpectrumAnalyzer`, `AutoShift`, `MidiArpeggiator`, `MidiNoteLength`,
@@ -130,50 +129,6 @@ the enable ON and the source at `No input`. Picking it is one dropdown per
 track, by hand, and it is on the Standing manual work list. See Q18 in
 `SCHEMA.md`.
 *Ready to build. Nothing blocks it.*
-
-### K3b. One file to load
-
-| # | Do this | Should happen |
-|---|---|---|
-| K3b | Drag `build/K3_als_donor.adg` onto an AUDIO track. Three chains: Auto Filter, EQ Eight, Echo | Loads, all three devices present and normal. Macro 1 sweeps the Auto Filter cutoff |
-
-Live refuses a drop of the wrong kind before it reads the file, so a
-refusal on the wrong track type says nothing about the file. This one is an
-`AudioEffectGroupDevice` and wants an audio track.
-
-**K3 has fired twice and caught a different defect each time.** Both are
-Set form leaving something behind, both are fixed in `_make_chains`, and
-both are guarded by `clone.assert_loadable`. Evidence is under Q9 in
-`SCHEMA.md`.
-
-| refusal | what was wrong | affected |
-|---|---|---|
-| *Not all list members have Ids* | the device node carried no `Id` | 48 of 56 donors |
-| *Unexpected value for int64 node* | `OriginalFileSize` and `OriginalCrc` blank on the device's `LastPresetRef` | 42 of 54 donors |
-
-The second hid behind the first, and behind our own tool: `patchbay diff`
-hides `/LastPresetRef/` by default, so no spike pair ever printed the field
-that refuses the document.
-
-**K3b is the retest, against a file rebuilt after both fixes.** It does not
-prove the two forms are otherwise identical - two differences have now been
-found by loading one file, and a third is not ruled out. If it loads, the
-donors are usable and the channel strip is unblocked. If it refuses again,
-the log names the next one.
-
-### F1. One deliberately broken zone
-
-| # | File | Question | What to report |
-|---|---|---|---|
-| F1 | `build/Q7_bad_zone.adg`, onto a MIDI track | Chain 2's zone is inverted: Min 120, Max 20, crossfades outside both | Does it load? Repaired, refused, or loaded broken? |
-
-A refusal is a RESULT here, not a problem. It decides whether the DSL has
-to guard the invariant or can leave it to Live.
-
-**The file is an `InstrumentGroupDevice` and needs a MIDI track.** Dropped
-on an audio track Live answers *"Only audio effects can be loaded on an
-audio track"* without reading it, which is a fact about track types and not
-about the zone.
 
 ### Rounds A to J are closed
 
@@ -324,17 +279,21 @@ one save each: `racks/q3_key_a.adg` / `_b.adg`, `racks/q3_vel_a.adg` /
 `_b.adg`.
 *Blocks: multi-sampled racks, and SR1 with them.*
 
-**Q7. Zone ordering violations.** `Min <= XfMin <= XfMax <= Max` is the
-invariant. Untested whether Live repairs or rejects a file that breaks it.
-F1 above is the check.
+**Q7 tail. Does Live REPAIR an inverted zone.** `build/Q7_bad_zone.adg`
+loads on a MIDI track with `Min 120, Max 20`, so Live does not reject the
+invariant and the DSL need not guard it. Whether the values survive is one
+drag back to the browser as `racks/q7_c.adg` and one diff. Nothing depends
+on it until a spec states a zone directly.
 
 **Q8. Send taper.** Sends are linear amplitude from 0.000316 to 1, but
 whether the knob is linear in amplitude or in dB is unknown. Only matters
 if a spec ever states send levels as knob percentages.
 
-**Q9. Set form versus preset form.** Whether a device node is serialised
-identically in a `.als` and a `.adg`. K3 is the cheap probe; T6c needs the
-full answer.
+**Q9 tail. Set form versus preset form.** Two differences found and fixed,
+and a rack built entirely from `.als`-harvested donors now loads: see Q9 in
+`SCHEMA.md`. That closes the donors. It does not close the mapping T6c
+needs, which is the full comparison of the two serialisations rather than
+the two defects one file happened to carry.
 
 **S10 tail. Macro mapping range from the UI.** Live 12.4.3 has no macro
 range editor, so the reverse test at `build/s10_range_test.adg` is prepared
