@@ -368,29 +368,41 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
         if not devices:
             call.append(f"        # {bname!r}: chain has no device, skipped")
             continue
-        device = devices[0]
 
-        content = [f"Engine({device.tag!r})"]
+        # One chain may hold several devices in series - the whole shape of
+        # a channel strip - and each carries its own bindings. `then` puts
+        # the next one after this one; the zone belongs to the chain and is
+        # emitted once, at the end.
+        content: list[str] = []
+        for pos, device in enumerate(devices):
+            if pos:
+                content.append(f".then(Engine({device.tag!r})")
+            else:
+                content.append(f"Engine({device.tag!r})")
 
-        # Only the first target: a device with several samples is a
-        # multi-sampled instrument, which `sample()` cannot express and Q3
-        # gates. Emitting one of them silently would be a lie about what
-        # rebuilt.
-        got_samples = _sample_targets(device)
-        if got_samples:
-            content.append(f".sample({got_samples[0]!r})")
-            if len(got_samples) > 1:
-                content.append(f"  # {len(got_samples) - 1} further sample(s) "
-                               f"not emitted: multi-sampling is Q3")
+            # Only the first target: a device with several samples is a
+            # multi-sampled instrument, which `sample()` cannot express and
+            # Q3 gates. Emitting one of them silently would be a lie about
+            # what rebuilt.
+            got_samples = _sample_targets(device)
+            if got_samples:
+                content.append(f".sample({got_samples[0]!r})")
+                if len(got_samples) > 1:
+                    content.append(f"  # {len(got_samples) - 1} further "
+                                   f"sample(s) not emitted: multi-sampling "
+                                   f"is Q3")
 
-        for tag, val in sorted(_settings_for(device).items()):
-            content.append(f".sets({tag!r}, {_fmt_setting(val)})")
+            for tag, val in sorted(_settings_for(device).items()):
+                content.append(f".sets({tag!r}, {_fmt_setting(val)})")
 
-        binds = _bindings_for(branch, device, rack_dev)
-        for macro, specs in sorted(binds.items()):
-            for spec in specs:
-                content.append(
-                    f".drives({layout_var}.macro_{macro}, {_fmt_binding(spec)})")
+            binds = _bindings_for(branch, device, rack_dev)
+            for macro, specs in sorted(binds.items()):
+                for spec in specs:
+                    content.append(
+                        f".drives({layout_var}.macro_{macro}, "
+                        f"{_fmt_binding(spec)})")
+            if pos:
+                content[-1] += ")"
         if zone and note is None:
             content.append(f".zone({zone[0]}, {zone[1]})")
 

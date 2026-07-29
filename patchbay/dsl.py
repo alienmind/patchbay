@@ -119,6 +119,7 @@ class RackKind(str, Enum):
 
     INSTRUMENT = "InstrumentGroupDevice"
     AUDIO_EFFECT = "AudioEffectGroupDevice"
+    MIDI_EFFECT = "MidiEffectGroupDevice"
     DRUM = "DrumGroupDevice"
 
     @property
@@ -126,6 +127,7 @@ class RackKind(str, Enum):
         return {
             RackKind.INSTRUMENT: "InstrumentBranchPreset",
             RackKind.AUDIO_EFFECT: "AudioEffectBranchPreset",
+            RackKind.MIDI_EFFECT: "MidiEffectBranchPreset",
             RackKind.DRUM: "DrumBranchPreset",
         }[self]
 
@@ -472,6 +474,16 @@ class Engine:
         """
         return self._copy(_zone=_zone_bounds_checked(self.device, lo, hi))
 
+    def then(self, other: "Engine") -> "Series":
+        """Put another device after this one, in the same chain.
+
+        A chain is a signal path, not a slot. The instrument racks never
+        needed this because one chain was one synth, but the channel strip
+        is the other shape entirely: EQC is an EQ into a compressor into a
+        gain, all in series, all reached by one set of macros.
+        """
+        return Series((self, other))
+
     def _for(self, role: str | None, wildcard: Slot | None) -> tuple[Drive, ...]:
         """Every drive this engine writes in a rack that asked for `role`."""
         out = self._drives
@@ -481,6 +493,45 @@ class Engine:
 
     def __repr__(self) -> str:
         return f"<Engine {self.device} {len(self._drives)} drives>"
+
+
+class Series:
+    """Several devices in ONE chain, in signal order.
+
+    Built with `Engine.then`, never directly. The zone belongs to the chain
+    rather than to any device in it, so it is declared here and an engine
+    that already carries one is refused: a chain has one position on the
+    selector however many devices sit in it.
+    """
+
+    __slots__ = ("engines", "_zone")
+
+    def __init__(self, engines, zone=None) -> None:
+        self.engines: tuple[Engine, ...] = tuple(engines)
+        placed = [e.device for e in self.engines if e._zone is not None]
+        if placed:
+            raise ValueError(
+                f"zone declared on {', '.join(placed)} inside a series. A "
+                f"chain has one zone however many devices it holds; declare "
+                f"it on the series.")
+        self._zone: tuple[int, int] | None = zone
+
+    def then(self, other: Engine) -> "Series":
+        return Series(self.engines + (other,), self._zone)
+
+    def zone(self, lo: int, hi: int) -> "Series":
+        """Where on the 0..127 selector this chain answers. See Engine.zone."""
+        who = " then ".join(e.device for e in self.engines)
+        return Series(self.engines, _zone_bounds_checked(who, lo, hi))
+
+    def __iter__(self) -> Iterator[Engine]:
+        return iter(self.engines)
+
+    def __len__(self) -> int:
+        return len(self.engines)
+
+    def __repr__(self) -> str:
+        return f"<Series {' then '.join(e.device for e in self.engines)}>"
 
 
 def _zone_bounds_checked(who: str, lo: int, hi: int) -> tuple[int, int]:
@@ -518,7 +569,7 @@ class Nested:
                       _zone_bounds_checked(self.rack.name, lo, hi))
 
 
-Content = Union[Engine, "Rack", Nested]
+Content = Union[Engine, "Series", "Rack", Nested]
 
 
 @dataclass(frozen=True, slots=True)
@@ -540,17 +591,29 @@ class _Bound:
 
 
 @dataclass(frozen=True, slots=True)
+class _Placed:
+    """One device in a chain, with everything that is written into it."""
+
+    device: str
+    bindings: tuple[_Bound, ...]
+    settings: tuple[tuple[str, object], ...]
+    sample: Path | None
+
+
+@dataclass(frozen=True, slots=True)
 class _Resolved:
-    """One chain with the rack's decisions folded in, ready to become XML."""
+    """One chain with the rack's decisions folded in, ready to become XML.
+
+    `devices` is in signal order and holds one entry per device, so a chain
+    carrying a single engine is the one-element case rather than a shape of
+    its own.
+    """
 
     name: str
     note: int | None
-    device: str | None
+    devices: tuple[_Placed, ...]
     inner: "Rack | None"
-    bindings: tuple[_Bound, ...]
     chained: Mapping[int, int]
-    settings: tuple[tuple[str, object], ...]
-    sample: Path | None
     zone: tuple[int, int] | None
 
 
@@ -589,6 +652,10 @@ class Rack:
     @classmethod
     def audio_effect(cls, name: str, layout: Layout, **kw) -> "Rack":
         return cls(name, layout, RackKind.AUDIO_EFFECT, **kw)
+
+    @classmethod
+    def midi_effect(cls, name: str, layout: Layout, **kw) -> "Rack":
+        return cls(name, layout, RackKind.MIDI_EFFECT, **kw)
 
     @classmethod
     def drum(cls, name: str, layout: Layout, **kw) -> "Rack":
@@ -641,11 +708,15 @@ class Rack:
         if isinstance(inner, Rack):
             if inner is self:
                 raise ValueError(f"rack {self.name!r} cannot nest itself")
-            if (self.kind is RackKind.AUDIO_EFFECT
-                    and inner.kind is not RackKind.AUDIO_EFFECT):
+            # An effect rack's chain carries effects of its own kind and
+            # nothing else. An instrument rack's chain is the permissive one:
+            # it takes an instrument, and effects after it.
+            strict = (RackKind.AUDIO_EFFECT, RackKind.MIDI_EFFECT)
+            if self.kind in strict and inner.kind is not self.kind:
+                what = self.kind.name.lower().replace("_", " ")
                 raise ValueError(
                     f"{inner.kind.name.lower()} rack {inner.name!r} cannot go "
-                    f"in an audio effect chain; Live refuses the preset")
+                    f"in an {what} chain; Live refuses the preset")
         return content
 
     def spends(self, slot: Slot, role: str, label: str | None = None) -> "Rack":
@@ -725,8 +796,11 @@ class Rack:
             if isinstance(content, Nested):
                 out |= {s.key for s, _ in self._pairs(content)}
             else:
-                out |= {d.slot.key for d in content._for(self._role, self._wildcard)
-                        if d.slot is not None}
+                engines = (content,) if isinstance(content, Engine) else content
+                for engine in engines:
+                    out |= {d.slot.key
+                            for d in engine._for(self._role, self._wildcard)
+                            if d.slot is not None}
         if self.layout.selector is not None:
             out.add(self.layout.selector.key)
         return out
@@ -778,23 +852,29 @@ class Rack:
 
             if isinstance(content, Nested):
                 out.append(_Resolved(
-                    name=ch.name, note=ch.note, device=None,
-                    inner=content.rack, bindings=(),
+                    name=ch.name, note=ch.note, devices=(),
+                    inner=content.rack,
                     chained={o.number: i.number for o, i in self._pairs(content)},
-                    settings=(), sample=None, zone=content._zone))
-            else:
-                bound = []
-                for d in content._for(self._role, self._wildcard):
-                    if d.slot is None:
-                        continue
-                    bound.append(_Bound(self.layout[d.slot.display].number,
-                                        d.path, d.over))
-                out.append(_Resolved(
-                    name=ch.name, note=ch.note, device=content.device,
-                    inner=None, bindings=tuple(bound), chained={},
-                    settings=content._sets, sample=content._sample,
                     zone=content._zone))
+            else:
+                engines = (content,) if isinstance(content, Engine) else tuple(content)
+                zone = content._zone
+                out.append(_Resolved(
+                    name=ch.name, note=ch.note,
+                    devices=tuple(self._place(e) for e in engines),
+                    inner=None, chained={}, zone=zone))
         return out
+
+    def _place(self, engine: Engine) -> _Placed:
+        """One engine's bindings resolved against this rack's layout."""
+        bound = []
+        for d in engine._for(self._role, self._wildcard):
+            if d.slot is None:
+                continue
+            bound.append(_Bound(self.layout[d.slot.display].number,
+                                d.path, d.over))
+        return _Placed(device=engine.device, bindings=tuple(bound),
+                       settings=engine._sets, sample=engine._sample)
 
     def build(self) -> Element:
         """Realise the description as an lxml tree."""
@@ -1030,24 +1110,30 @@ class Rack:
             if chain.inner is not None:
                 devices.append(self._nested_preset(chain.inner))
             else:
-                wrapper = self._device_wrapper()
-                holder = wrapper.find("Device")
-                for child in list(holder):
-                    holder.remove(child)
-                # Both Ids are one rule a level apart: each node is the only
-                # member of its holder, so each is member 0. The device's own
-                # is the one easy to miss, because a donor lifted out of a
-                # `.als` arrives without it and Live then refuses the whole
-                # document rather than the device. See Q9.
-                device = self.library.instance(chain.device)
-                device.set("Id", "0")
-                # And the second thing Set form leaves behind: blank int64
-                # fields on the device's own LastPresetRef. Same donors, same
-                # refusal one line later in Live's parser. See Q9.
-                clone.fill_empty_int64_fields(device)
-                holder.append(device)
-                wrapper.set("Id", "0")
-                devices.append(wrapper)
+                for slot, placed in enumerate(chain.devices):
+                    wrapper = self._device_wrapper()
+                    holder = wrapper.find("Device")
+                    for child in list(holder):
+                        holder.remove(child)
+                    # The device is the only member of its holder, so it is
+                    # member 0 whatever position the holder itself takes. The
+                    # wrapper is a member of DevicePresets and numbers with
+                    # the signal chain. Missing either Id makes Live refuse
+                    # the whole document rather than the device. See Q9.
+                    device = self.library.instance(placed.device)
+                    device.set("Id", "0")
+                    # A donor arrives wired to the macros of the rack it was
+                    # cut from. Compressor2 brings five such mappings, all on
+                    # macro 4. Ours are written below; these are somebody
+                    # else's.
+                    clone.strip_macro_mappings(device)
+                    # And the second thing Set form leaves behind: blank
+                    # int64 fields on the device's own LastPresetRef. Same
+                    # donors, same refusal one line later in Live's parser.
+                    clone.fill_empty_int64_fields(device)
+                    holder.append(device)
+                    wrapper.set("Id", str(slot))
+                    devices.append(wrapper)
 
             if chain.note is not None:
                 clone.set_receiving_note(branch, chain.note)
@@ -1192,11 +1278,16 @@ class Rack:
 
     def _apply_bindings(self, chain: _Resolved, branch: Element) -> None:
         devices = find.devices(branch)
-        if not devices:
-            raise ValueError(f"{chain.name}: chain has no device")
-        device = devices[0]
+        if len(devices) != len(chain.devices):
+            raise ValueError(
+                f"{chain.name}: {len(chain.devices)} device(s) declared, "
+                f"{len(devices)} in the branch")
+        for placed, device in zip(chain.devices, devices):
+            self._apply_to_device(chain, placed, device)
 
-        for path, value in chain.settings:
+    def _apply_to_device(self, chain: _Resolved, placed: _Placed,
+                         device: Element) -> None:
+        for path, value in placed.settings:
             target = find.param(device, path)
             if target is not None:
                 params.set_value(target, value)
@@ -1212,28 +1303,28 @@ class Rack:
                     n=4, cutoff=0.6)
                 hint = f" Did you mean one of {near}?" if near else ""
                 raise KeyError(
-                    f"{chain.name}: {chain.device} has no parameter or "
+                    f"{chain.name}: {placed.device} has no parameter or "
                     f"setting {path!r}.{hint}")
             params.set_raw(target, value)
 
-        for bound in chain.bindings:
+        for bound in placed.bindings:
             param = find.param(device, bound.path)
             if param is None:
                 leaf = bound.path.rsplit("/", 1)[-1]
                 near = find.search_params(device, leaf[:5])
                 hint = f" Did you mean one of {near[:4]}?" if near else ""
                 raise KeyError(
-                    f"{chain.name}: {chain.device} has no parameter "
+                    f"{chain.name}: {placed.device} has no parameter "
                     f"{bound.path!r}.{hint}")
             params.map_to_macro(param, bound.macro)
             if bound.over is not None:
                 params.set_range(param, bound.over.lo, bound.over.hi)
 
-        if chain.sample is not None:
-            n = samples.retarget(device, chain.sample)
+        if placed.sample is not None:
+            n = samples.retarget(device, placed.sample)
             if not n:
                 raise ValueError(
-                    f"{chain.name}: {chain.device} has no SampleRef to "
+                    f"{chain.name}: {placed.device} has no SampleRef to "
                     f"retarget. The donor for this device carries no sample, "
                     f"so there is nothing for sample() to point at.")
 

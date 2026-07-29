@@ -139,7 +139,11 @@ def params(device):
 #: Subtrees a setting never comes from. A sample's path is a plain `Value`
 #: like any other and `sample()` already owns it, so scanning it would have
 #: two mechanisms writing one fact.
-NOT_SETTINGS = {"SampleRef", "FileRef", "SourceContext", "MultiSampleMap"}
+#: `KeyMidi` is here because a mapping is not a setting. It is a macro
+#: binding, `drives` owns it, and treating it as a value to copy makes an
+#: extractor emit `sets('Chance/KeyMidi/NoteOrController', ...)` for a knob.
+NOT_SETTINGS = {"SampleRef", "FileRef", "SourceContext", "MultiSampleMap",
+                "KeyMidi"}
 
 
 def settings(device):

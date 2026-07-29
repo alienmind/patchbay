@@ -182,6 +182,30 @@ def missing_device_ids(root):
     return out
 
 
+def strip_macro_mappings(device):
+    """Remove every KeyMidi inside a device. Returns how many were removed.
+
+    A donor is a device cut out of a rack somebody built, and a macro
+    mapping is a `KeyMidi` INSIDE its target parameter, so the donor brings
+    that rack's mappings with it. `Compressor2.adg` carries five, on
+    Threshold, Ratio, Gain, DryWet and On, all pointing at macro 4 of a rack
+    that no longer exists. Placed unchanged, macro 4 of the new rack moves
+    all five.
+
+    Same shape as the donor's Drift modulation row: a donor is for the
+    parameter list and its ranges, never for anybody's decisions.
+    """
+    removed = 0
+    for el in device.iter():
+        if not isinstance(el.tag, str):
+            continue
+        km = el.find("KeyMidi")
+        if km is not None:
+            el.remove(km)
+            removed += 1
+    return removed
+
+
 #: FileRef fields Live parses as int64. Set form leaves both blank, and
 #: every `.adg` Live saved here writes "0" - 12 racks, no exception. See Q9.
 INT64_FILEREF_FIELDS = ("OriginalFileSize", "OriginalCrc")
