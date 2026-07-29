@@ -114,6 +114,7 @@ Most of the vocabulary is Live's. A few terms are this project's own:
 | **role** | PatchBay | what a rack asks its wildcard slot to do. An engine `offers` roles, a rack `spends` a slot on one |
 | **mapping** | Live | the stored link from a macro to a parameter. What a binding compiles INTO |
 | **binding** | PatchBay | one slot pointed at one parameter of one device |
+| **setting** | PatchBay | a device control with no `Manual`, so it can be set but never driven. Drift's modulation routing is one |
 | **range** | PatchBay | the span of that parameter the macro drives, in the parameter's own units |
 | **label** | PatchBay | what a knob is CALLED on this rack, which is not what it is keyed by |
 | **donor** | PatchBay | a real device instance to copy a device from |

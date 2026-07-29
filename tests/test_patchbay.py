@@ -1178,6 +1178,72 @@ def test_a_wildcard_slot_reaches_only_the_engines_that_offer_the_role():
     assert on_two == ["AttackTime"], "the leaf, as mappings.find reports it"
 
 
+DRIFT_ROW = (("ModulationMatrix_Source1", 2),      # the LFO
+             ("ModulationMatrix_Target1", 6),      # LP Frequency
+             ("ModulationMatrix_Amount1", 1.0))
+
+
+def _drift_rack():
+    g = Layout(Slot("Engine", selects=True), Slot("Movement"))
+    d = Engine("Drift").drives(g.movement, "Lfo_Amount")
+    for path, val in DRIFT_ROW:
+        d = d.sets(path, val)
+    return Rack.instrument("X", g).chain("D", d)
+
+
+def test_a_setting_is_written_where_no_mapping_can_reach():
+    """Q16. Drift's routing has no `Manual`, so nothing can drive it.
+
+    `ModulationMatrix_Target1` is a bare `<Tag Value="6" />`. A macro bound
+    to `Lfo_Amount` resolved, wrote a valid KeyMidi and moved nothing,
+    because no row routed the LFO anywhere.
+    """
+    device = next(_drift_rack().build().iter("Drift"))
+    assert device.find("ModulationMatrix_Source1").get("Value") == "2"
+    assert device.find("ModulationMatrix_Target1").get("Value") == "6"
+    assert find.param(device, "ModulationMatrix_Target1") is None, (
+        "a routing selector is not a parameter and must not look like one")
+    assert "ModulationMatrix_Target1" in find.settings(device)
+
+
+def test_sets_reaches_a_parameter_as_well_as_a_setting():
+    """One verb: the caller says what the control is worth, not where it lives."""
+    device = next(_drift_rack().build().iter("Drift"))
+    assert params.value(find.param(device, "ModulationMatrix_Amount1")) == 1.0
+
+
+def test_a_written_row_replaces_the_donors_own():
+    """The donor routes something to the HIGH-PASS at 80%, and nobody asked.
+
+    Donors are for the parameter list and its native ranges. A value
+    inherited by accident is still a value nobody wrote.
+    """
+    from patchbay.library import Library
+    donor = Library.default().instance("Drift")
+    assert donor.find("ModulationMatrix_Target1").get("Value") == "8"
+    device = next(_drift_rack().build().iter("Drift"))
+    assert device.find("ModulationMatrix_Target1").get("Value") == "6"
+
+
+def test_setting_one_control_twice_replaces():
+    """Unlike `drives`. Two values for one control is an edit, not a second one."""
+    e = Engine("Drift").sets("ModulationMatrix_Target1", 8).sets(
+        "ModulationMatrix_Target1", 6)
+    assert e._sets == (("ModulationMatrix_Target1", 6),)
+
+
+def test_an_unknown_control_is_refused_with_a_suggestion():
+    g = Layout(Slot("Engine", selects=True))
+    rack = Rack.instrument("X", g).chain(
+        "D", Engine("Drift").sets("ModulationMatrix_Targt1", 6))
+    try:
+        rack.build()
+    except KeyError as e:
+        assert "ModulationMatrix_Target1" in str(e), "the near miss is offered"
+    else:
+        raise AssertionError("a mistyped control must not reach a file")
+
+
 def test_spending_a_role_names_the_knob_after_it():
     g = Layout(Slot("Engine", selects=True), Slot("Character"))
     voice = Engine("OriginalSimpler").offers(

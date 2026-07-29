@@ -300,7 +300,26 @@ WAVE = (Engine("InstrumentVector")
 # Envelope1 is Drift's amp envelope, which was inferred from Envelope2
 # having a Global_Envelope2Mode and Envelope1 not, and is now gated in Live
 # 12.4.3: C1 held a note and heard the tail follow this macro.
+#
+# The three `sets` are Q16. Drift's modulation ROUTING is not in the
+# parameter list: `ModulationMatrix_Target1` is a bare Value with no
+# `Manual`, so nothing can drive it and a rack has to state it. Source 2 is
+# the LFO and target 6 is LP Frequency, both read off `racks/q16_a.adg`
+# rather than counted off Live's dropdown. Without them Macro 5 bound
+# `Lfo_Amount`, resolved, wrote a valid mapping and moved nothing.
+#
+# Row 1 at full depth, because the macro is the depth control: Macro 5
+# scales the LFO's own output into a route that is already wide open.
+# Whether `Lfo_Amount` really gates the row is Q16b and is the one thing
+# here that ears decide.
+#
+# Writing the row also stamps out the donor's, `Source1=5, Target1=8`,
+# which is something modulating the HIGH-PASS at 80% that nobody asked for
+# and that every Drift built here carried until this existed.
 DRIFT = (Engine("Drift")
+         .sets("ModulationMatrix_Source1", 2)
+         .sets("ModulationMatrix_Target1", 6)
+         .sets("ModulationMatrix_Amount1", 1.0)
          .drives(PB.filter, "Filter_Frequency", over=CUTOFF)
          .drives(PB.filter, "Filter_Resonance", over=RESONANCE)
          .drives(PB.movement, "Lfo_Amount")

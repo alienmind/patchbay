@@ -183,6 +183,51 @@ DRIFT = (Engine("Drift")
 **`drives` on the same slot accumulates.** A per-slot call reads as a
 second mapping, and behaves as one.
 
+## Some controls can only be set, never driven
+
+A device holds two kinds of thing, and only one of them is a parameter:
+
+| kind | shape | takes a `KeyMidi` |
+|---|---|---|
+| parameter | `<Filter_Frequency><Manual Value="18500"/>...</Filter_Frequency>` | yes |
+| setting | `<ModulationMatrix_Target1 Value="6" />` | no |
+
+A setting carries its value on itself and has no `Manual` for a mapping to
+sit in. `find.params` does not return one and `library.Device.search`
+cannot find one, so it is invisible to everything a binding is written
+against. Drift keeps its whole modulation ROUTING this way, which is how
+Macro 5 came to be bound to `Lfo_Amount`, resolve, write a valid mapping
+and move nothing: the LFO was not routed anywhere, and the element that
+would have routed it is not a parameter. Q16 in `SCHEMA.md`.
+
+So a third verb:
+
+```python
+DRIFT = (Engine("Drift")
+         .sets("ModulationMatrix_Source1", 2)     # the LFO
+         .sets("ModulationMatrix_Target1", 6)     # LP Frequency
+         .sets("ModulationMatrix_Amount1", 1.0)
+         .drives(PB.movement, "Lfo_Amount"))
+```
+
+`sets` takes a parameter too, for the value a rack wants that the donor
+does not happen to carry. That is not a convenience. **A donor is for the
+parameter list and each parameter's native range, not for anybody's
+settings**, and a value inherited by accident is still a value nobody
+wrote: every Drift this project built carried the donor's own modulation
+row, `Source1=5, Target1=8`, quietly modulating the high-pass at 80%,
+until `sets` existed to overwrite it.
+
+Setting the same control twice REPLACES, where `drives` accumulates. Two
+values for one control is an edit; two mappings on one slot is the Meld
+case.
+
+`patchbay extract` emits a `sets` line for every direct-child value that
+differs from the donor the rebuild would use. Anything equal to the donor
+is already there and emitting it would be noise; what differs is either
+something a spec set or something Live wrote, and both have to be said or
+the rebuild is a different device.
+
 ## A slot may drive more than one parameter
 
 ```python

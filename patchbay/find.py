@@ -136,6 +136,29 @@ def params(device):
             and c.find("Manual") is not None]
 
 
+def settings(device):
+    """A device's plain settings: {tag: element}, direct children only.
+
+    A SETTING is a childless element carrying its value on itself,
+    `<ModulationMatrix_Target1 Value="6" />`. It is not a parameter: no
+    `Manual`, no `MidiControllerRange`, so nothing can drive it and it can
+    only be set. Drift keeps its modulation routing this way (Q16), which
+    is why a macro bound to `Lfo_Amount` resolved and reached nothing.
+
+    Direct children only, deliberately. Every case so far is one, and going
+    deeper sweeps in a sample's `FileRef/Path`, which `sample()` already
+    owns. Widen it when a real second case turns up.
+    """
+    return {c.tag: c for c in device
+            if isinstance(c.tag, str) and c.tag not in NON_PARAMS
+            and len(c) == 0 and c.get("Value") is not None}
+
+
+def setting(device, path):
+    """One plain setting by name. None when absent, as `param` is."""
+    return settings(device).get(path)
+
+
 def param_path(el, device):
     """The slash path from a device down to one of its parameters."""
     parts = []

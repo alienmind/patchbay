@@ -46,6 +46,16 @@ def set_value(param_el, v):
     return param_el
 
 
+def set_raw(el, v):
+    """Set a plain setting's value, which lives on the element itself.
+
+    The counterpart to `set_value`, for an element with no `Manual` to put
+    it in. See `find.settings`.
+    """
+    el.set("Value", _fmt(v))
+    return el
+
+
 def fmt(v):
     """Format a value the way Live writes it: no trailing .0, bools as words."""
     if isinstance(v, bool):

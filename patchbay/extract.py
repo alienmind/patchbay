@@ -20,6 +20,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import find, io, mappings, params as P, samples, variations
+from .library import Library
 
 #: Rack device tag -> the `Rack` constructor that builds one. A midi effect
 #: rack has no constructor because `RackKind` has no member for it, and the
@@ -117,6 +118,63 @@ def _fmt_binding(spec) -> str:
     if isinstance(spec, tuple):
         return f"{spec[0]!r}, over=Range({spec[1]}, {spec[2]})"
     return repr(spec)
+
+
+def _fmt_setting(text: str) -> str:
+    """A setting's value as source, in the type `params.fmt` writes back.
+
+    Numbers bare, booleans as Python, anything else quoted. The round trip
+    is what this is for: `6` has to come back out as `"6"` and
+    `0.8000000119` as itself, or the rebuild differs by a digit.
+    """
+    if text in ("true", "false"):
+        return "True" if text == "true" else "False"
+    try:
+        return str(int(text))
+    except ValueError:
+        pass
+    try:
+        return str(float(text))
+    except ValueError:
+        return repr(text)
+
+
+def _settings_for(device) -> dict[str, str]:
+    """Direct-child values that differ from the donor this rebuilds from.
+
+    A rebuild fills the device from the donor, so anything equal to the
+    donor is already there and emitting it would be noise. What differs is
+    either something a spec SET or something Live wrote, and both have to
+    be said or the rebuild is a different device.
+
+    This is how Drift's modulation routing survives extraction: `Target1=6`
+    is a plain `Value` with no `Manual`, so no mapping records it and only
+    a `sets` line carries it (Q16).
+    """
+    try:
+        donor = Library.default().instance(device.tag)
+    except Exception:                     # a device the library has never seen
+        return {}
+    was = {c.tag: c for c in donor if isinstance(c.tag, str)}
+    out: dict[str, str] = {}
+    for child in device:
+        if not isinstance(child.tag, str) or child.tag in find.NON_PARAMS:
+            continue
+        before = was.get(child.tag)
+        if before is None:
+            continue
+        manual = child.find("Manual")
+        if manual is not None:
+            now, then = manual.get("Value"), (
+                before.find("Manual").get("Value")
+                if before.find("Manual") is not None else None)
+        elif len(child) == 0:
+            now, then = child.get("Value"), before.get("Value")
+        else:
+            continue
+        if now is not None and now != then:
+            out[child.tag] = now
+    return out
 
 
 def _sample_targets(device) -> list[str]:
@@ -323,6 +381,9 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             if len(got_samples) > 1:
                 content.append(f"  # {len(got_samples) - 1} further sample(s) "
                                f"not emitted: multi-sampling is Q3")
+
+        for tag, val in sorted(_settings_for(device).items()):
+            content.append(f".sets({tag!r}, {_fmt_setting(val)})")
 
         binds = _bindings_for(branch, device, rack_dev)
         for macro, specs in sorted(binds.items()):

@@ -169,27 +169,28 @@ elements sharing an index. `ModulationMatrix_Source1=2` is the LFO,
 parameter, and the two selectors are bare `Value` elements with no
 `Manual`, so they can only be SET and never driven.
 
-Two things fall out, one of them a defect:
-
-**The DSL cannot set a plain value.** Every write it makes is a mapping or
-a value on a parameter. Writing a routing row needs a third verb.
-
-**Every Drift PatchBay builds carries the donor's own row**,
-`Source1=5, Target1=8, Amount1=0.8`, which is something modulating the
-high-pass at 80% that nobody asked for. BS1 and PD1W ship with it today.
+Both consequences are BUILT. `Engine.sets` writes a control that no
+mapping can reach, `patchbay extract` recovers it, and DRIFT in
+`examples/patchbayground.py` now states its own row, which also stamps out
+the donor's `Source1=5, Target1=8` that had every Drift here modulating
+the high-pass at 80% unasked. `tests/golden.txt` was regolded for BS1 and
+PD1W, deliberately: those are the two racks with a Drift in them.
 
 What is left is which knob is the DEPTH, and only ears answer it.
 `Lfo_Amount` and `ModulationMatrix_Amount1` are both mappable and the file
 does not say whether the first gates the second. Macro 5 is on
-`Lfo_Amount` today.
+`Lfo_Amount`, and the row it feeds is now open at full.
 
-| # | Rack | Do this | Should happen |
-|---|---|---|---|
-| Q16b | BS1, rebuilt with the routing written and `Amount1` at full | Select Drift, turn Macro 5 across its travel | Cutoff wobbles, and the wobble deepens with the knob. If NOTHING moves, `Lfo_Amount` is not the depth and Macro 5 belongs on `ModulationMatrix_Amount1` |
+| # | Do this | Should happen |
+|---|---|---|
+| Q16b | Load `build/BS1.adg`, Macro 1 to the middle for the Drift chain, hold a note and turn Macro 2 through its travel | The cutoff wobbles, and the wobble deepens as the knob rises |
 
-One binary check, and it decides the binding for Drift on every rack.
+If NOTHING moves, `Lfo_Amount` is not the depth: Macro 5 moves to
+`ModulationMatrix_Amount1` and `Lfo_Amount` becomes a `sets` at full. One
+line either way.
+
 Wavetable's LFO depth is still not in the parameter list at all and Meld
-has no equivalent, so Macro 5 stays empty on those two either way.
+has no equivalent, so Macro 5 stays empty on those two regardless.
 
 ### D. DR1 in depth
 

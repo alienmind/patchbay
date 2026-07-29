@@ -59,6 +59,7 @@ PATCHBAYGROUND.md and stops there.
 from __future__ import annotations
 
 import copy
+import difflib
 import re
 from dataclasses import dataclass, field, replace
 from enum import Enum
@@ -360,19 +361,20 @@ class Engine:
     inspected, and used by every rack that wants that engine.
     """
 
-    __slots__ = ("device", "_drives", "_offers", "_sample", "_zone")
+    __slots__ = ("device", "_drives", "_offers", "_sample", "_zone", "_sets")
 
     def __init__(self, device: str, _drives=(), _offers=None,
-                 _sample=None, _zone=None) -> None:
+                 _sample=None, _zone=None, _sets=()) -> None:
         self.device = device
         self._drives: tuple[Drive, ...] = tuple(_drives)
         self._offers: dict[str, tuple[Drive, ...]] = dict(_offers or {})
         self._sample: Path | None = _sample
         self._zone: tuple[int, int] | None = _zone
+        self._sets: tuple[tuple[str, object], ...] = tuple(_sets)
 
     def _copy(self, **kw) -> "Engine":
         base = dict(_drives=self._drives, _offers=self._offers,
-                    _sample=self._sample, _zone=self._zone)
+                    _sample=self._sample, _zone=self._zone, _sets=self._sets)
         base.update(kw)
         return Engine(self.device, **base)
 
@@ -408,6 +410,28 @@ class Engine:
         offers = dict(self._offers)
         offers[role] = tuple(Drive(None, p, over) for p in paths)
         return self._copy(_offers=offers)
+
+    def sets(self, path: str, value) -> "Engine":
+        """Give one of this device's controls a fixed value.
+
+        The third verb, and the one `drives` cannot cover. Drift keeps its
+        modulation ROUTING in elements with no `Manual`:
+        `<ModulationMatrix_Target1 Value="6" />` says the first row lands on
+        LP Frequency. Nothing can drive that, because there is nothing for a
+        `KeyMidi` to sit in, so a rack states it (Q16 in `SCHEMA.md`).
+
+        Also takes an ordinary parameter, for the value a rack wants that
+        the donor does not happen to carry. A donor is for the parameter
+        list and its native ranges, not for anybody's settings, and a value
+        inherited by accident is still a value nobody wrote: every Drift
+        built here carried the donor's own modulation row until this
+        existed.
+
+        Setting the same path twice replaces, unlike `drives`. Two values
+        for one control is an edit, not a second one.
+        """
+        kept = tuple((k, v) for k, v in self._sets if k != path)
+        return self._copy(_sets=kept + ((path, value),))
 
     def sample(self, path: Path | str) -> "Engine":
         """Point this chain's device at a sample file.
@@ -519,6 +543,7 @@ class _Resolved:
     inner: "Rack | None"
     bindings: tuple[_Bound, ...]
     chained: Mapping[int, int]
+    settings: tuple[tuple[str, object], ...]
     sample: Path | None
     zone: tuple[int, int] | None
 
@@ -750,7 +775,7 @@ class Rack:
                     name=ch.name, note=ch.note, device=None,
                     inner=content.rack, bindings=(),
                     chained={o.number: i.number for o, i in self._pairs(content)},
-                    sample=None, zone=content._zone))
+                    settings=(), sample=None, zone=content._zone))
             else:
                 bound = []
                 for d in content._for(self._role, self._wildcard):
@@ -761,7 +786,8 @@ class Rack:
                 out.append(_Resolved(
                     name=ch.name, note=ch.note, device=content.device,
                     inner=None, bindings=tuple(bound), chained={},
-                    sample=content._sample, zone=content._zone))
+                    settings=content._sets, sample=content._sample,
+                    zone=content._zone))
         return out
 
     def build(self) -> Element:
@@ -1125,6 +1151,26 @@ class Rack:
         if not devices:
             raise ValueError(f"{chain.name}: chain has no device")
         device = devices[0]
+
+        for path, value in chain.settings:
+            target = find.param(device, path)
+            if target is not None:
+                params.set_value(target, value)
+                continue
+            target = find.setting(device, path)
+            if target is None:
+                # Ranked by similarity, not by prefix. These names share
+                # long prefixes by design, `ModulationMatrix_Target1` next
+                # to `_Source1` and `_Target2`, so a prefix match offers
+                # four siblings of the one you meant and not the one itself.
+                near = difflib.get_close_matches(
+                    path, list(find.settings(device)) + list(find.all_params(device)),
+                    n=4, cutoff=0.6)
+                hint = f" Did you mean one of {near}?" if near else ""
+                raise KeyError(
+                    f"{chain.name}: {chain.device} has no parameter or "
+                    f"setting {path!r}.{hint}")
+            params.set_raw(target, value)
 
         for bound in chain.bindings:
             param = find.param(device, bound.path)
