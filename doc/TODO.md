@@ -16,12 +16,8 @@ nothing in that column can be done from code.
 
 | # | Who | Task | Unblocks |
 |---|---|---|---|
-| **C5** | code | AFXS1 and VOL1, the last two strip racks | Finishes the strip |
-| **S1** | you | Drag the four strip racks in and play them | Whether the bindings are the right ones |
-| **T8** | you | DECIDE: do slots 5 and 6 change meaning inside a drum pad | DR1's final shape |
-| **T10** | you | DECIDE: TypeScript port, or not | Nothing. Here so it is not decided by drift |
-| **T1** | code | Drum rack return chains | DR1's sends. Cheaper after C1 |
-| **T6c** | code | Read racks out of a `.als`. Needs the Q9 tail first | Turning Sets you own into specs |
+| **S1** | you | Drag the six strip racks and DR1 in, play them, report by number | Whether the bindings are the right ones |
+| **T6c** | you then code | Save `racks/q9_b.als`, the Set form of a rack we already have as `.adg` | Reading racks out of Sets |
 
 Optional spikes, none blocking: **Q19** (the sidechain EQ mode enum),
 **Q20** (how a named scale is stored), **Q17** (Meld glide mode), **Q2**
@@ -51,11 +47,17 @@ removed.
 supposed to move the output proves it by `uv run pytest` rather than by a
 human dragging files into Live.
 
-**Four of the strip racks now build too**: ARP1, MFX1, EQC and AFX1, from
-about sixty lines of declaration. AFX1 alone is eight effects, 24 bindings
-and a selector. What that took was two capabilities the instrument racks
-never needed - several devices in ONE chain, and a MIDI effect rack - and
-both are in `DSL.md`. None of the four has been heard.
+**The whole channel strip now builds too**: ARP1, MFX1, EQC, AFX1, AFXS1
+and VOL1, from about a hundred lines of declaration. AFX1 alone is eight
+effects, 24 bindings and a selector. That took three capabilities the
+instrument racks never needed - several devices in ONE chain, MIDI effect
+racks, and return chains with sends - and all three are in `DSL.md`. None
+of the six has been heard.
+
+**DR1 has returns.** Two of them, each holding a rack of two effects behind
+a selector, with the kit's Send A and Send B driving every pad's send to
+them. That closes Q6 structurally: a return chain holds a rack exactly as
+any chain does.
 
 ## Scope, deliberately narrowed
 
@@ -77,41 +79,36 @@ the Set and chooses the sounds.
 
 ## In progress
 
-### C. The channel strip
+### S1. Play what has been built
 
-`PATCHBAYGROUND.md` puts these on every one of the eight tracks, in order:
+Ten racks build from `examples/patchbayground.py`. Six have been loaded and
+played in Live 12.4.3; four never have, and DR1 has changed since it was.
 
-    ARP1   MFX1   <instrument>   EQC   AFX1   AFXS1   Channel EQ   VOL1
+| # | Do this | Report |
+|---|---|---|
+| S1a | Drag `build/ARP1.adg` and `build/MFX1.adg` onto a **MIDI track**, before the instrument | Do they load? Does Style step through arpeggio modes, Rate change speed |
+| S1b | Drag `build/EQC.adg` onto that track AFTER the instrument | Loads? Lo/Mid/Hi cut and boost, Comp and Duck do something audible |
+| S1c | On EQC's compressor, is External already ON with the sidechain EQ on and its band near 100 Hz | Yes or no. The SOURCE is expected empty, that is Q18 |
+| S1d | Drag `build/AFX1.adg` in. Sweep Effect through all eight | Eight distinct effects: glitch, tear, erode, grind, reduce, soak, stretch, fade. Amount and Tone do something on each |
+| S1e | Same with `build/AFXS1.adg` | Four: swirl, sweep, ring, echo |
+| S1f | Drag `build/VOL1.adg` in last. Turn Ceiling down | Output stops where the knob says. Sub Cut removes low end |
+| S1g | Drag `build/DR1.adg` onto a MIDI track. Play a pad, then turn **Send A** | Does the pad get wetter? This is the one structural unknown: a macro on a send is written but has never been turned |
+| S1h | On DR1, is the send column visible in the chain list | Yes or no |
 
-**Four of them are built** and compile from `examples/patchbayground.py`:
-ARP1, MFX1, EQC and AFX1. None has been loaded into Live yet.
+S1g is the one that matters. Everything else here is taste; that one is a
+claim about the format that no test can settle, and the answer decides
+whether `Rack.sending` stays or gets buried. See section 12 of
+`ARCHITECTURE.md`.
 
-| rack | kind | devices | macros |
-|---|---|---|---|
-| ARP1 | MIDI | Arpeggiator, Random, Velocity | 8 |
-| MFX1 | MIDI | Velocity, Pitcher, Scale | 5 |
-| EQC | audio | Channel EQ, Compressor, Utility | 6 |
-| AFX1 | audio | eight character effects, one selector | 4 |
+Expected still broken: nothing. The sidechain source is empty by design.
 
-**C5. AFXS1 and VOL1 are left.** AFXS1 is a second effect slot, freely
-editable, which is AFX1 with the chains a person picks. VOL1 is Sub-Cut,
-Pre-Gain and Limiter, three devices in series with every donor indexed.
+### C. What is left of the strip
+
+Nothing structural. `PATCHBAYGROUND.md` names the instances per track,
+`EQC_BS1` on BS1, and that is a loop over a name worth writing once the
+bindings have been played rather than before.
+
 Channel EQ stays stock, per the spec.
-
-**The strip is not per-track yet.** `PATCHBAYGROUND.md` names each instance
-for its track, `EQC_BS1` on BS1. One rack per track is a loop over a name,
-and it is worth writing once the bindings have been played rather than
-before.
-
-**S1. Play the four.** Which parameter each knob should reach is a taste
-call, not a structural one, and the ones chosen here have never been heard.
-AFX1's eight roles especially: glitch, tear, erode, grind, reduce, soak,
-stretch and fade are one device each, and swapping one is a one-line edit.
-
-Track types: ARP1 and MFX1 are MIDI racks and want a MIDI track. EQC and
-AFX1 are audio effect racks. On a MIDI track an audio effect rack goes
-AFTER the instrument, so a MIDI track carrying an instrument takes all
-four.
 
 ### Rounds A to J are closed
 
@@ -148,53 +145,6 @@ pad.
 
 ## Next
 
-**T8. DECIDE WHAT SLOTS 5 AND 6 MEAN INSIDE A DRUM PAD.** A design call,
-not a task. Nobody else can make it and the code is sitting on a
-placeholder.
-
-`PATCHBAYGROUND.md`, "What a slot means may depend on depth", records it as
-undecided and calls it the sharpest open question in the DR1 design. The
-two answers:
-
-- **One meaning per rack, whatever the depth.** What the code does today.
-  Muscle memory is the product and a knob that changes meaning as you dive
-  is the thing muscle memory cannot absorb.
-- **Meaning per LEVEL.** Slots 5 and 6 become the two sends at kit level
-  and the FM pair inside the sound. Buys four controls with no page flip,
-  and spends the one property the layout exists to guarantee.
-
-Three things now bear on it that did not when it was written. Slot 6 is
-already a per-rack role rather than a fixed meaning, so meaning varies by
-RACK and the question is only whether it may also vary by DEPTH. Labels are
-local, so a pad can SAY what its slot 5 does. And round D showed the
-conservative branch is not free: the first knob inside every pad is dead,
-and the kit and pad rows are offset by one.
-
-*Wants Q6 either way: the kit-level sends are FX selectors, not send
-levels, and nothing wires them yet.*
-
-**T10. DECIDE WHETHER TO PORT TO TYPESCRIPT.** A design call, not a task.
-`TS-PORT.md` is the analysis: the XML layer round trips losslessly in
-`@xmldom/xmldom` at 70 ms, the donors fit a browser at 300 KB, and three of
-the arguments on both sides turned out to be void. What survives is that
-the only reason to switch is a browser-hosted version, and the strongest
-objection is samples, which a browser cannot stat.
-
-*One cheap thing first: Pyodide ships lxml, so the existing compiler may
-run in a browser unchanged. Twenty minutes to find out, and it would make
-the whole question moot.*
-
-*`TS-PORT.md` predates the DSL migration and quotes the old syntax. What it
-measures is the XML layer, which did not move, so the analysis stands.*
-
-**T1. Drum rack return chains.** The pad half is done: `Rack.pad` takes a
-note and a content, zone distribution skips pads, and DR1 builds eight pads
-each holding a rack of eight samples. What is left is the RETURN side,
-which nothing in the DSL reaches: a drum rack's return chains, their
-per-pad send levels, and a selector across several reverbs and delays.
-*Wants Q6. Shares its mechanism with C1, so do C1 first and this gets
-cheaper.*
-
 **T6. Decompile a saved rack into DSL source.** `patchbay extract` emits
 DSL for a `.adg` and round-trips all six racks exactly; see `DSL.md`. What
 is left is finding racks inside a Set, and putting names on the slots.
@@ -206,7 +156,16 @@ positional. The positional half is done. Do not guess a slot name from a
 parameter path with no layout to check it against; that is inventing
 intent, and `CLAUDE.md` rule 1 applies.
 
-**T6c. Locate racks inside a `.als`.**
+**T6c. Locate racks inside a `.als`.** *Blocked on one save, and only one.*
+
+**There is no `.als` in this repo**, so nothing here can be written against
+evidence and nothing can be tested. Two Q9 differences have been found and
+fixed by loading one file; a third is not ruled out, and guessing the rest
+of the mapping is exactly what `CLAUDE.md`'s method forbids.
+
+The save that unblocks it: put a rack we already have as a `.adg` on a
+track, save that Set as `racks/q9_b.als`. One file, and the diff against
+its `.adg` twin is the whole answer.
 
 *Q9, and it must come first.* A `.adg` stores a rack in PRESET form:
 `GroupDevicePreset` with `Device` and `BranchPresets` as siblings. A `.als`

@@ -4,8 +4,9 @@ Whether to rewrite this project in TypeScript, following the `defineXXX()`
 pattern of `m4l-jweb`, in order to make it more accessible and open the
 door to a browser-hosted version.
 
-Not decided. This file is the analysis, with what was measured and what
-three separate arguments turned out to be worth. Nothing here is a plan.
+**Decided against.** See `THE_BASEMENT.md`. This file stays as the
+analysis: what was measured, and what three separate arguments turned out
+to be worth. Nothing here is a plan.
 
 ## What the pattern looks like
 

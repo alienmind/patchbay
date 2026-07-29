@@ -421,3 +421,25 @@ Wavetable's `Volume` and Drift's `Global_Volume` both max at 1.0 amplitude
 natively, so neither can be pushed above its own unity by a range whatever
 the range says. Any future target above -4 dBFS is unreachable for two of
 the four engines.
+
+## Porting to TypeScript
+
+**Analysed, measured, and decided against.** `TS-PORT.md` is the analysis
+and it stands: the XML layer round trips losslessly in `@xmldom/xmldom` at
+about 70 ms, the donor library fits a browser at 300 KB, and three of the
+arguments on each side turned out to be void once measured rather than
+asserted.
+
+What the analysis left was one reason to switch and one objection. The
+reason was a browser-hosted version, which nothing on the backlog asks for.
+The objection was samples: a browser cannot stat a file, and
+`Engine.sample` refuses a path that is not a file precisely because Live
+loads a missing sample as an offline rack that passes every check and makes
+no sound. DR1 is 64 sample bindings.
+
+**Decided: no.** The port buys a capability nobody has asked for and
+spends a working, gated toolchain to get it.
+
+**What survives:** `TS-PORT.md` stays as the measurement. If a
+browser-hosted version is ever wanted, Pyodide ships lxml and running the
+existing compiler unchanged is the cheap thing to try first.

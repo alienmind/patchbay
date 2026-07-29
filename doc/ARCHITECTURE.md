@@ -829,6 +829,18 @@ This is a **third scale** in the format. Keep them straight:
 
 **[?]** Whether the send knob is linear in amplitude or in dB is untested.
 
+**[?] A send is SHAPED like a mappable parameter.** `Send` carries `LomId`,
+`Manual`, `MidiControllerRange`, `AutomationTarget` and `ModulationTarget`,
+which is the shape every macro-driven parameter has, and a mapping is
+addressed by containment (§5) so a `KeyMidi` written inside one names the
+rack whose `BranchPresets` it sits under. `Rack.sending` writes exactly
+that, and DR1's Send A and Send B knobs are it.
+
+What is NOT verified is whether Live HONOURS it. Nothing here has turned
+that knob in Live, and Q16 is the standing reminder that a mapping which
+resolves is not a mapping that moves anything. Treat the send slots as
+written but unheard until a check says otherwise.
+
 ### View state worth knowing
 
 **[V]** `AreSendsVisible` on the rack device gates the send column in the

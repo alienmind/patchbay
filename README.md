@@ -203,6 +203,7 @@ Every item below was gated by loading the output in Live 12.4.3.
 - structural diff, which is the discovery engine
 - node navigation and parameter addressing, including nested paths
 - macro mappings read and written, including ranges Live's own UI cannot set
+- return chains with per-chain send levels, and a macro across all of them
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth

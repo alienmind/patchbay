@@ -452,6 +452,41 @@ carry none. That is handled in `_nested_preset` and `_load_skeleton` and
 is invisible from the spec. It is also the whole of what once made nested
 racks look intractable - see `THE_BASEMENT.md`.
 
+## A rack may have RETURN chains, and chains may send to them
+
+```python
+kit = (Rack.drum("DR1", KIT)
+       .ret("A-Rvb:Short", SHORT_FX.unchained())
+       .ret("A-Dly:Long", LONG_FX.unchained())
+       .sending(KIT.send_a, "A-Rvb:Short")
+       .pad("KICK", 36, KICK.chaining(KIT.sound), sends={"A-Rvb:Short": 0.35}))
+```
+
+`ret` adds a return: an effect, or a whole rack when the return is a
+selector across several of them. A return branch is an
+`AudioEffectBranchPreset` whatever the parent rack is, and it lives in
+`ReturnBranchPresets`, a sibling of `BranchPresets` (S9).
+
+`sends` is return NAME to level, in linear amplitude - a third scale, not
+macros and not zones. The file names a return POSITIONALLY, by `Index`, so
+the spec names it and the build resolves the position. A send to a return
+the rack does not have raises.
+
+**Adding a return writes a send on every chain**, including the other
+returns, at the silent floor. That is what Live does, and a rack missing
+one is inconsistent rather than merely sparse.
+
+`sending` puts one macro on every chain's send to one return: one knob for
+how much of the whole kit goes there. Writing sends also flips
+`AreSendsVisible`, because Live ships it false and a rack whose sends are
+written but hidden looks exactly like a rack whose sends failed.
+
+**`unchained()` is not `chaining()`.** With no arguments `chaining` means
+the IDENTITY default, every slot the inner rack drives from the matching
+outer knob. A return's effects answer their own knobs and no outer knob at
+all, so they take `unchained()`. The two are one call apart and read
+differently on purpose; extraction emits whichever the file actually shows.
+
 ## A variation is a vector, not a sound
 
 A `Variation` is a vector over layout slots, in macro space 0..127 - the

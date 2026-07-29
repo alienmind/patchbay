@@ -282,8 +282,18 @@ buys four controls without a page flip, at the cost of the one property the
 layout exists to guarantee. Muscle memory is the product, and a knob that
 changes meaning as you dive is the thing muscle memory cannot absorb.
 
-Undecided. It is the sharpest open question in the DR1 design, and the
-answer decides whether the layout is a contract per rack or per level.
+**Decided: meaning per LEVEL.** At kit level slots 5 and 6 are the two
+sends, because a send is a kit-level idea - it exists once per return and
+every pad has one. Inside a pad they stay Movement and Character, which is
+what one voice has to offer. So the layout is a contract per LEVEL rather
+than per rack, and the label on each knob is what says which level you are
+looking at.
+
+Three things settled it. Slot 6 was already a per-rack role rather than a
+fixed meaning, so meaning varied by rack before it varied by depth. Labels
+are local, so a pad can say what its own slot 5 does. And the conservative
+branch was not free: it left the first knob inside every pad dead and the
+kit and pad rows offset by one.
 
 ## AFX1
 
