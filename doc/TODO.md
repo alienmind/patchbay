@@ -183,7 +183,7 @@ does not say whether the first gates the second. Macro 5 is on
 
 | # | Do this | Should happen |
 |---|---|---|
-| Q16b | Load `build/BS1.adg`, Macro 1 to the middle for the Drift chain, hold a note and turn Macro 2 through its travel | The cutoff wobbles, and the wobble deepens as the knob rises |
+| Q16b | Load `build/BS1.adg`, Macro 1 to the middle for the Drift chain, hold a note and turn Macro 5 through its travel | The cutoff wobbles, and the wobble deepens as the knob rises |
 
 If NOTHING moves, `Lfo_Amount` is not the depth: Macro 5 moves to
 `ModulationMatrix_Amount1` and `Lfo_Amount` becomes a `sets` at full. One
