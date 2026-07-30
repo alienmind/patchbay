@@ -286,7 +286,8 @@ was an editable install still pointing at the folder's old name.
 
 | command | does |
 |---|---|
-| `patchbay build SPEC -o DIR` | compile a spec into rack presets |
+| `patchbay build SPEC -o DIR` | compile a spec into rack presets, one `.adg` per rack and nothing else |
+| `patchbay build SPEC --clean` | the same, dropping `.adg` files in the output directory this build did not write |
 | `patchbay diff A B` | structural diff - the discovery engine |
 | `patchbay mappings SRC` | list macro mappings |
 | `patchbay variations SRC` | list macro variations |
