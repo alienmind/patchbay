@@ -10,34 +10,14 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Load `build/DR1.adg`, turn kit Macros 5 and 6 | you | 1 drag | Whether Q29's fix landed: the sends were being written into the nested rack, one level too deep |
-| 2 | Check the Hybrid Reverb in either DR1 return names an impulse response | you | same drag | Whether Q27's fix landed: the donor keeps Live's own IR path now |
-| 3 | Q8, the send taper | you | 2 saves | Only matters if a spec ever states send levels as percentages |
-| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 1 | Q8, the send taper | you | 2 saves | Only matters if a spec ever states send levels as percentages |
+| 2 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
-Items 1 and 2 are the same drag. Everything else that was on this table has
-landed: `sending` restored, per-track strip instances, `extract --layout`,
-the five stale donors re-harvested.
+**Nothing is blocked and nothing is waiting on a check.** All twelve racks
+plus 46 strip instances build, and every claim any of them rests on has
+been through Live 12.4.3.
 
-## 1 and 2. One drag answers both
-
-`build/DR1.adg` was rebuilt after both changes, so it carries them.
-
-The last check failed and Q29 says why: every send was written into the
-rack nested inside each pad, so the eight pads had no send column at all
-and the mapping addressed a macro no kit knob reaches. Rebuilt.
-
-| # | Do this | Should happen |
-|---|---|---|
-| 1 | Look at the chain list before touching anything | Each pad shows two send columns, A and B, both at the bottom |
-| 2 | Turn kit Macro 5 (Send A) up | Every pad's Send A rises together, reverb comes in |
-| 3 | Turn kit Macro 6 (Send B) up | Same for the delay return |
-| 4 | Click the Hybrid Reverb inside the `A-Rvb:Short` return | It names an impulse response instead of reporting missing media |
-
-Expected still open: per-pad send levels all start at the floor, so the
-knobs are the only thing moving them.
-
-## 3. Q8, the send taper
+## 1. Q8, the send taper
 
 Sends are linear amplitude from `0.000316` to `1`. Whether the KNOB between
 those is linear in amplitude or in dB is unknown, and it only matters if a
@@ -48,7 +28,7 @@ halfway on the slider, saved as `racks/q8_half.adg`, and the same at a
 quarter as `racks/q8_quarter.adg`. If half reads `0.5`, the knob is linear
 in amplitude; if it reads about `0.018`, it is linear in dB.
 
-## 4. The donor name scan
+## 2. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames

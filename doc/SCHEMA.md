@@ -2035,6 +2035,9 @@ shipped in both DR1 returns and Live reported "Media files are missing".
 `extract` skips them too, because emitting `.sample()` for one produces
 source that refuses to build on the machine that extracted it.
 
+**Checked in Live 12.4.3:** DR1's returns load with an impulse response
+named and no missing-media report.
+
 ## Q28. What 50 stale donors actually cost - ANSWERED
 
 **Evidence:** every donor in `donors/` compared BY PARAMETER NAME against
@@ -2106,3 +2109,7 @@ would have fed the delay into the reverb as the pads got louder.
 **Guarded** by `test_a_send_is_written_on_the_chain_that_owns_the_return`,
 which asserts the pads carry two sends each on their own mixer, that the
 inner racks carry none, and that no return's send is mapped.
+
+**Checked in Live 12.4.3 after the fix:** every pad shows both send
+columns, kit Macro 5 sweeps all eight Send A levels together, Macro 6 does
+the same for Send B, and both returns respond.
