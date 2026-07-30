@@ -1819,3 +1819,46 @@ def test_a_donor_keeps_lives_own_installed_paths():
         assert ref.find("RelativePath").get("Value"), (
             "the relative path is the one Live resolves for type 7; the "
             "absolute one is the macOS path Ableton ships to both platforms")
+
+
+def test_a_send_is_written_on_the_chain_that_owns_the_return():
+    """Rule 4 again, in a place the rule did not name.
+
+    `branch.iter("SendInfos")` is a descendant search, and a chain holding a
+    nested rack lists `DevicePresets` before `MixerPreset`, so the first hit
+    belongs to the INNER rack's first chain. Every DR1 send landed there:
+    the pads showed no send column, and `sending` mapped macro 5 of a rack
+    no kit knob reaches. Checked in Live 12.4.3 by a knob that moved
+    nothing.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    if patchbayground.DR1 is None:
+        return  # samples/ is absent, as on any machine without the audio
+
+    root = patchbayground.DR1.build()
+    preset = find.preset(root)
+    pads = find.branches(preset)
+    assert len(pads) == 8
+    for pad in pads:
+        own = pad.find("MixerPreset")
+        infos = list(next(own.iter("SendInfos")))
+        assert len(infos) == 2, "one send per return, on the PAD's own mixer"
+        ccs = [i.find("Send/KeyMidi/NoteOrController").get("Value")
+               for i in infos]
+        assert ccs == ["4", "5"], "kit macros 5 and 6, in return order"
+
+    # The inner rack has no returns of its own, so it has no sends at all.
+    inner = next(pads[0].iter("GroupDevicePreset"))
+    for branch in find.branches(inner):
+        mixer = branch.find("MixerPreset")
+        assert not list(next(mixer.iter("SendInfos"))), (
+            "a rack with no returns writes no sends")
+
+    # A return's send to the other return is Live's own seeding and belongs
+    # to nobody: sweeping it would feed the delay into the reverb.
+    for ret in find.return_branches(preset):
+        mixer = ret.find("MixerPreset")
+        for info in next(mixer.iter("SendInfos")):
+            assert info.find("Send/KeyMidi") is None
