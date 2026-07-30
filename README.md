@@ -209,7 +209,8 @@ Every item below was gated by loading the output in Live 12.4.3.
   positions, variations, nesting to any depth
 - sample retargeting, so a chain plays a file you name rather than whichever
   one the donor happened to carry
-- extraction, the compiler backwards
+- extraction, the compiler backwards, from a rack preset OR from every rack
+  on every track of a Live Set
 - donor harvesting from any saved file, Live Sets included
 - setting device controls no mapping can reach, which is how a modulation
   routing gets written at all

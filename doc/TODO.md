@@ -11,18 +11,17 @@ Live version for every finding below: **12.4.3**.
 
 ## What is left, at a glance
 
-Everything below this table is detail. **You** means a human in Live;
-nothing in that column can be done from code.
+**Nothing is in flight.** Every task that was on this table has landed and
+left it: the channel strip, the drum rack returns, both design calls, and
+reading racks out of a Set. What each one became is in `README.md`,
+`ARCHITECTURE.md`, `SCHEMA.md`, `DSL.md` or `THE_BASEMENT.md`, per the
+routine at the bottom.
 
-| # | Who | Task | Unblocks |
-|---|---|---|---|
-| **T6c** | you then code | Save `racks/q9_b.als`, the Set form of a rack we already have as `.adg` | Reading racks out of Sets |
-
-Optional spikes, none blocking: **Q19** (the sidechain EQ mode enum),
+What is left is optional, and none of it blocks anything: **Q19** (the sidechain EQ mode enum),
 **Q20** (how a named scale is stored), **Q17** (Meld glide mode), **Q2**
 (aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
 (send taper), **Q21** (the Eq8 band mode enum, for a swept sub-cut), the
-**Q7**, **Q9**, **S10** and **Q5** tails.
+**Q7**, **S10** and **Q5** tails.
 
 Donors for the whole channel strip are in: `ChannelEq`, `Tuner`,
 `SpectrumAnalyzer`, `AutoShift`, `MidiArpeggiator`, `MidiNoteLength`,
@@ -83,6 +82,22 @@ the Set and chooses the sounds.
 
 ## In progress
 
+### Racks read out of Sets
+
+`patchbay extract file.als` walks every track, lifts each rack into preset
+form, and emits DSL. `--out DIR` writes a module per rack plus an index.
+
+Gated by `test_a_rack_lifted_out_of_a_set_matches_its_preset_twin`: the
+lifted rack rebuilds to the same chains, mappings, macro positions and
+labels as the same rack dragged to the browser by Live.
+
+The lift also found the fourth donor repair. A device harvested from a
+`.als` carries the session ids the Set was using for automation, and every
+rack here shipped with some, because 48 of 56 donors came out of Sets. Live
+loads them and a preset Live writes never has them, so they are cleared as a
+device is placed. Six racks moved in the goldens for that, all of them
+`AutomationTarget@Id`, `ModulationTarget@Id` and `Pointee@Id` going to 0.
+
 ### The strip is built and played
 
 Ten racks compile, all ten have been loaded into Live 12.4.3, and the six
@@ -130,51 +145,16 @@ pad.
 
 ## Next
 
-**T6. Decompile a saved rack into DSL source.** `patchbay extract` emits
-DSL for a `.adg` and round-trips all six racks exactly; see `DSL.md`. What
-is left is finding racks inside a Set, and putting names on the slots.
+**T6 is done.** `patchbay extract` reads a `.adg` or a `.als` and emits DSL
+that rebuilds it; `--out DIR` writes one module per rack plus an index, so a
+Set becomes a spec directory. What it recovers and what it cannot is in
+`DSL.md`.
 
-**T6b tail. Match extracted mappings against a known layout.**
-`--layout patchbayground` would use that layout's slot names wherever an
-extracted parameter path agrees with one of its bindings, leaving the rest
-positional. The positional half is done. Do not guess a slot name from a
-parameter path with no layout to check it against; that is inventing
-intent, and `CLAUDE.md` rule 1 applies.
-
-**T6c. Locate racks inside a `.als`.** *Blocked on one save, and only one.*
-
-**There is no `.als` in this repo**, so nothing here can be written against
-evidence and nothing can be tested. Two Q9 differences have been found and
-fixed by loading one file; a third is not ruled out, and guessing the rest
-of the mapping is exactly what `CLAUDE.md`'s method forbids.
-
-The save that unblocks it: put a rack we already have as a `.adg` on a
-track, save that Set as `racks/q9_b.als`. One file, and the diff against
-its `.adg` twin is the whole answer.
-
-*Q9, and it must come first.* A `.adg` stores a rack in PRESET form:
-`GroupDevicePreset` with `Device` and `BranchPresets` as siblings. A `.als`
-stores the same rack in LIVE form, inside
-`LiveSet/Tracks/*/DeviceChain/DeviceChain/Devices`. Whether chains are
-serialised identically in both is UNKNOWN and must not be assumed. Method:
-build one two-chain rack, save it as `racks/q9_a.adg` by dragging to the
-browser, save the Set containing that same rack as `racks/q9_b.als`,
-unpack both and diff by hand. Write the mapping in `SCHEMA.md`.
-
-Then `patchbay extract <file.als>` walks tracks, finds rack nodes in each
-device chain, lifts each into preset form, and reuses the emitter. Note
-S13: a lifted subtree must have its `Id` stripped, and a top-level
-`GroupDevicePreset` must carry no attributes at all.
-
-*Gate:* extract every rack from a Set, rebuild each, diff each.
-
-**T6d. Batch it.** `patchbay extract --out lib/ <file.als>` writing one
-module per rack plus an index. Trivial once T6c works, and worth nothing
-until then.
-
-**Cheaper path that needs none of T6c.** Dragging a rack from a Live Set
-into the browser saves a `.adg`, which extracts today. For tens of racks
-rather than hundreds, hand-dragging is the whole answer.
+The one tail left is naming: slots come out positional, `Macro 1`, because
+guessing a slot name from a parameter path is inventing intent. A
+`--layout patchbayground` flag would use a known layout's names wherever an
+extracted parameter path agrees with one of its bindings, and leave the rest
+positional. Nothing needs it.
 
 ## Open spikes
 
@@ -230,11 +210,9 @@ on it until a spec states a zone directly.
 whether the knob is linear in amplitude or in dB is unknown. Only matters
 if a spec ever states send levels as knob percentages.
 
-**Q9 tail. Set form versus preset form.** Two differences found and fixed,
-and a rack built entirely from `.als`-harvested donors now loads: see Q9 in
-`SCHEMA.md`. That closes the donors. It does not close the mapping T6c
-needs, which is the full comparison of the two serialisations rather than
-the two defects one file happened to carry.
+**Q9 is closed.** The full mapping between Set form and preset form is in
+`SCHEMA.md`, read off `racks/q9_a.adg` beside `racks/q9_b.als`. Four donor
+repairs came out of it and `patchbay extract` reads a Set because of it.
 
 **S10 tail. Macro mapping range from the UI.** Live 12.4.3 has no macro
 range editor, so the reverse test at `build/s10_range_test.adg` is prepared

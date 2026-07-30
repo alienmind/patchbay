@@ -1527,10 +1527,47 @@ Filter, EQ Eight and Echo, all present. Both fixes were needed and together
 they are enough for a rack built entirely from `.als`-harvested donors. The
 48 donors are usable.
 
-**What is still open** is whether these two are the ONLY differences. One
-file loading proves the two defects it carried are fixed; it does not prove
-the two serialisations agree everywhere, and T6c needs the full mapping
-before it can read racks out of a Set.
+### The full mapping, from `racks/q9_a.adg` beside `racks/q9_b.als`
+
+Both files were written by Live 12.4.3 and hold the same two-chain rack, one
+dragged to the browser and one saved as a Set, so the only difference
+between them is the container.
+
+| preset form | Set form |
+|---|---|
+| `GroupDevicePreset` (no attributes at top level) | no wrapper; the rack device sits in the track |
+| `Device/<X>GroupDevice` | `LiveSet/Tracks/<Track>/DeviceChain/DeviceChain/Devices/<X>GroupDevice` |
+| `BranchPresets/<X>BranchPreset` | the rack device's `Branches/<X>Branch` |
+| `DevicePresets/AbletonDevicePreset/Device/<dev>` | `DeviceChain/<A>To<B>DeviceChain/Devices/<dev>` |
+| `MixerPreset/AbletonDevicePreset/Device/...` | the branch's `MixerDevice` |
+| `<Name Value="erode" />` | `Name` with `EffectiveName`, `UserName`, `Annotation`, `MemorizedFirstClipName` |
+
+The rack device's own `Branches` is EMPTY in preset form, which is Â§3's rule
+holding on both sides of the lift.
+
+**The device node itself is the same node**, and this is the finding T6c
+needed. Erosion came back 159 facts against 159, identical but for ids;
+Overdrive matched on every parameter it has.
+
+What differs is bookkeeping, in three kinds:
+
+| difference | preset | Set |
+|---|---|---|
+| `AutomationTarget@Id`, `ModulationTarget@Id`, `Pointee@Id` | `0` | live session ids, `22315` and up |
+| `LastPresetRef/.../AbletonDefaultPresetRef@Id` | `0` | `1` |
+| `SourceContext/Value/BranchSourceContext` | absent | present on a device dragged in from the browser, 53 facts of provenance |
+
+**So harvesting a donor out of a Set brings session ids with it**, and every
+rack this project shipped carried some: 48 of 56 donors came out of `.als`
+files. Live loads them - EQC was played with `52306` on its compressor - but
+a preset Live writes never has them, so `clone.zero_session_ids` clears them
+as a device is placed. That is the fourth donor repair, beside the missing
+`Id`, the blank int64 fields and the legacy path elements.
+
+One value differed that is NOT a form difference: `Drive` read 0 in the
+`.adg` and 50 in the `.als`, because the two files were saved a minute apart
+with a knob moved between them. Worth stating because it is exactly the kind
+of difference a spike pair is supposed to exclude, and this one did not.
 
 ## Q7. An inverted chain-select zone loads - PARTLY ANSWERED
 

@@ -591,6 +591,23 @@ included. A change that is not supposed to move the output proves it by
 `uv run pytest`, and nobody opens Live for it. Live tells you a file
 loads; it never tells you a file is UNCHANGED.
 
+## Reading racks out of a Set
+
+```
+patchbay extract mysong.als                 # DSL for every rack on every track
+patchbay extract mysong.als --out lib/      # one module per rack, plus an index
+```
+
+A `.als` stores a rack in Set form and a `.adg` stores it in preset form.
+The mapping between them is Q9 in `SCHEMA.md`, and `extract.preset_from_set`
+applies it, so everything downstream is the same emitter a `.adg` uses.
+
+What that mapping cost is worth knowing before trusting a harvested donor:
+the DEVICE node is identical in both forms, and everything around it is
+renamed and re-nested. What a Set adds is bookkeeping - session ids for
+automation, a provenance subtree on anything dragged from the browser - and
+a device placed by this DSL has all of it cleared.
+
 ## The compiler runs backwards
 
 `patchbay extract file.adg` prints DSL source for a saved rack. It
