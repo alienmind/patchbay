@@ -2140,3 +2140,52 @@ everything below it reads -inf.
 what a player sees, instead of an amplitude nobody can picture. It stays a
 FOURTH scale beside the three in section 12 of `ARCHITECTURE.md`: a send's
 slider position is not its stored value, and neither is a macro's 0..127.
+
+## Q30. Writing a Set: what preset form costs to reverse - ANSWERED
+
+**Evidence:** `build/PATCHBAYGROUND.als`, written by `patchbay session`,
+with all 52 placed racks lifted back out by `extract.preset_from_set` and
+compared to the `.adg` each came from. **51 of 52 differ in nothing at all**
+and DR1 differs in 18 facts of `SourceContext` provenance on its two return
+branches. No value moved anywhere.
+
+Q9 mapped Set form to preset form. Writing the other direction found three
+things that mapping did not say.
+
+### The branch mixer is the one node whose TAG differs
+
+    preset   MixerPreset/AbletonDevicePreset/Device/AudioBranchMixerDevice
+    Set      MixerDevice, with the same children, directly under the branch
+
+Same fields, different name, and the name depends on the branch: a MIDI
+effect branch carries `MidiBranchMixerDevice`. Renaming is the whole
+conversion, and getting it wrong drops every pad's `SendInfos` while
+changing no value, which is exactly the kind of loss a diff of VALUES does
+not report.
+
+### A Set seeds sends at the TRACK level too
+
+`Mixer/Sends` holds one `TrackSendHolder` per return track on every track,
+returns included. That is S9's rule one level up, and a Set whose counts
+disagree is inconsistent rather than sparse.
+
+### What a Set cannot be told
+
+`AudioOutputRouting` for a track feeding another TRACK has no example in
+any of Live's 26 factory Sets: they route to `AudioOut/Main` or, inside a
+group, to `AudioOut/GroupTrack`. So routing seven tracks into PM1 is not
+writable here without inventing the target, and inventing it is rule 1.
+Seven dropdowns, once, by hand.
+
+The sidechain source is the same answer for the same reason as Q18, one
+level up: not in the preset, not in the LOM, not writable from a factory
+example that does not exist.
+
+### Live's browser is a startup snapshot
+
+Not schema, but it is why this module exists. `AbletonMCP` can load a
+device onto a track only BY BROWSER URI, and a rack written to the User
+Library after Live started is not in the browser: a file dropped into an
+already-indexed folder is not visible either, so it is the index and not
+the folder. Driving a running Live therefore cannot place a rack this
+toolchain just built, and writing the Set is the way round it.

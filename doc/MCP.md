@@ -67,6 +67,25 @@ either manual - one afternoon, per `KICKOFF.md`'s own fallback - or is
 done at the file level later if it proves worth it. It is one setting per
 track, not a system.
 
+## What the browser costs, and why the Set is a file after all
+
+**A device can only be loaded onto a track BY BROWSER URI**, and Live's
+browser index is a snapshot taken at startup. A rack written to the User
+Library while Live is running is not in it, and neither is a file dropped
+into a folder Live has already indexed - checked against a running 12.4.3
+by polling for a file that never appeared, so it is the index rather than
+the folder.
+
+That is fatal for the one job this division of labour gave the API. A
+toolchain that generates racks cannot ask a running Live to place them
+without restarting the Live it is driving.
+
+So `patchbay session` writes the `.als`: tracks, returns, tempo, and every
+rack placed. Q30 has what Set form cost to write, and the templates for it
+come from Live's own factory Sets rather than from this repo. What stays
+manual is what no factory Set has an example of: routing a track into
+another track, and the sidechain source.
+
 ## Division of labour
 
 **`patchbay` - files.** Racks, macro mappings, chain zones, sample

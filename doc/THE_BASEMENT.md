@@ -25,6 +25,16 @@ unbuilt.
 
 **Replaced by:** `TODO.md` T4, `MCP.md`.
 
+**And then partly dug back up.** The reasoning above holds for what the API
+CAN do, and it turned out not to cover the one thing the Set needed most:
+placing a rack. That goes through the browser, and the browser is a startup
+snapshot, so a rack generated after Live launched cannot be loaded into it.
+`patchbay session` writes the Set instead - `live_set.py`, Q30 - and Set
+structure did need mapping after all, though Q9 had already done most of it
+for reading. `.als` generation from NOTHING is still not what happens: the
+tracks, returns and branch shapes are templates read from Live's own
+factory content at build time.
+
 ## The 13 slot macro layout
 
 `PATCHBAYGROUND.md` specified thirteen named slots: Engine, Cutoff,
@@ -339,49 +349,36 @@ are gated and renaming one reopens `PATCHBAYGROUND.md`, `DSL.md` and
 
 ## Building the Set through `ableton-mcp`
 
-**Tried:** the plan, never the code. The definition of done read *"`patchbay
-build` plus a driven `ableton-mcp` session produces a Set that opens in Live
-12, with eight correctly named and routed tracks"*. Three backlog items
-served it: extending the remote script with handlers for audio tracks,
-return tracks and output routing (T4), applying those by hand to a
-submodule (G1), and a smoke test that loaded a generated rack onto a track
-(T5). `MCP.md` establishes that all of it IS in the Live Object Model, so
-none of this failed technically.
+**Dropped, and then routed around rather than revived.** The plan was to
+drive a running Live over the remote script's socket: create the tracks,
+name them, load each rack onto the right one, set the tempo.
 
-**What killed it: the work it automates is not tedious.** The project's own
-justification is one sentence in `PATCHBAYGROUND.md` - assembling a
-template by hand is thousands of macro mappings and tens of thousands of
-parameter values. That is true of a rack: DR1 is 178,960 facts from about
-thirty lines. It is not true of a Set. Eight tracks, their names, their
-routing, four returns and a tempo is around thirty minutes with a mouse,
-once, and it had already been done once by hand before any of this was
-written.
+**What killed it, first time:** the trade. Assembling eight tracks by hand
+is half an hour, once, and automating it would have spent the most fragile
+component in the project - a third-party submodule tied to Live's remote
+script API - on the least repetitive work there is.
 
-So the ratio is backwards. Generating a rack replaces work no person would
-finish. Generating a track replaces one click.
+**What killed it a second time, when it was tried anyway:** Live's browser
+is a snapshot taken at startup. `load_browser_item` is the only way the
+remote script can put a device on a track, it takes a browser URI, and a
+rack written to the User Library after Live started is not in the browser.
+Neither is a file dropped into a folder Live has already indexed, so it is
+the index rather than the folder. Verified against a running Live 12.4.3
+by polling for a file that never appeared. A toolchain whose whole job is
+generating racks cannot load the racks it just generated without restarting
+the thing it is driving.
 
-**And it is the most fragile thing in the project.** Everything else here
-is donor-based: no Ableton XML is ever synthesised, so a new Live version
-means re-harvesting donors and the specs still compile. The MCP path is the
-opposite. It depends on a third-party submodule, on Live's remote-script
-API, and on a running instance, and it is the one component whose breakage
-could not be caught by `uv run pytest`. Spending that risk on the least
-repetitive work available is the wrong trade.
+**What replaced it:** `patchbay session`, which writes the `.als`. Q30 has
+what that cost - one tag rename, a send seeded per return on every track -
+and `live_set.py` is the module. Q9 had already mapped Set form to preset
+form for reading, so writing was the same map backwards.
 
-**Replaced by:** a narrower definition of done. Every rack is generated
-from a declaration; the Set is assembled by hand and the racks are dragged
-in. `TODO.md` now says so, and Set assembly is listed under standing manual
-work beside gain staging and sample choice, which is the same kind of job.
+**What is still not automated, and this part of the original reasoning
+stands:** output routing into PM1 and the sidechain source per track. Both
+are absent from the LOM and neither appears in any factory Set, so both
+are dropdowns. That is minutes, not the half hour, and the racks - the
+178,960 facts nobody would enter by hand - arrive placed.
 
-**What survives:** `MCP.md` stays, because what it records is which
-operations Live's API exposes, and that is a finding rather than a plan.
-`mcp/remote_script_additions.py` stays on disk, unapplied. If a second Set
-ever needs building, or a hundred racks need loading in a batch, the
-argument reverses and the file is still there.
-
-**Not killed by this:** `patchbay extract` reading a `.als` (T6c). That is
-the opposite direction, reading Live's files rather than driving Live, it
-needs no remote script, and it turns Sets you already own into input.
 
 ## The per-engine loudness trim, `PEAK_DB`
 

@@ -208,6 +208,10 @@ Every item below was gated by loading the output in Live 12.4.3.
 - return chains with per-chain send levels, and one macro that sweeps every
   chain's send to a return at once
 - per-track instances of a rack: one declaration, one name per track
+- a whole Live Set: tracks, named returns, a send per return on every
+  track, and every rack placed in order. Track-to-track routing and the
+  sidechain source stay manual, because no Live file here has an example
+  of either
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth
@@ -288,6 +292,7 @@ was an editable install still pointing at the folder's old name.
 |---|---|
 | `patchbay build SPEC -o DIR` | compile a spec into rack presets, one `.adg` per rack and nothing else |
 | `patchbay build SPEC --clean` | the same, dropping `.adg` files in the output directory this build did not write |
+| `patchbay session SPEC -o OUT.als` | write a Live Set: tracks, returns, tempo, every rack placed |
 | `patchbay diff A B` | structural diff - the discovery engine |
 | `patchbay mappings SRC` | list macro mappings |
 | `patchbay variations SRC` | list macro variations |

@@ -10,13 +10,46 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 1 | Open `build/PATCHBAYGROUND.als` in Live | you | 1 double click | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed |
+| 2 | Route the seven MIDI tracks into PM1, pick each EQC's sidechain source | you | 15 dropdowns | Nothing structural. Neither is writable, see below |
+| 3 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
-**Nothing is blocked and nothing is waiting on a check.** All twelve racks
-plus 46 strip instances build, every claim any of them rests on has been
-through Live 12.4.3, and the last open spike closed with Q8.
+## 1. The Set
 
-## 1. The donor name scan
+    patchbay session examples/patchbayground_set.py -o build/PATCHBAYGROUND.als
+
+Written, and verified as far as a file can be without Live: every one of
+the 52 placed racks was lifted back out with `extract.preset_from_set` and
+compared to the `.adg` it came from. 51 match exactly and DR1 differs in 18
+facts of provenance metadata on its two return branches. No value moved.
+
+| | |
+|---|---|
+| tracks | DR1, BS1, PD1, LD1, SR1, VA1, VA2 as MIDI; PM1 as audio |
+| returns | A-Rvb:Short, B-Rvb:Long, C-Dly:Short, D-Dly:Long, E-Spc:Wide, F-Drv:Grit |
+| strip | ARP1, MFX1, instrument, EQC, AFX1, AFXS1, Channel EQ, VOL1, each named for its track |
+| tempo | 120 |
+| SR1 | strip only. Its rack is blocked on samples, so the track says so by being empty |
+
+**Open it and report what Live says.** A Set is a construct nothing here
+has written before, so this is a class 3 check: it either loads or it does
+not.
+
+## 2. What the file cannot say
+
+**Routing seven tracks into PM1.** Live writes `AudioOut/Main` or, inside
+a group, `AudioOut/GroupTrack`. A track feeding another TRACK appears in
+none of the 26 factory Sets, so the target's shape is unknown and writing
+a guess is rule 1. Seven dropdowns.
+
+**The sidechain source on each EQC.** Not in a device preset (Q18), not in
+the LOM, and no factory example. Eight dropdowns.
+
+Both become writable the moment a Set that contains one exists: save a Set
+with one track routed into another and one compressor sidechained, and the
+diff says what they are.
+
+## 3. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames
