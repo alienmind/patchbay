@@ -1712,3 +1712,24 @@ def test_an_inverted_range_stays_inverted():
     lo = float(r.find("Min").get("Value"))
     hi = float(r.find("Max").get("Value"))
     assert lo > hi, "Duck drives the threshold DOWNWARD as the knob rises"
+
+
+def test_the_skeletons_come_from_donors_and_not_from_evidence():
+    """Adding a file to `racks/` must not rebuild every rack.
+
+    It did, twice in one session. `racks/q23_a.adg` became the drum skeleton
+    on nothing but sorting first, and gave all eight DR1 pads a send at
+    0.339 that no spec declared; it also became the return template, which
+    moved a colour. Both are pinned in `donors/` now, and the fallback scan
+    stays for a machine that has neither.
+    """
+    from patchbay.dsl import Rack
+
+    g = Layout(Slot("A"))
+    assert Rack.drum("X", g)._find_skeleton().parent.name == "donors"
+    rack = Rack.drum("X", g)
+    rack._load_return_templates()
+    send = rack._send_skeleton().find("Send")
+    assert float(send.find("Manual").get("Value")) == dsl.SEND_FLOOR, (
+        "a lifted template carries shape, never the value it was saved at")
+    assert send.find("KeyMidi") is None, "nor anybody else's mapping"

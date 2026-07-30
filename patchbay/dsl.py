@@ -90,6 +90,21 @@ _RETURN_TEMPLATES: dict = {}
 SEND_FLOOR: float = 0.0003162277571
 
 
+def _neutralised_sends(el: Element) -> Element:
+    """Put every send in a lifted template back on the floor, unmapped.
+
+    A skeleton is for SHAPE. The file it came from is spike evidence, and
+    `racks/q23_a.adg` arrived carrying a send at 0.339 with a macro mapped
+    to it, sorted ahead of the drum rack that had been supplying this, and
+    gave all eight DR1 pads a reverb send nobody declared. The golden caught
+    it. Same rule as a donor: never anybody's values, never their mappings.
+    """
+    for send in el.iter("Send"):
+        clone.strip_macro_mappings(send)
+        params.set_value(send, SEND_FLOOR)
+    return el
+
+
 def _macro_pos(slot: str, pos: float) -> float:
     """A macro position, checked against the only scale macros have.
 
@@ -1043,7 +1058,7 @@ class Rack:
         self._branch_template = None
         for child in list(container):
             if self._branch_template is None:
-                self._branch_template = copy.deepcopy(child)
+                self._branch_template = _neutralised_sends(copy.deepcopy(child))
             container.remove(child)
         if self._branch_template is None:
             raise ValueError(f"{src} skeleton has no chains to model on")
@@ -1358,7 +1373,16 @@ class Rack:
                 send = next(tree.iter("AudioBranchSendInfo"), None)
                 if branch is None or send is None:
                     continue
-                return copy.deepcopy(branch), copy.deepcopy(send)
+                branch, send = copy.deepcopy(branch), copy.deepcopy(send)
+                # A template is for SHAPE. The file it came from is spike
+                # evidence, so its send carries whatever that session left -
+                # `racks/q23_a.adg` arrived with one at 0.339 and its twin
+                # with a macro mapped to it, and both sorted ahead of the
+                # file that had been supplying this. Same rule as a donor.
+                clone.strip_macro_mappings(branch)
+                clone.strip_macro_mappings(send)
+                params.set_value(send.find("Send"), SEND_FLOOR)
+                return branch, send
         raise FileNotFoundError(
             f"no return chain to model on. Save a rack with one return "
             f"chain into donors/ and re-harvest. Checked {checked} file(s).")

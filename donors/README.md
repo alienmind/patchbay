@@ -32,6 +32,14 @@ is load bearing in two places:
   so adding a file with an unrelated name rebuilds every rack. Also
   observed, on a rename.
 
+`skeleton_drum.adg` and `skeleton_return.adg` are here because that
+preference does not reach them: no donor holds a drum rack or a return
+chain, so both fell through to `racks/` and were decided by sort order.
+`racks/q23_a.adg` then took both, giving all eight DR1 pads a reverb send
+at 0.339 that no spec declared. A template lifted from anywhere now has its
+sends put back on the floor and its mappings stripped, and these two files
+pin the shape so the fallback scan is never reached.
+
 Three files break the convention on purpose, and their names say why:
 
 | File | Holds | The one change | Evidence for |
