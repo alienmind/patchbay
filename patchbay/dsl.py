@@ -1308,6 +1308,12 @@ class Rack:
         # And the fourth: a donor harvested from a `.als` carries the ids the
         # running Set was using for automation. A preset carries zeros.
         clone.zero_session_ids(device)
+        # And the fifth: a sample part with no path. A donor names no file,
+        # and Live reads the leftover part as a MISSING sample rather than
+        # as an empty sampler. A chain that declares one never gets here
+        # with a blank path.
+        if placed.sample is None:
+            clone.strip_unsourced_samples(device)
         holder.append(device)
         wrapper.set("Id", str(slot))
         return wrapper

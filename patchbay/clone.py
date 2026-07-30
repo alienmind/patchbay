@@ -344,3 +344,46 @@ def assert_loadable(root):
             f"{len(bad)} sibling id collision(s); Live would refuse this "
             f"preset:\n{lines}")
     return root
+
+
+def unsourced_samples(device):
+    """Sample parts whose live FileRef names no file. Returns their names.
+
+    A harvested donor names no file, by design: `patchbay harvest` strips
+    paths so a donor carries a parameter list and not somebody's kick. What
+    it leaves behind is the sample PART, an entry in `SampleParts` pointing
+    at an empty path, and Live reports that as a missing sample rather than
+    as an empty instrument.
+    """
+    out = []
+    for part in device.iter("MultiSamplePart"):
+        ref = part.find("SampleRef/FileRef")
+        if ref is None:
+            continue
+        path = ref.find("Path")
+        if path is not None and not (path.get("Value") or ""):
+            name = part.find("Name")
+            out.append((name.get("Value") if name is not None else "") or "<unnamed>")
+    return out
+
+
+def strip_unsourced_samples(device):
+    """Drop them, leaving the container. Returns how many were removed.
+
+    Only for a device NOTHING was declared for. A device with a sample gets
+    its paths written by `samples.retarget` before this could see it, and
+    `Engine.sample` refuses a path that is not a file, so a blank path here
+    means no caller ever named one.
+    """
+    removed = 0
+    for part in list(device.iter("MultiSamplePart")):
+        ref = part.find("SampleRef/FileRef")
+        if ref is None:
+            continue
+        path = ref.find("Path")
+        if path is not None and not (path.get("Value") or ""):
+            parent = part.getparent()
+            if parent is not None:
+                parent.remove(part)
+                removed += 1
+    return removed
