@@ -90,6 +90,21 @@ _RETURN_TEMPLATES: dict = {}
 SEND_FLOOR: float = 0.0003162277571
 
 
+def _own_send_infos(branch: Element):
+    """This chain's OWN `SendInfos`, never a nested rack's.
+
+    `branch.iter("SendInfos")` is a descendant search, and a chain holding a
+    nested rack has `DevicePresets` BEFORE `MixerPreset`, so the first hit in
+    document order belongs to the inner rack's first chain. Every DR1 send
+    went there: eight pads showed no send column at all, the levels landed
+    on sample chains nobody sends from, and `sending` mapped them to the
+    INNER rack's macro 5, which no kit knob turns. Rule 4 in CLAUDE.md, in a
+    place the rule did not name.
+    """
+    mixer = branch.find("MixerPreset")
+    return None if mixer is None else next(mixer.iter("SendInfos"), None)
+
+
 def _neutralised_sends(el: Element) -> Element:
     """Put every send in a lifted template back on the floor, unmapped.
 
@@ -1013,7 +1028,8 @@ class Rack:
                 self._apply_bindings(chain, branch)
 
         self._write_sends(branches + self._return_branches(preset),
-                          chains + returns, [r.name for r in returns])
+                          chains + returns, [r.name for r in returns],
+                          mapped=len(chains))
         if returns:
             # Live ships this false, which hides the send column in the
             # chain list. A rack that writes sends and does not show them
@@ -1289,7 +1305,8 @@ class Rack:
         return made
 
     def _write_sends(self, branches: Sequence[Element],
-                     chains: Sequence[_Resolved], names: Sequence[str]) -> None:
+                     chains: Sequence[_Resolved], names: Sequence[str],
+                     mapped: int = 0) -> None:
         """One `AudioBranchSendInfo` per return, on every chain and return.
 
         Live seeds a send on every existing chain the moment a return is
@@ -1298,15 +1315,22 @@ class Rack:
         names the return and this resolves it here.
         """
         if not names:
+            # A rack with no returns has no sends, and the branch template
+            # was lifted from a rack that may have had some.
+            for branch in branches:
+                infos = _own_send_infos(branch)
+                if infos is not None:
+                    for child in list(infos):
+                        infos.remove(child)
             return
         order = {name: i for i, name in enumerate(names)}
-        for chain, branch in zip(chains, branches):
+        for position, (chain, branch) in enumerate(zip(chains, branches)):
             stray = set(chain.sends) - set(order)
             if stray:
                 raise ValueError(
                     f"{chain.name}: sends to {sorted(stray)}, which is not a "
                     f"return of {self.name!r}. Returns: {list(names)}")
-            infos = next(branch.iter("SendInfos"), None)
+            infos = _own_send_infos(branch)
             if infos is None:
                 raise ValueError(
                     f"{chain.name}: chain mixer has no SendInfos to write to")
@@ -1319,7 +1343,10 @@ class Rack:
                 level = chain.sends.get(name, SEND_FLOOR)
                 send = info.find("Send")
                 params.set_value(send, level)
-                slot = self._send_slots.get(name)
+                # A RETURN's own send to another return is seeded by Live
+                # and belongs to nobody: sweeping it with the kit knob would
+                # feed the delay into the reverb as the pads got louder.
+                slot = self._send_slots.get(name) if position < mapped else None
                 if slot is not None:
                     params.map_to_macro(send, self.layout[slot.display].number)
                 infos.append(info)
