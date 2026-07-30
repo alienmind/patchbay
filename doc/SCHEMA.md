@@ -1701,7 +1701,7 @@ donor carries whatever the file it was cut from happened to contain, and
 some of that is not merely unwanted but invalid HERE. The other two are the
 missing `Id` and the blank int64 fields, both under Q9.
 
-## Q23. A send takes a value and not a macro - ANSWERED
+## Q23. A send takes a value and not a macro - REOPENED
 
 **Evidence:** `build/DR1.adg` in Live 12.4.3, kit macros 5 and 6 mapped to
 every pad's send with `Rack.sending`, checks S1g and S1h.
@@ -1723,6 +1723,37 @@ all, and `Rack.sending` is buried in `THE_BASEMENT.md`.
 **One more instance of the Q16 rule**, and the sharpest: the mapping
 resolved, `patchbay mappings` reported it, the file loaded, and nothing
 moved. Structure cannot tell you a knob works.
+
+### Live writes the SAME mapping, so "not mappable" is wrong
+
+**Evidence:** `racks/q23_a.adg` and `racks/q23_b.adg`, `racks/s9_c.adg`
+saved back out of Live and then saved again with macro 5 mapped to pad 1's
+Send A **in Live's own UI**. The diff is 15 facts added and 3 changed:
+
+    DrumBranchPreset[0]/.../SendInfos/AudioBranchSendInfo[0]/Send/KeyMidi
+        Channel 16, NoteOrController 4, IsNote false, ControllerMapMode 0
+    DrumGroupDevice/MacroControls.4/Manual      0 -> 97.1476822
+    DrumGroupDevice/MacroDefaults.4             0 -> -1
+    DrumGroupDevice/AreMacroControlsVisible     false -> true
+
+A `KeyMidi` inside the `Send` element, addressed by containment, on channel
+16 with the macro index as the CC. That is exactly what `Rack.sending`
+wrote, and writing it again with `params.map_to_macro` reproduces
+`q23_b.adg` with **`patchbay diff` reporting `identical`**.
+
+So the structural half of Q23 is dead: a send is not a parameter Live
+refuses to map. The behaviour observed on `build/DR1.adg` stands unexplained
+and the ranges rule it out - every send in that build carried the full
+`0.000316..1`, the same as this one.
+
+**What is still open.** Whether the knob in `q23_b.adg` actually moves that
+send. If it does, the mechanism works and DR1's failure was ours to find;
+if it does not, Live writes a mapping it ignores, which is a stronger and
+stranger claim than the one this entry was closed on. One knob turn on a
+file that already exists.
+
+`Rack.sending` stays buried until that answer arrives, because reinstating
+it costs a rebuild of DR1 and another check either way.
 
 ## Q24. The arpeggiator ships FREE, so a synced rate reaches nothing - ANSWERED
 

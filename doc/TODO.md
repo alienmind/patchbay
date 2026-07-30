@@ -178,11 +178,11 @@ say whether the mechanism is impossible or whether we wrote it in the wrong
 place. Nothing depends on it; DR1's kit slots 5 and 6 stay named and
 unbound until then.
 
-`racks/s9_c.adg` is the baseline: a drum rack with two pads, one return
-chain and a send already raised, 12 KB. Drag it in, save it straight back
-out as `racks/q23_a.adg` to absorb the session drift, then map a macro to
-one chain's Send A and save `racks/q23_b.adg`. The `a -> b` diff is the
-one change.
+The pair arrived, and it says Live writes the mapping exactly as we did -
+byte for byte, reproduced with `params.map_to_macro`. See Q23 in
+`SCHEMA.md`. What is left is one knob turn: **load `racks/q23_b.adg` and
+turn Macro 5.** If pad 1's Send A moves, the mechanism works and DR1's
+failure was ours; if it does not, Live writes a mapping it ignores.
 
 **Hybrid Reverb's impulse response slot is blank** in both DR1 returns,
 because the donor was harvested and harvesting strips paths. Unlike a
