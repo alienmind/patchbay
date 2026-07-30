@@ -656,16 +656,20 @@ class Rack:
     __slots__ = ("name", "layout", "kind", "_chains", "_returns",
                  "_variations", "_labels", "_starts", "_role", "_wildcard",
                  "_library", "_skeleton", "_branch_template",
-                 "_wrapper_template", "_return_template", "_send_template")
+                 "_wrapper_template", "_return_template", "_send_template",
+                 "_send_slots")
 
     def __init__(self, name: str, layout: Layout, kind: RackKind, chains=(),
                  variations=(), labels=None, starts=None, role=None,
-                 wildcard=None, library=None, skeleton=None, returns=()):
+                 wildcard=None, library=None, skeleton=None, returns=(),
+                 send_slots=None):
         self.name = name
         self.layout = layout
         self.kind = kind
         self._chains: tuple[_Chain, ...] = tuple(chains)
         self._returns: tuple[_Chain, ...] = tuple(returns)
+        #: Return name -> the slot whose macro drives every chain's send.
+        self._send_slots: dict[str, Slot] = dict(send_slots or {})
         self._variations: tuple[Variation, ...] = tuple(variations)
         self._labels: dict[str, str] = dict(labels or {})
         self._starts: dict[str, float] = dict(starts or {})
@@ -697,7 +701,7 @@ class Rack:
     def _with(self, **kw) -> "Rack":
         base = dict(name=self.name, layout=self.layout, kind=self.kind,
                     chains=self._chains, returns=self._returns,
-                    variations=self._variations,
+                    send_slots=self._send_slots, variations=self._variations,
                     labels=self._labels, starts=self._starts, role=self._role,
                     wildcard=self._wildcard, library=self._library,
                     skeleton=self._skeleton)
@@ -733,6 +737,23 @@ class Rack:
         """
         return self._with(returns=self._returns + (
             _Chain(name, self._checked_return(content)),))
+
+    def sending(self, slot: Slot, ret: str) -> "Rack":
+        """This slot drives EVERY chain's send to that return.
+
+        One knob for how much of the whole kit goes to the reverb, which is
+        what a send slot means at kit level. It is one mapping per chain,
+        written into each chain's own `SendInfos` entry, because a send
+        belongs to a chain and not to the rack.
+
+        Buried once and dug back up. The first check said the knob moved
+        nothing, and Q23 concluded a send only takes a value. Live then
+        wrote the same mapping by hand - `racks/q23_a.adg` against
+        `racks/q23_b.adg`, reproduced here byte for byte - and the knob
+        sweeps the send. See `THE_BASEMENT.md` for what the wrong conclusion
+        cost.
+        """
+        return self._with(send_slots={**self._send_slots, ret: slot})
 
     def _checked_return(self, content: Content) -> Content:
         inner = content.rack if isinstance(content, Nested) else content
@@ -782,6 +803,15 @@ class Rack:
                     f"{inner.kind.name.lower()} rack {inner.name!r} cannot go "
                     f"in an {what} chain; Live refuses the preset")
         return content
+
+    def named(self, name: str) -> "Rack":
+        """The same rack under another name. Nothing else moves.
+
+        A strip is dropped once per track and the file has to say which
+        track it is on, so one declaration becomes eight instances by name
+        alone.
+        """
+        return self._with(name=name)
 
     def spends(self, slot: Slot, role: str, label: str | None = None) -> "Rack":
         """Spend the wildcard slot on one role, for every chain at once.
@@ -876,6 +906,7 @@ class Rack:
                     out |= {d.slot.key
                             for d in engine._for(self._role, self._wildcard)
                             if d.slot is not None}
+        out |= {s.key for s in self._send_slots.values()}
         if self.layout.selector is not None:
             out.add(self.layout.selector.key)
         return out
@@ -1286,10 +1317,11 @@ class Rack:
                 info.set("Id", str(index))
                 info.find("Index").set("Value", str(index))
                 level = chain.sends.get(name, SEND_FLOOR)
-                # A send takes a VALUE and not a macro. It is shaped like a
-                # mappable parameter and Live ignores a KeyMidi written into
-                # one: the knob moved, the send stayed at -inf. See Q23.
-                params.set_value(info.find("Send"), level)
+                send = info.find("Send")
+                params.set_value(send, level)
+                slot = self._send_slots.get(name)
+                if slot is not None:
+                    params.map_to_macro(send, self.layout[slot.display].number)
                 infos.append(info)
 
     def _nested_preset(self, inner: "Rack") -> Element:

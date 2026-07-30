@@ -23,6 +23,7 @@ from pathlib import Path
 from lxml import etree
 
 from . import find, io, mappings, params as P, samples, variations
+from .harvest import INSTALLED_CONTENT
 from .library import Library
 
 #: Live's silent floor for a send, as the file spells it. A send left here
@@ -195,6 +196,14 @@ def _sample_targets(device) -> list[str]:
         live = sample_ref.find("FileRef")
         if live is None:
             continue
+        # Live's own installed content is part of the DEVICE, not a sample
+        # anybody chose: Hybrid Reverb's impulse response is one, and its
+        # absolute path is the macOS one Ableton ships in every copy of the
+        # preset. Emitting `.sample()` for it produces source that refuses
+        # to build on the machine that extracted it.
+        kind = live.find("RelativePathType")
+        if kind is not None and kind.get("Value") == INSTALLED_CONTENT:
+            continue
         el = live.find("Path")
         if el is not None and el.get("Value"):
             out.append(el.get("Value"))
@@ -264,6 +273,31 @@ def _receiving_note(branch) -> str | None:
     return None if rn is None else rn.get("Value")
 
 
+def _send_slots(branches, names) -> dict[str, int]:
+    """Return name -> the macro that sweeps every chain's send to it.
+
+    `Rack.sending` writes one mapping per chain, so a rack-level call is
+    read back from the chains. A return name is emitted once, on the macro
+    the first mapped chain names; a file where two chains disagree is not
+    something this DSL can write and the first wins rather than inventing a
+    per-chain verb that does not exist.
+    """
+    out: dict[str, int] = {}
+    for branch in branches:
+        for info in branch.iter("AudioBranchSendInfo"):
+            idx, send = info.find("Index"), info.find("Send")
+            if idx is None or send is None or send.find("KeyMidi") is None:
+                continue
+            cc = send.find("KeyMidi/NoteOrController")
+            try:
+                name = names[int(idx.get("Value"))]
+                macro = int(cc.get("Value")) + 1
+            except (AttributeError, ValueError, IndexError):
+                continue
+            out.setdefault(name, macro)
+    return out
+
+
 def _chained_slots(branch) -> dict[int, int]:
     """Outer macro -> inner macro, for a chain holding a nested rack.
 
@@ -313,8 +347,100 @@ def _selector_slot(rack_dev) -> int | None:
     return None
 
 
+def slot_hints(spec_path) -> dict[str, str]:
+    """Parameter path -> the slot name a known spec gives it.
+
+    Extraction names slots positionally because guessing a name from a
+    parameter path invents intent. A spec the caller NAMES is not a guess:
+    it is a second file saying that whatever drives
+    `Filter/Slot/Value/SimplerFilter/Freq` is called Filter. Where the
+    extracted rack agrees, the name comes across; where it does not, the
+    slot stays `Macro N`.
+
+    Built from every rack in the spec, so a path two racks disagree about
+    is dropped rather than resolved by order.
+    """
+    from . import compile as compile_spec
+
+    hints: dict[str, set[str]] = {}
+    for rack in compile_spec.racks_in(compile_spec.load_spec(spec_path)):
+        for path, display in _spec_bindings(rack).items():
+            hints.setdefault(path, set()).add(display)
+    return {p: next(iter(d)) for p, d in hints.items() if len(d) == 1}
+
+
+def _spec_bindings(rack) -> dict[str, str]:
+    """Parameter path -> slot display, read off a built rack rather than
+    off the DSL objects, so one reader serves every shape the DSL can make.
+    """
+    out: dict[str, str] = {}
+    root = rack.build()
+    for preset in root.iter("GroupDevicePreset"):
+        rack_dev = find.rack_device(preset)
+        if rack_dev is None:
+            continue
+        for branch in find.branches(preset) + find.return_branches(preset):
+            for device in find.devices(branch):
+                for macro, specs in _bindings_for(branch, device,
+                                                  rack_dev).items():
+                    el = rack_dev.find(f"MacroDisplayNames.{macro - 1}")
+                    display = None if el is None else el.get("Value")
+                    if not display or display == f"Macro {macro}":
+                        continue
+                    for spec in specs:
+                        path = spec[0] if isinstance(spec, tuple) else spec
+                        out[path] = display
+    return out
+
+
+def _slot_ref(named: dict[int, str], macro: int) -> str:
+    """How the emitted source addresses one slot of its own layout.
+
+    `dsl._key` and not a local rule: the emitted module has to import, so
+    the reference must be the identifier `Layout` will actually build.
+    """
+    from .dsl import _key
+
+    return _key(named.get(macro, f"Macro {macro}"))
+
+
+def _named_slots(preset_el, rack_dev, n: int,
+                 hints: dict[str, str]) -> dict[int, str]:
+    """Macro number -> the name a named spec gives it, where it agrees.
+
+    A macro is named only when every parameter it drives that the spec knows
+    about answers to the SAME slot. One disagreement and the slot stays
+    positional, because half a name is worse than none.
+    """
+    if not hints:
+        return {}
+    seen: dict[int, set[str]] = {}
+    branches = find.branches(preset_el) + find.return_branches(preset_el)
+    for branch in branches:
+        for device in find.devices(branch):
+            for macro, specs in _bindings_for(branch, device,
+                                              rack_dev).items():
+                for spec in specs:
+                    path = spec[0] if isinstance(spec, tuple) else spec
+                    if path in hints:
+                        seen.setdefault(macro, set()).add(hints[path])
+    out = {m: next(iter(d)) for m, d in seen.items()
+           if len(d) == 1 and m <= n}
+    # Two macros cannot share a name: the Layout refuses it, and the emitted
+    # module would not import.
+    taken: dict[str, int] = {}
+    for macro in sorted(out):
+        display = out[macro]
+        if display in taken:
+            del out[macro]
+        else:
+            taken[display] = macro
+    return out
+
+
 def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
-               depth: int = 0) -> tuple[str, str]:
+               depth: int = 0, hints: dict[str, str] | None = None
+               ) -> tuple[str, str]:
     """Emit one rack and everything under it.
 
     Returns its variable name and its layout's variable name. A parent needs
@@ -347,7 +473,8 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             hint = (child_name.get("Value") if child_name is not None
                     else f"{name}_{i}")
             hint = hint if hint != "" else f"{name}_{i}"
-            children[i] = _emit_rack(nested[0], hint, used, lines, depth + 1)
+            children[i] = _emit_rack(nested[0], hint, used, lines, depth + 1,
+                                     hints)
 
     # The slot list. A slot carries its own position, opening value, label
     # and selector flag, so the layout is the whole of what this rack's
@@ -358,9 +485,11 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
     # intent, which CLAUDE.md rule 1 forbids for exactly the reason that
     # makes it tempting: the guess is usually right, and silently wrong the
     # rest of the time.
+    named = _named_slots(preset_el, rack_dev, n, hints or {})
+
     lines.append(f"{layout_var} = Layout(")
     for i in range(n):
-        display = f"Macro {i + 1}"
+        display = named.get(i + 1, f"Macro {i + 1}")
         args = [repr(display)]
         if i + 1 in starts:
             args.append(f"start={starts[i + 1]}")
@@ -408,7 +537,8 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             # rack driven by nothing. A return is the second case, and so is
             # any chain whose author left every slot out.
             pairs = ", ".join(
-                f"{layout_var}.macro_{o}.to({child_layout}.macro_{inner})"
+                f"{layout_var}.{_slot_ref(named, o)}"
+                f".to({child_layout}.macro_{inner})"
                 for o, inner in sorted(_chained_slots(branch).items()))
             content = (f"{child_var}.chaining({pairs})" if pairs
                        else f"{child_var}.unchained()")
@@ -452,7 +582,7 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
             for macro, specs in sorted(binds.items()):
                 for spec in specs:
                     content.append(
-                        f".drives({layout_var}.macro_{macro}, "
+                        f".drives({layout_var}.{_slot_ref(named, macro)}, "
                         f"{_fmt_binding(spec)})")
             if pos:
                 content[-1] += ")"
@@ -462,6 +592,10 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
         joined = ("\n" + " " * 12).join(content)
         call.append(f"        {verb}\n            {joined})")
 
+    for name, macro in sorted(_send_slots(branches, return_names).items()):
+        call.append(f"        .sending({layout_var}."
+                    f"{_slot_ref(named, macro)}, {name!r})")
+
     got = variations.read(rack_dev)
     if got:
         # One call, not one per variation: `variations()` appends, so
@@ -469,7 +603,7 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
         # negotiable. It is not, a variation is recalled by index.
         made = []
         for v in got:
-            args = ", ".join(f"macro_{m}={P.fmt(p)}"
+            args = ", ".join(f"{_slot_ref(named, m)}={P.fmt(p)}"
                              for m, p in sorted(v["values"].items()))
             made.append(f'{layout_var}.variation({(v["name"] or "")!r}'
                         f'{", " + args if args else ""})')
@@ -483,7 +617,7 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
     return var, layout_var
 
 
-def source(path: Path | str) -> str:
+def source(path: Path | str, layout: Path | str | None = None) -> str:
     """The DSL source for a saved rack, as a string.
 
     Takes a `.adg`, which holds one rack in preset form, or a `.als`, which
@@ -503,23 +637,29 @@ def source(path: Path | str) -> str:
             raise ValueError(f"{path}: no GroupDevicePreset; not a rack preset")
         presets = [(Path(path).stem, preset_el)]
 
+    hints = slot_hints(layout) if layout else {}
+    note = (f"Slot names come from {Path(layout).name} where the bindings"
+            if layout else "Slot names are positional")
     lines = [
-        '"""Extracted by `patchbay extract`. Slot names are positional.',
-        "",
-        "A decompiler recovers structure, not intent. Rename the Macro N",
-        "slots to whatever this rack means, and the bindings follow.",
+        f'"""Extracted by `patchbay extract`. {note}',
+        ("agree, and are positional where they do not." if layout else
+         "A decompiler recovers structure, not intent. Rename the Macro N"),
+        ("A decompiler recovers structure, not intent." if layout else
+         "slots to whatever this rack means, and the bindings follow."),
         '"""',
         "",
         "from patchbay.dsl import Engine, Layout, Rack, Range, Slot",
         "",
     ]
     used: set[str] = set()
-    made = [_emit_rack(preset, hint, used, lines)[0] for hint, preset in presets]
+    made = [_emit_rack(preset, hint, used, lines, hints=hints)[0]
+            for hint, preset in presets]
     lines.append(f"RACKS = [{', '.join(made)}]")
     return "\n".join(lines) + "\n"
 
 
-def write_modules(path: Path | str, out: Path | str) -> list[Path]:
+def write_modules(path: Path | str, out: Path | str,
+                  layout: Path | str | None = None) -> list[Path]:
     """One module per rack in `path`, plus an index that imports them all.
 
     For a Set with a strip on every track, printing one long module is the
@@ -540,6 +680,7 @@ def write_modules(path: Path | str, out: Path | str) -> list[Path]:
             raise ValueError(f"{path}: no GroupDevicePreset; not a rack preset")
         found = [(Path(path).stem, preset_el)]
 
+    hints = slot_hints(layout) if layout else {}
     made, names = [], []
     for hint, preset in found:
         used: set[str] = set()
@@ -549,7 +690,7 @@ def write_modules(path: Path | str, out: Path | str) -> list[Path]:
             "from patchbay.dsl import Engine, Layout, Rack, Range, Slot",
             "",
         ]
-        var, _ = _emit_rack(preset, hint, used, lines)
+        var, _ = _emit_rack(preset, hint, used, lines, hints=hints)
         lines.append(f"RACKS = [{var}]")
         name = _ident(hint, set())
         dest = out / f"{name}.py"
@@ -566,8 +707,8 @@ def write_modules(path: Path | str, out: Path | str) -> list[Path]:
     return made
 
 
-def report(path: Path | str) -> None:
-    print(source(path), end="")
+def report(path: Path | str, layout: Path | str | None = None) -> None:
+    print(source(path, layout), end="")
 
 
 # --- reading racks out of a Set -------------------------------------------

@@ -60,7 +60,7 @@ from __future__ import annotations
 from itertools import product
 from pathlib import Path
 
-from patchbay.dsl import Engine, Layout, Rack, Range, Slot
+from patchbay.dsl import Engine, Layout, Rack, RackKind, Range, Slot
 
 # ===========================================================================
 # The layout
@@ -623,18 +623,20 @@ def dr1() -> Rack | None:
     voice has to offer. So the layout is a contract per LEVEL rather than
     per rack.
 
-    **The two kit send knobs drive nothing, and cannot.** A send takes a
-    value, not a macro: Live ignores a mapping written into one, verified in
-    12.4.3 (Q23). Per-pad send LEVELS below are real and work; the knobs
-    that would sweep them do not exist. The slots keep their names because
-    the send column is where a player sets them by hand.
+    **The two kit send knobs sweep every pad's send at once.** One mapping
+    per chain, written into that chain's own `SendInfos` entry, because a
+    send belongs to a chain and not to the rack. Checked in Live 12.4.3 on
+    `racks/q23_b.adg` after a wrong conclusion buried the feature for a
+    release: Q23.
     """
     kit = (Rack.drum("DR1", KIT)
            # `unchained`, not `chaining`: a return's effects answer their
            # own three knobs and no kit knob at all. The kit reaches a return
            # through its send, which is what `sending` writes.
            .ret("A-Rvb:Short", SHORT_FX.unchained())
-           .ret("A-Dly:Long", LONG_FX.unchained()))
+           .ret("A-Dly:Long", LONG_FX.unchained())
+           .sending(KIT.send_a, "A-Rvb:Short")
+           .sending(KIT.send_b, "A-Dly:Long"))
     chained = (KIT.sound, KIT.filter, KIT.drive, KIT.volume)
 
     built = 0
@@ -932,7 +934,27 @@ VOL1 = Rack.audio_effect("VOL1", VOL).chain(
 
 STRIP: list[Rack] = [ARP1, MFX1, EQC, AFX1, AFXS1, VOL1]
 
-RACKS: list[Rack] = [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None] + STRIP
+#: The eight tracks of PATCHBAYGROUND.md, in order. PM1 is the audio pre
+#: master, so it takes the audio half of the strip and neither MIDI rack.
+TRACKS: tuple[str, ...] = ("DR1", "BS1", "PD1", "LD1", "SR1", "VA1", "VA2",
+                           "PM1")
+
+#: One instance per track, named for it: `EQC_BS1` sits on BS1. The naming
+#: rule is in PATCHBAYGROUND.md and it exists because a strip copied between
+#: tracks without renaming leaves `EQC_LD1` on a pad track meaning nothing.
+STRIP_INSTANCES: list[Rack] = [
+    rack.named(f"{rack.name}_{track}")
+    for track in TRACKS
+    for rack in STRIP
+    if not (track == "PM1" and rack.kind is RackKind.MIDI_EFFECT)
+]
+
+# The canonical twelve, plus one instance of each strip rack per track. The
+# instances are the same six racks under 46 names, so they are built and
+# NOT golden-gated: what a golden proves about EQC it proves about EQC_BS1.
+RACKS: list[Rack] = (
+    [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None]
+    + STRIP + STRIP_INSTANCES)
 
 
 # ===========================================================================
