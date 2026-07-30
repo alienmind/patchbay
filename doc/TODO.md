@@ -19,14 +19,32 @@ been through Live 12.4.3.
 
 ## 1. Q8, the send taper
 
-Sends are linear amplitude from `0.000316` to `1`. Whether the KNOB between
-those is linear in amplitude or in dB is unknown, and it only matters if a
-spec ever wants to say "this pad sends 30 percent".
+**What this decides:** whether a spec can ever say "this pad sends 30
+percent". Nothing today needs it.
 
-Two saves settle it: a rack with one return, its send dragged to exactly
-halfway on the slider, saved as `racks/q8_half.adg`, and the same at a
-quarter as `racks/q8_quarter.adg`. If half reads `0.5`, the knob is linear
-in amplitude; if it reads about `0.018`, it is linear in dB.
+**What to produce:** two files, `racks/q8_half.adg` and
+`racks/q8_quarter.adg`, plus two numbers reported back.
+
+**Steps.**
+
+1. New MIDI track. Drag `racks/s9_c.adg` onto it. It is a drum rack with
+   two pads and one return chain, so the chain list already has a Send
+   column.
+2. Open the chain list. Find pad 1's send slider.
+3. Drag it to the MIDDLE of its travel, by eye. Do not type a value.
+4. Note the dB number Live displays for it.
+5. Drag the rack's title bar into the browser to save it. Copy the file to
+   `racks/q8_half.adg`.
+6. Drag the same slider to a QUARTER of its travel, by eye. Note the dB
+   number again.
+7. Save it the same way, to `racks/q8_quarter.adg`.
+
+**Report:** the two dB numbers, one per file.
+
+By eye is deliberate: the question is where the SLIDER sits, not what a
+typed value stores, so typing a number answers a different question. The
+macro route does not work either - a driven send does not write its driven
+value to disk (Q23).
 
 ## 2. The donor name scan
 
