@@ -80,12 +80,32 @@ def scan(*paths) -> dict[str, tuple[int, object, Path]]:
     return best
 
 
+#: `RelativePathType` 7 is Live's own installed content, seen on every
+#: `AbletonDefaultPresetRef` this repo holds. A path under it is not a file
+#: this machine happens to have, it is part of the device: Hybrid Reverb's
+#: impulse response is one, and scrubbing it ships a donor that loads with
+#: "Media files are missing".
+INSTALLED_CONTENT = "7"
+
+
+def _installed(node) -> bool:
+    """True for a Path or RelativePath belonging to Live's own content."""
+    ref = node.getparent()
+    if ref is None:
+        return False
+    kind = ref.find("RelativePathType")
+    return kind is not None and kind.get("Value") == INSTALLED_CONTENT
+
+
 def scrub(el):
     """Strip paths and names in place. See SCRUBBED."""
     for tag in SCRUBBED:
         for node in el.iter(tag):
-            if node.get("Value"):
-                node.set("Value", "")
+            if not node.get("Value"):
+                continue
+            if tag in ("Path", "RelativePath") and _installed(node):
+                continue
+            node.set("Value", "")
     return el
 
 
