@@ -1902,6 +1902,72 @@ def test_the_send_slider_loses_20_db_per_halving():
     assert params.send_amplitude(0.0) == params.SEND_FLOOR
 
 
+def test_a_rack_placed_in_a_set_lifts_back_out_unchanged():
+    """`live_set` and `extract` are one mapping read in both directions.
+
+    Q9 gave preset form against Set form; this is the gate that keeps the
+    two halves agreeing. It caught the branch mixer, whose TAG is the whole
+    difference between the forms - `MixerDevice` in a Set,
+    `AudioBranchMixerDevice` in a preset, and `MidiBranchMixerDevice` when
+    the branch is a MIDI effect one.
+
+    Skipped where Live is not installed: the Set-form templates come from
+    Live's own factory content rather than from this repo.
+    """
+    from lxml import etree
+    from patchbay import extract, live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    for name in ("EQC", "ARP1", "VA1"):
+        src = Path(__file__).resolve().parent.parent / "build" / f"{name}.adg"
+        if not src.exists():
+            continue
+        preset = io.load(src).find("GroupDevicePreset")
+        placed = live_set.set_from_preset(preset, 0)
+        wrap = etree.Element("Ableton")
+        wrap.append(extract.preset_from_set(placed))
+        a, b = diff.flatten(io.load(src)), diff.flatten(wrap)
+        # `PresetRef` is where a preset records its own file identity, and
+        # the wrapper a lift builds takes it from a donor. `patchbay diff`
+        # hides it for the same reason.
+        changed = {k: (a[k], b[k]) for k in set(a) & set(b)
+                   if a[k] != b[k]
+                   and not any(m in k for m in diff.PRESET_REF_MARKERS)}
+        assert not changed, f"{name}: {list(changed)[:3]}"
+
+
+def test_a_written_set_carries_a_send_per_return_on_every_track():
+    """S9's rule one level up: a Set where the counts disagree is broken."""
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    src = Path(__file__).resolve().parent.parent / "build" / "EQC.adg"
+    if not src.exists():
+        return
+    preset = io.load(src).find("GroupDevicePreset")
+    root = live_set.build(
+        [live_set.Track("T1", "midi", [preset]),
+         live_set.Track("T2", "audio", [])],
+        returns=["A", "B", "C"], tempo=132.0)
+
+    tracks = list(root.find("LiveSet/Tracks"))
+    assert [t.tag for t in tracks] == ["MidiTrack", "AudioTrack"] +         ["ReturnTrack"] * 3
+    for track in tracks:
+        sends = track.find("DeviceChain/Mixer/Sends")
+        assert len(sends) == 3, "one send per return, on every track"
+        ids = [s.get("Id") for s in sends]
+        assert len(set(ids)) == len(ids), "sibling ids collide"
+    assert next(root.iter("Tempo")).find("Manual").get("Value") == "132.0"
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):
