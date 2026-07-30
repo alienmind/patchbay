@@ -93,6 +93,12 @@ def _main():
                          "extracted binding agrees with one of its own; "
                          "slots stay positional everywhere else")
 
+    se = sub.add_parser("session",
+                        help="write a Live Set from a spec exporting SESSION")
+    se.add_argument("spec", help="a Python module assigning SESSION")
+    se.add_argument("-o", "--out", default="build/session.als",
+                    help="output .als, default build/session.als")
+
     hv = sub.add_parser("harvest", help="lift donors out of saved files or Sets")
     hv.add_argument("src", nargs="+", help="files or directories, .adg/.adv/.als")
     hv.add_argument("-o", "--out", default="donors",
@@ -114,6 +120,9 @@ def _main():
                 print(made)
         else:
             extract.report(args.src, args.layout)
+    elif args.cmd == "session":
+        from . import live_set
+        live_set.report(args.spec, args.out)
     elif args.cmd == "harvest":
         from . import harvest
         harvest.report(args.src, args.out, keep_known=args.keep_known)

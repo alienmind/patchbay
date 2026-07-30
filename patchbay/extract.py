@@ -827,6 +827,18 @@ def preset_from_set(rack_dev, at_top=True):
         branches.append(_lift_branch(branch, i, branch_template,
                                      wrapper_template))
 
+    # A rack's RETURN chains are a second container, and a return branch is
+    # an AudioEffectBranch whatever the parent rack is (S9). The container
+    # is written even when empty, because that is what the compiler writes
+    # and a round trip that drops it reports a difference that is not one.
+    returns = etree.SubElement(preset, "ReturnBranchPresets")
+    ret_source = rack_dev.find("ReturnBranches")
+    if ret_source is not None and len(ret_source):
+        ret_template, _ = _templates_for("AudioEffectGroupDevice")
+        for i, branch in enumerate(ret_source):
+            returns.append(_lift_branch(branch, i, ret_template,
+                                        wrapper_template))
+
     _zero_session_ids(preset)
     if not at_top:
         preset.set("Id", "0")
@@ -853,7 +865,8 @@ def _lift_branch(branch, position, branch_template, wrapper_template):
 
     # Carry across what both forms have and the preset side needs.
     for tag in ("IsSoloed", "BranchSelectorRange", "ZoneSettings",
-                "SessionViewBranchWidth"):
+                "SessionViewBranchWidth", "BranchInfo",
+                "DocumentColorIndex", "AutoColored", "AutoColorScheme"):
         theirs = branch.find(tag)
         if theirs is None:
             continue
@@ -872,12 +885,23 @@ def _lift_branch(branch, position, branch_template, wrapper_template):
         else:
             devices.append(_wrap_device(device, wrapper_template, j))
 
+    # Set form names the branch mixer `MixerDevice` and preset form names
+    # it `AudioBranchMixerDevice`, with the same children. The tag is the
+    # conversion; see `live_set._branch_from_preset` going the other way.
     mixer = branch.find("MixerDevice")
     holder = made.find("MixerPreset")
     if mixer is not None and holder is not None:
         for child in list(holder):
             holder.remove(child)
-        holder.append(_wrap_device(mixer, wrapper_template, 0))
+        renamed = copy.deepcopy(mixer)
+        # A MIDI effect chain carries a MIDI mixer, and it is the branch
+        # kind that says which: `MidiBranchMixerDevice` there and
+        # `AudioBranchMixerDevice` everywhere else. Set form names both
+        # `MixerDevice`, so the tag has to be put back from context.
+        renamed.tag = ("MidiBranchMixerDevice"
+                       if made.tag == "MidiEffectBranchPreset"
+                       else "AudioBranchMixerDevice")
+        holder.append(_wrap_device(renamed, wrapper_template, 0))
     return made
 
 
