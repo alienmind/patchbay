@@ -12,13 +12,21 @@ harvest, so a donor names no file and shows no name of its own in Live.
 `AutoFilter.adg` carries `AutoFilter`. That is the whole convention, and it
 is load bearing in two places:
 
-- **`Library.harvest` breaks a TIE in favour of the file named after the
-  device.** A one-change probe is the same device with the same parameter
-  count as the donor it was cut from, so it ties every time. Without the
-  rule the winner is filename order, which is case-insensitive on Windows
-  and case-sensitive elsewhere: the same repo would build different racks
-  on different machines. It already happened once, silently, giving every
-  generated rack a Wavetable with `Resonance = 0.4` instead of `0`.
+- **`Library.harvest` breaks a TIE first in favour of `donors/`, then in
+  favour of the file named after the device.** A one-change probe is the
+  same device with the same parameter count as the donor it was cut from,
+  so it ties every time. Without the rule the winner is filename order,
+  which is case-insensitive on Windows and case-sensitive elsewhere: the
+  same repo would build different racks on different machines. It has
+  happened twice. Once giving every generated rack a Wavetable with
+  `Resonance = 0.4` instead of `0`; once when `racks/q17_a.adg` arrived and
+  took Operator from `racks/s1_source.adg` on nothing but the letter q,
+  handing every rack in the build glide on and a filter at 30 Hz.
+
+  A fuller copy still wins on parameter count, ahead of both tie-breaks.
+  That is deliberate: `racks/q20_a.adg` holds a 12.4.3 `MidiScale` with
+  `InternalScale` and `UseCurrentScale`, and the donor here was harvested
+  before Scale Awareness existed.
 - **`Rack._find_skeleton` prefers a file named after a device it indexes.**
   Otherwise the skeleton is whichever rack of the right kind sorts first,
   so adding a file with an unrelated name rebuilds every rack. Also
@@ -36,13 +44,28 @@ Each is the second half of a one-change diff, kept beside the donor it was
 cut from so the pair stays legible. They are evidence, not donors, and the
 two rules above are what stop them being used as one.
 
-`Operator`, `OriginalSimpler` and `MidiPitcher` are not here. They come
-from `racks/`, which is spike evidence that happens to contain them.
-`Library.default()` reads `donors/` first, so a file added here shadows the
-spike copy.
+`Operator.adg` and `OriginalSimpler.adg` were harvested out of
+`racks/s1_source.adg` for exactly that reason: both had been coming from
+`racks/`, where the next spike file to sort earlier takes them. Harvesting
+also stripped what the spike copy dragged along, a sample named
+`00_KIck 1` with a machine-specific path, out of every Simpler PD1, VA1 and
+DR1 place.
 
-Every file here was produced by Live 12.4.3. The schema is version
-specific, so if `SchemaChangeCount` moves, re-harvest.
+`MidiPitcher` and `Saturator` still come from `racks/`. A file added here
+shadows the spike copy, which is the fix if either moves.
+
+**50 of these were saved by 12.0_12203 and the schema has moved since.**
+Live 12.4.3 writes `SchemaChangeCount 5` and renamed Compressor's sidechain
+EQ from five children of a `SideChainEq` element to five flat
+`SideChainEq_X` parameters. EQC wrote three settings at the old paths for a
+whole release, and nothing could catch it: the DSL refuses a path the DONOR
+lacks, and the donor had them. Q19.
+
+So a stale donor is not merely a stale VALUE, it is a stale vocabulary.
+Where a 12.4.3 file exists in `racks/` holding the same device, the two
+parameter lists can be compared by name; `Compressor2` was the only rename
+found, against two harmless additions. The devices no 12.4.3 file covers
+are unchecked.
 
 ## Configured or not
 

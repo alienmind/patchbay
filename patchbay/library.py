@@ -32,12 +32,16 @@ NOT_A_DEVICE = {
 class Device:
     """One harvested device node, plus what it can be asked to do."""
 
-    def __init__(self, tag, element, source, named=False, params=None):
+    def __init__(self, tag, element, source, named=False, params=None,
+                 tier=0):
         self.tag = tag
         self._element = element
         self.source = source
         #: True when the file is named after the device, which breaks ties.
         self.named = named
+        #: Which harvest path this came from. Breaks a TIE on parameter
+        #: count, ahead of the named-file rule. See Library.from_paths.
+        self.tier = tier
         # Harvest has already walked this subtree to count parameters, and
         # walking Operator's 217 again per access is what made a DR1 build
         # spend 27 seconds in all_params. The element is never mutated in
@@ -89,9 +93,20 @@ class Library:
 
     @classmethod
     def from_paths(cls, *paths):
+        """Harvest each path, an EARLIER path breaking a tie against a later.
+
+        A fuller copy still wins on parameter count, which is how a 12.4.3
+        spike file replaced an older `MidiScale` donor that lacked
+        `InternalScale`. What the tier settles is the TIE, and a tie is the
+        common case: a probe cut from a donor has exactly the donor's
+        parameters. Decided by filename order instead, `racks/q17_a.adg`
+        redonated Operator with glide on and its filter at 30 Hz to every
+        rack in the build, because `q` sorts before the `s1_source.adg` that
+        had been winning.
+        """
         lib = cls()
-        for p in paths:
-            lib.harvest_all(p)
+        for tier, p in enumerate(reversed(paths)):
+            lib.harvest_all(p, tier=tier)
         return lib
 
     @classmethod
@@ -113,7 +128,7 @@ class Library:
                                                       root / "racks")
         return cached
 
-    def harvest_all(self, path):
+    def harvest_all(self, path, tier=0):
         """Index one file, or every Ableton file in one directory.
 
         `.als` too, not only `.adg`. Harvesting never looks at preset
@@ -123,13 +138,13 @@ class Library:
         """
         p = Path(path)
         if not p.is_dir():
-            return self.harvest(p)
+            return self.harvest(p, tier=tier)
         for ext in ("*.adg", "*.adv", "*.als"):
             for f in sorted(p.glob(ext)):
-                self.harvest(f)
+                self.harvest(f, tier=tier)
         return self
 
-    def harvest(self, path):
+    def harvest(self, path, tier=0):
         """Index every device node in one file.
 
         A fuller copy wins, and a TIE goes to the file named after the
@@ -155,9 +170,11 @@ class Library:
                 continue
             named = Path(path).stem == el.tag
             best = self._devices.get(el.tag)
-            if best is None or (n, named) > (len(best.params), best.named):
+            if best is None or ((n, tier, named)
+                                > (len(best.params), best.tier, best.named)):
                 self._devices[el.tag] = Device(el.tag, el, Path(path).name,
-                                               named=named, params=found)
+                                               named=named, params=found,
+                                               tier=tier)
         return self
 
     def __contains__(self, tag):
