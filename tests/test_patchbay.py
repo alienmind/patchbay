@@ -9,7 +9,10 @@ Run with:  uv run pytest tests/ -q
        or:  uv run tests/test_patchbay.py
 """
 
+import atexit
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -21,13 +24,19 @@ from patchbay.dsl import Engine, Layout, Rack, Range, Slot   # noqa: E402
 RACKS = Path(__file__).resolve().parent.parent / "racks"
 GOLDEN = Path(__file__).resolve().parent / "golden.txt"
 
+#: Where tests write. NOT `build/`, which holds what `patchbay build`
+#: produces and nothing else: a suite that leaves 190 round-trip files
+#: beside 58 racks makes the output of a build unreadable, and the two are
+#: indistinguishable by name. Removed at interpreter exit.
+SCRATCH = Path(tempfile.mkdtemp(prefix="patchbay-tests-"))
+atexit.register(shutil.rmtree, SCRATCH, True)
+
 
 # --- S1: round trip -------------------------------------------------------
 
-def test_roundtrip_is_lossless(tmp_path=None):
+def test_roundtrip_is_lossless():
     src = RACKS / "s1_source.adg"
-    out = Path(tmp_path or "/tmp") / "rt.adg" if tmp_path else Path("build/rt.adg")
-    out.parent.mkdir(exist_ok=True)
+    out = SCRATCH / "rt.adg"
     io.save(io.load(src), out)
 
     from patchbay.diff import compare
@@ -257,8 +266,7 @@ def test_rewriting_variations_matches_live_fact_for_fact():
     variations.write(dev, [(v["name"], v["values"])
                            for v in variations.read(dev)])
 
-    out = Path("build/s8_rewrite.adg")
-    out.parent.mkdir(exist_ok=True)
+    out = SCRATCH / "s8_rewrite.adg"
     io.save(root, out)
     changed, only_a, only_b = compare(src, out, show_all=True)
     assert not changed and not only_a and not only_b, \
@@ -635,11 +643,9 @@ def _a_wav(dirpath):
     return p
 
 
-def test_sample_retargets_both_filerefs(tmp_path=None):
+def test_sample_retargets_both_filerefs():
     from patchbay import samples
-    out = Path(tmp_path) if tmp_path else Path("build")
-    out.mkdir(exist_ok=True)
-    wav = _a_wav(out)
+    wav = _a_wav(SCRATCH)
 
     rack = Rack.instrument("SR", Layout(Slot("Instrument"), Slot("Filter"))).chain(
         "S", Engine("OriginalSimpler").sample(wav))
@@ -662,10 +668,8 @@ def test_sample_refuses_a_missing_file():
     raise AssertionError("a missing sample loads offline, so it must refuse")
 
 
-def test_sample_refuses_a_device_with_no_sampleref(tmp_path=None):
-    out = Path(tmp_path) if tmp_path else Path("build")
-    out.mkdir(exist_ok=True)
-    wav = _a_wav(out)
+def test_sample_refuses_a_device_with_no_sampleref():
+    wav = _a_wav(SCRATCH)
 
     rack = Rack.instrument("X", Layout(Slot("Instrument"))).chain(
         "FM", Engine("Operator").sample(wav))
@@ -1372,7 +1376,7 @@ def test_a_rack_lifted_out_of_a_set_matches_its_preset_twin():
     clone.assert_loadable(rebuilt)
 
 
-def test_extract_round_trips_structure(tmp_path=None):
+def test_extract_round_trips_structure():
     """Extract a rack, rebuild from the emitted source, compare.
 
     Exact, over every fact `flatten` can see, not merely structural. A rack
@@ -1394,8 +1398,7 @@ def test_extract_round_trips_structure(tmp_path=None):
         if rack.name in instances:
             continue
         original = rack.build()
-        out = Path(tmp_path or "build") / f"{rack.name}.extract.adg"
-        out.parent.mkdir(exist_ok=True)
+        out = SCRATCH / f"{rack.name}.extract.adg"
         io.save(original, out)
 
         ns = {}
@@ -1655,22 +1658,6 @@ def test_spending_a_role_names_the_knob_after_it():
     assert _labels(rack) == ["Engine", "Attack"]
 
 
-if __name__ == "__main__":
-    passed = failed = 0
-    for name, fn in sorted(globals().items()):
-        if not name.startswith("test_") or not callable(fn):
-            continue
-        try:
-            fn()
-            print(f"  pass  {name}")
-            passed += 1
-        except Exception as e:
-            print(f"  FAIL  {name}: {type(e).__name__}: {e}")
-            failed += 1
-    print(f"\n{passed} passed, {failed} failed")
-    sys.exit(1 if failed else 0)
-
-
 def test_an_earlier_harvest_path_wins_a_tie():
     """`racks/` is evidence, and a probe ties the donor it was cut from.
 
@@ -1766,7 +1753,7 @@ def test_one_strip_instance_per_track_named_for_it():
         assert inst.name.split("_")[1] in patchbayground.TRACKS
 
 
-def test_a_named_layout_recovers_slot_names(tmp_path=None):
+def test_a_named_layout_recovers_slot_names():
     """T6's tail: a spec the caller NAMES is not a guess.
 
     Extraction is positional by default because reading intent off a
@@ -1781,8 +1768,7 @@ def test_a_named_layout_recovers_slot_names(tmp_path=None):
     root = Path(__file__).resolve().parent.parent
     spec = root / "examples" / "patchbayground.py"
     bs1 = next(r for r in patchbayground.RACKS if r.name == "BS1")
-    out = Path(tmp_path or "build") / "BS1.named.adg"
-    out.parent.mkdir(exist_ok=True)
+    out = SCRATCH / "BS1.named.adg"
     io.save(bs1.build(), out)
 
     positional = extract.source(out)
@@ -1795,7 +1781,7 @@ def test_a_named_layout_recovers_slot_names(tmp_path=None):
 
     ns: dict = {}
     exec(compile(named, "<named>", "exec"), ns)
-    rebuilt = Path(tmp_path or "build") / "BS1.named.rebuilt.adg"
+    rebuilt = SCRATCH / "BS1.named.rebuilt.adg"
     io.save(ns["RACKS"][0].build(), rebuilt)
     changed, lost, invented = diff.compare(out, rebuilt, show_all=True)
     assert not (changed or lost or invented), "naming a slot moved a fact"
@@ -1862,3 +1848,48 @@ def test_a_send_is_written_on_the_chain_that_owns_the_return():
         mixer = ret.find("MixerPreset")
         for info in next(mixer.iter("SendInfos")):
             assert info.find("Send/KeyMidi") is None
+
+
+def test_build_writes_one_file_per_rack_and_nothing_else():
+    """`build/` holds what a build produced, or it holds nothing useful.
+
+    The suite used to write round-trip output there - 190 files named
+    `X.extract.adg` and `X.extract.rebuilt.adg` beside 58 racks - and
+    nothing told the two apart by name. Tests write to SCRATCH now, and
+    `--clean` removes a rack that a rename left behind.
+    """
+    from patchbay import compile as compile_spec
+
+    spec = Path(__file__).resolve().parent.parent / "examples" / "patchbayground.py"
+    out = SCRATCH / "built"
+    built = compile_spec.compile_spec(spec, out)
+    assert sorted(p.name for p in out.iterdir()) == sorted(
+        b.path.name for b in built), "a build writes racks and no scratch"
+
+    stale = out / "RENAMED_AWAY.adg"
+    stale.write_bytes(b"")
+    compile_spec.compile_spec(spec, out, clean=True)
+    assert not stale.exists(), "--clean drops what this build did not write"
+
+    try:
+        compile_spec.compile_spec(spec, out, only=["DR1"], clean=True)
+    except compile_spec.SpecError:
+        pass
+    else:
+        raise AssertionError("--clean beside --only would delete the rest")
+
+
+if __name__ == "__main__":
+    passed = failed = 0
+    for name, fn in sorted(globals().items()):
+        if not name.startswith("test_") or not callable(fn):
+            continue
+        try:
+            fn()
+            print(f"  pass  {name}")
+            passed += 1
+        except Exception as e:
+            print(f"  FAIL  {name}: {type(e).__name__}: {e}")
+            failed += 1
+    print(f"\n{passed} passed, {failed} failed")
+    sys.exit(1 if failed else 0)
