@@ -17,19 +17,19 @@ guess is usually right, and silently wrong the rest of the time.
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
+
+from lxml import etree
 
 from . import find, io, mappings, params as P, samples, variations
 from .library import Library
 
-#: Rack device tag -> the `Rack` constructor that builds one. A midi effect
-#: rack has no constructor because `RackKind` has no member for it, and the
-#: emitted `Rack.midi_effect(...)` fails loudly rather than building the
-#: wrong kind of rack silently.
 #: Live's silent floor for a send, as the file spells it. A send left here
 #: carries no information a rebuild does not already write.
 FLOOR = "0.0003162277571"
 
+#: Rack device tag -> the `Rack` constructor that builds one.
 KIND_OF = {
     "InstrumentGroupDevice": "instrument",
     "AudioEffectGroupDevice": "audio_effect",
@@ -484,11 +484,24 @@ def _emit_rack(preset_el, name_hint: str, used: set[str], lines: list[str],
 
 
 def source(path: Path | str) -> str:
-    """The DSL source for a `.adg`, as a string."""
+    """The DSL source for a saved rack, as a string.
+
+    Takes a `.adg`, which holds one rack in preset form, or a `.als`, which
+    holds as many racks as its tracks carry in Set form. Q9 is the mapping
+    between the two, and `preset_from_set` applies it, so everything after
+    that point is one emitter.
+    """
     root = io.load(path)
-    preset_el = find.preset(root)
-    if preset_el is None:
-        raise ValueError(f"{path}: no GroupDevicePreset; not a rack preset")
+    presets = []
+    if root.find("LiveSet") is not None or root.tag == "LiveSet":
+        presets = racks_in_set(root)
+        if not presets:
+            raise ValueError(f"{path}: no racks on any track")
+    else:
+        preset_el = find.preset(root)
+        if preset_el is None:
+            raise ValueError(f"{path}: no GroupDevicePreset; not a rack preset")
+        presets = [(Path(path).stem, preset_el)]
 
     lines = [
         '"""Extracted by `patchbay extract`. Slot names are positional.',
@@ -501,10 +514,248 @@ def source(path: Path | str) -> str:
         "",
     ]
     used: set[str] = set()
-    var, _ = _emit_rack(preset_el, Path(path).stem, used, lines)
-    lines.append(f"RACKS = [{var}]")
+    made = [_emit_rack(preset, hint, used, lines)[0] for hint, preset in presets]
+    lines.append(f"RACKS = [{', '.join(made)}]")
     return "\n".join(lines) + "\n"
+
+
+def write_modules(path: Path | str, out: Path | str) -> list[Path]:
+    """One module per rack in `path`, plus an index that imports them all.
+
+    For a Set with a strip on every track, printing one long module is the
+    wrong shape: each rack wants its own file to edit and rebuild. The index
+    exists so `patchbay build` takes the directory as one spec.
+    """
+    root = io.load(path)
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+
+    if root.find("LiveSet") is not None or root.tag == "LiveSet":
+        found = racks_in_set(root)
+        if not found:
+            raise ValueError(f"{path}: no racks on any track")
+    else:
+        preset_el = find.preset(root)
+        if preset_el is None:
+            raise ValueError(f"{path}: no GroupDevicePreset; not a rack preset")
+        found = [(Path(path).stem, preset_el)]
+
+    made, names = [], []
+    for hint, preset in found:
+        used: set[str] = set()
+        lines = [
+            '"""Extracted by `patchbay extract`. Slot names are positional."""',
+            "",
+            "from patchbay.dsl import Engine, Layout, Rack, Range, Slot",
+            "",
+        ]
+        var, _ = _emit_rack(preset, hint, used, lines)
+        lines.append(f"RACKS = [{var}]")
+        name = _ident(hint, set())
+        dest = out / f"{name}.py"
+        dest.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+        made.append(dest)
+        names.append(name)
+
+    index = out / "__init__.py"
+    body = ['"""Every rack extracted from one file, as one spec."""', ""]
+    body += [f"from .{n} import RACKS as {n}_racks" for n in names]
+    body += ["", "RACKS = " + " + ".join(f"{n}_racks" for n in names), ""]
+    index.write_text("\n".join(body), encoding="utf-8", newline="\n")
+    made.append(index)
+    return made
 
 
 def report(path: Path | str) -> None:
     print(source(path), end="")
+
+
+# --- reading racks out of a Set -------------------------------------------
+
+#: Set form to preset form, per Q9. The rack device tag is the same in both;
+#: everything around it is renamed and re-nested.
+BRANCH_OF = {
+    "AudioEffectGroupDevice": ("AudioEffectBranch", "AudioEffectBranchPreset"),
+    "InstrumentGroupDevice": ("InstrumentBranch", "InstrumentBranchPreset"),
+    "MidiEffectGroupDevice": ("MidiEffectBranch", "MidiEffectBranchPreset"),
+    "DrumGroupDevice": ("DrumBranch", "DrumBranchPreset"),
+}
+
+#: Ids that are live-session bookkeeping. Every preset Live saved here has
+#: them at 0; a Set has them pointing into the running LOM.
+SESSION_IDS = ("AutomationTarget", "ModulationTarget", "Pointee")
+
+
+def _templates_for(kind_tag):
+    """A branch preset and a device wrapper, from a rack of this kind.
+
+    Donor-based like the rest: rather than synthesising `AbletonDevicePreset`
+    from nothing, take one out of a file Live wrote.
+    """
+    branch_tag = BRANCH_OF[kind_tag][1]
+    root_dir = Path(__file__).resolve().parent.parent
+    for folder in ("donors", "racks"):
+        for candidate in sorted((root_dir / folder).glob("*.adg")):
+            try:
+                tree = io.load(candidate)
+            except Exception:
+                continue
+            branch = next(tree.iter(branch_tag), None)
+            wrapper = next(tree.iter("AbletonDevicePreset"), None)
+            if branch is not None and wrapper is not None:
+                return copy.deepcopy(branch), copy.deepcopy(wrapper)
+    raise FileNotFoundError(
+        f"no {branch_tag} to model on. A rack of that kind has to exist in "
+        f"donors/ or racks/ before one can be lifted out of a Set.")
+
+
+def _zero_session_ids(el):
+    """Point every live-session id back at nothing, as a preset does."""
+    for node in el.iter():
+        if isinstance(node.tag, str) and node.tag in SESSION_IDS:
+            node.set("Id", "0")
+
+
+def _wrap_device(device, wrapper_template, position):
+    """One Set-form device in the `AbletonDevicePreset` a preset expects."""
+    wrapper = copy.deepcopy(wrapper_template)
+    holder = wrapper.find("Device")
+    for child in list(holder):
+        holder.remove(child)
+    placed = copy.deepcopy(device)
+    placed.set("Id", "0")
+    holder.append(placed)
+    wrapper.set("Id", str(position))
+    return wrapper
+
+
+def _set_devices(branch):
+    """The devices in a Set-form branch, in order.
+
+    A branch's chain is `DeviceChain/<X>ToXDeviceChain/Devices`, and the
+    middle tag varies with the signal type, so it is found rather than
+    named.
+    """
+    chain = branch.find("DeviceChain")
+    if chain is None:
+        return []
+    for kid in chain:
+        devices = kid.find("Devices") if isinstance(kid.tag, str) else None
+        if devices is not None:
+            return [d for d in devices if isinstance(d.tag, str)]
+    return []
+
+
+def preset_from_set(rack_dev, at_top=True):
+    """Lift a rack out of a Set into the preset form a `.adg` holds.
+
+    Q9's mapping, and every part of it was read off `racks/q9_a.adg` beside
+    `racks/q9_b.als` rather than assumed:
+
+        Device/<X>GroupDevice          same node, Branches emptied
+        Branches/<X>Branch             -> BranchPresets/<X>BranchPreset
+        .../DeviceChain/.../Devices/D  -> DevicePresets/AbletonDevicePreset/Device/D
+        .../MixerDevice                -> MixerPreset/AbletonDevicePreset/Device/...
+
+    A nested rack recurses, because a rack inside a Set-form chain is
+    another `<X>GroupDevice` in that chain's `Devices`.
+    """
+    kind = rack_dev.tag
+    if kind not in BRANCH_OF:
+        raise ValueError(f"{kind} is not a rack device")
+    branch_template, wrapper_template = _templates_for(kind)
+
+    preset = etree.Element("GroupDevicePreset")
+    # A top-level GroupDevicePreset carries NO attributes and a nested one
+    # carries an Id. The caller places the Id; here the only rule is that
+    # the top level has none.
+    device_holder = etree.SubElement(preset, "Device")
+
+    lifted = copy.deepcopy(rack_dev)
+    lifted.set("Id", "0")
+    for container in ("Branches", "ReturnBranches"):
+        got = lifted.find(container)
+        if got is not None:
+            for child in list(got):
+                got.remove(child)
+    device_holder.append(lifted)
+
+    branches = etree.SubElement(preset, "BranchPresets")
+    source = rack_dev.find("Branches")
+    for i, branch in enumerate(source if source is not None else []):
+        branches.append(_lift_branch(branch, i, branch_template,
+                                     wrapper_template))
+
+    _zero_session_ids(preset)
+    if not at_top:
+        preset.set("Id", "0")
+    return preset
+
+
+def _lift_branch(branch, position, branch_template, wrapper_template):
+    """One Set-form branch as a branch preset."""
+    made = copy.deepcopy(branch_template)
+    made.set("Id", str(position))
+
+    # A chain's name is one node in a preset and four in a Set: preset form
+    # holds `<Name Value="erode" />`, Set form holds EffectiveName, UserName,
+    # Annotation and MemorizedFirstClipName. Take the effective one.
+    mine = made.find("Name")
+    theirs = branch.find("Name")
+    if mine is not None and theirs is not None:
+        effective = theirs.find("EffectiveName")
+        if effective is None:
+            effective = theirs.find("UserName")
+        mine.set("Value", "" if effective is None else effective.get("Value"))
+    elif mine is not None and theirs is None:
+        mine.set("Value", "")
+
+    # Carry across what both forms have and the preset side needs.
+    for tag in ("IsSoloed", "BranchSelectorRange", "ZoneSettings",
+                "SessionViewBranchWidth"):
+        theirs = branch.find(tag)
+        if theirs is None:
+            continue
+        mine = made.find(tag)
+        if mine is not None:
+            made.replace(mine, copy.deepcopy(theirs))
+
+    devices = made.find("DevicePresets")
+    for child in list(devices):
+        devices.remove(child)
+    for j, device in enumerate(_set_devices(branch)):
+        if device.tag in BRANCH_OF:
+            nested = preset_from_set(device, at_top=False)
+            nested.set("Id", str(j))
+            devices.append(nested)
+        else:
+            devices.append(_wrap_device(device, wrapper_template, j))
+
+    mixer = branch.find("MixerDevice")
+    holder = made.find("MixerPreset")
+    if mixer is not None and holder is not None:
+        for child in list(holder):
+            holder.remove(child)
+        holder.append(_wrap_device(mixer, wrapper_template, 0))
+    return made
+
+
+def racks_in_set(root):
+    """Every top-level rack in a Set, as (track name, preset form).
+
+    Top-level only: a rack nested inside another comes back inside its
+    parent, and lifting it twice would emit it twice.
+    """
+    out = []
+    for track in root.iter():
+        if not isinstance(track.tag, str) or not track.tag.endswith("Track"):
+            continue
+        name_el = track.find("Name/EffectiveName")
+        name = name_el.get("Value") if name_el is not None else track.tag
+        chain = track.find("DeviceChain/DeviceChain/Devices")
+        if chain is None:
+            continue
+        for device in chain:
+            if isinstance(device.tag, str) and device.tag in BRANCH_OF:
+                out.append((name, preset_from_set(device)))
+    return out

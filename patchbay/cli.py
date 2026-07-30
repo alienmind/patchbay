@@ -78,8 +78,13 @@ def _main():
     ck = sub.add_parser("check", help="would Live accept this file?")
     ck.add_argument("src")
 
-    ex = sub.add_parser("extract", help="emit DSL source for a saved rack")
-    ex.add_argument("src")
+    ex = sub.add_parser("extract",
+                        help="emit DSL source for a saved rack, or for every "
+                             "rack on every track of a Set")
+    ex.add_argument("src", help=".adg, or .als to read racks out of a Set")
+    ex.add_argument("-o", "--out",
+                    help="write one module per rack into this directory, "
+                         "plus an index, instead of printing")
 
     hv = sub.add_parser("harvest", help="lift donors out of saved files or Sets")
     hv.add_argument("src", nargs="+", help="files or directories, .adg/.adv/.als")
@@ -96,7 +101,11 @@ def _main():
 
     if args.cmd == "extract":
         from . import extract
-        extract.report(args.src)
+        if args.out:
+            for made in extract.write_modules(args.src, args.out):
+                print(made)
+        else:
+            extract.report(args.src)
     elif args.cmd == "harvest":
         from . import harvest
         harvest.report(args.src, args.out, keep_known=args.keep_known)

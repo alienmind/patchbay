@@ -206,6 +206,30 @@ def strip_macro_mappings(device):
     return removed
 
 
+#: Ids that point into a RUNNING session. Every preset Live saved here has
+#: them at 0, and a device harvested out of a `.als` carries the numbers the
+#: Set was using. See Q9.
+SESSION_ID_NODES = ("AutomationTarget", "ModulationTarget", "Pointee")
+
+
+def session_ids(root):
+    """Live-session ids on a device, which a preset never carries."""
+    return [el.tag for el in root.iter()
+            if isinstance(el.tag, str) and el.tag in SESSION_ID_NODES
+            and el.get("Id") not in (None, "0")]
+
+
+def zero_session_ids(root):
+    """Point them back at nothing. Returns how many were cleared."""
+    cleared = 0
+    for el in root.iter():
+        if isinstance(el.tag, str) and el.tag in SESSION_ID_NODES:
+            if el.get("Id") not in (None, "0"):
+                el.set("Id", "0")
+                cleared += 1
+    return cleared
+
+
 #: FileRef fields Live parses as int64. Set form leaves both blank, and
 #: every `.adg` Live saved here writes "0" - 12 racks, no exception. See Q9.
 INT64_FILEREF_FIELDS = ("OriginalFileSize", "OriginalCrc")

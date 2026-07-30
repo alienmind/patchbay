@@ -1305,6 +1305,9 @@ class Rack:
         # The third thing a donor drags in: a path written in two formats at
         # once, which Live refuses outright. See Q22.
         clone.strip_legacy_path_elements(device)
+        # And the fourth: a donor harvested from a `.als` carries the ids the
+        # running Set was using for automation. A preset carries zeros.
+        clone.zero_session_ids(device)
         holder.append(device)
         wrapper.set("Id", str(slot))
         return wrapper
