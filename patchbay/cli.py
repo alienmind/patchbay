@@ -74,6 +74,9 @@ def _main():
     b.add_argument("spec", help="a Python file declaring racks")
     b.add_argument("-o", "--out", default="build", help="output directory")
     b.add_argument("--only", nargs="+", help="build only these racks, by name")
+    b.add_argument("--clean", action="store_true",
+                   help="delete .adg files in the output directory this "
+                        "build did not write")
 
     ck = sub.add_parser("check", help="would Live accept this file?")
     ck.add_argument("src")
@@ -164,7 +167,7 @@ def _main():
         print(f"wrote {args.dest}")
     elif args.cmd == "build":
         try:
-            compile_spec.report(args.spec, args.out, args.only)
+            compile_spec.report(args.spec, args.out, args.only, args.clean)
         except compile_spec.SpecError as e:
             raise SystemExit(f"spec error: {e}")
     elif args.cmd == "check":

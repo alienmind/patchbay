@@ -104,12 +104,18 @@ def compile_spec(
     path: Path | str,
     out_dir: Path | str = "build",
     only: Sequence[str] | None = None,
+    clean: bool = False,
 ) -> list[Built]:
     """Load a spec and write every rack it declares.
 
     `only` filters by rack name. Each rack is checked for sibling id
     collisions before writing, so a file Live would refuse never reaches
     disk.
+
+    `clean` removes `.adg` files in `out_dir` this build did not write, so
+    a renamed rack does not leave its old name behind for somebody to drag
+    into Live. It removes nothing else, does not recurse, and is refused
+    beside `only`, where every rack not asked for would look stale.
     """
     module = load_spec(path)
     racks = racks_in(module)
@@ -124,18 +130,30 @@ def compile_spec(
         if not racks:
             raise SpecError(f"no rack matching {', '.join(only)}")
 
+    if clean and only:
+        raise SpecError(
+            "--clean with --only would delete every rack not asked for")
+
     out = Path(out_dir)
     built: list[Built] = []
     for rack in racks:
         target = out / f"{slugify(rack.name)}.adg"
         rack.save(target)
         built.append(Built(rack, target))
+
+    if clean:
+        keep = {b.path.resolve() for b in built}
+        for stale in sorted(out.glob("*.adg")):
+            if stale.resolve() not in keep:
+                stale.unlink()
+                print(f"  removed {stale}")
     return built
 
 
 def report(path: Path | str, out_dir: Path | str = "build",
-           only: Sequence[str] | None = None) -> list[Built]:
-    built = compile_spec(path, out_dir, only)
+           only: Sequence[str] | None = None,
+           clean: bool = False) -> list[Built]:
+    built = compile_spec(path, out_dir, only, clean)
     print(f"{Path(path).name} -> {len(built)} rack(s)\n")
     for b in built:
         engines = ", ".join(e.name for e in b.rack.engines)
