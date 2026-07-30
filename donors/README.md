@@ -62,7 +62,13 @@ DR1 place.
 `MidiPitcher` and `Saturator` still come from `racks/`. A file added here
 shadows the spike copy, which is the fix if either moves.
 
-**50 of these were saved by 12.0_12203 and the schema has moved since.**
+**Live's own installed content keeps its path.** A `FileRef` with
+`RelativePathType 7` is part of the DEVICE, not a file somebody dragged in:
+Hybrid Reverb's impulse response is one. Scrubbing it shipped a donor that
+loaded with "Media files are missing" in both DR1 returns. `scrub` skips
+those two fields now. Q27.
+
+**Most of these were saved by 12.0_12203 and the schema has moved since.**
 Live 12.4.3 writes `SchemaChangeCount 5` and renamed Compressor's sidechain
 EQ from five children of a `SideChainEq` element to five flat
 `SideChainEq_X` parameters. EQC wrote three settings at the old paths for a
@@ -70,10 +76,18 @@ whole release, and nothing could catch it: the DSL refuses a path the DONOR
 lacks, and the donor had them. Q19.
 
 So a stale donor is not merely a stale VALUE, it is a stale vocabulary.
-Where a 12.4.3 file exists in `racks/` holding the same device, the two
-parameter lists can be compared by name; `Compressor2` was the only rename
-found, against two harmless additions. The devices no 12.4.3 file covers
-are unchecked.
+
+**Every donor has now been compared by parameter NAME against Live 12.4.3's
+own factory library**, 73 files over 59 devices, no Live open. Three
+renames in total - `Compressor2`, `Limiter`, `MultiSampler` - plus two new
+parameters each on `Chorus2`, `LoungeLizard` and `MidiRandom`. Those five
+were re-harvested and the other 53 left alone, because an addition breaks
+nothing and re-harvesting a device moves every rack that uses it. Q28 has
+the table and the reasoning.
+
+Re-run that scan after a Live update. It answers the question a version
+bump actually raises, which is not "did anything change" but "did anything
+I BIND change".
 
 ## Configured or not
 
