@@ -34,7 +34,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from . import find, io
+from . import clone, find, io
 
 Element = etree._Element
 
@@ -397,6 +397,13 @@ def build(tracks: list[Track], returns: list[str] | None = None,
 
 
 def save(root: Element, path: Path | str) -> Path:
+    """Write the Set, refusing one Live would reject.
+
+    Same gate as a rack: a missing device Id or a path written in two
+    formats makes Live refuse the whole document, and both are things a
+    donor drags in. Fail loudly rather than write it.
+    """
+    clone.assert_loadable(root)
     return io.save(root, path)
 
 
