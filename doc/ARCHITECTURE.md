@@ -319,6 +319,15 @@ in its UI** - not on the macro, the target, or in Map mode. Ranges are
 writable only from the file, so a generator can express per-mapping scoping
 that cannot be built by hand.
 
+**[V] A range may be INVERTED.** `Min > Max` is honoured, and the knob runs
+backwards: EQC's Duck writes `Min 1, Max 0.000316` on the compressor's
+`Threshold`, so the knob rises as the threshold falls. Checked in Live
+12.4.3, Q26. No file Live wrote can carry one, since there is no range
+editor to write it with.
+
+Unlike a chain zone, which Live REPAIRS when its bounds invert (Â§7). Two
+constructs, two behaviours, and the zone is the one to be careful with.
+
 **[V]** Ranges are per parameter, not per device: within one Saturator,
 Drive is `-36..36` while Output is `-36..0`.
 
@@ -472,13 +481,45 @@ chain-select layout in `PATCHBAYGROUND.md` gets driven from a macro.
 matters at the single-value boundary between touching zones, and probably
 needs listening rather than a diff.
 
-**[?]** Whether Live repairs or rejects a zone violating the ordering
-invariant is untested.
+**[V]** Live REPAIRS a zone that violates the ordering invariant rather
+than rejecting it, and repairs it by clamping: `Min 120, Max 20` came back
+out of Live as `Min = CrossfadeMin = CrossfadeMax = Max = 20`, a zone one
+value wide. So an inverted zone is accepted, silently, as something other
+than what was written. Q7, `build/Q7_bad_zone.adg` against
+`racks/q7_c.adg`.
 
-**[?]** Key and velocity zones are untested. They exist on Instrument Rack
-chains and are presumably siblings of this structure, but that is a guess
-until diffed. `KeyRange` and `VelocityRange` elements were observed in
-`racks/s1_source.adg`.
+### Key and velocity zones
+
+**[V]** A chain carries THREE zones of identical shape. Two of them sit
+inside `ZoneSettings`, and the chain selector does NOT:
+
+```xml
+<InstrumentBranchPreset Id="1">
+  <BranchSelectorRange> ... </BranchSelectorRange>     <!-- chain select -->
+  <ZoneSettings>
+    <KeyRange>      <Min/> <Max/> <CrossfadeMin/> <CrossfadeMax/> </KeyRange>
+    <VelocityRange> <Min/> <Max/> <CrossfadeMin/> <CrossfadeMax/> </VelocityRange>
+  </ZoneSettings>
+```
+
+| zone | scale | full open |
+|---|---|---|
+| `BranchSelectorRange` | chain selector, 0..127 | 0..127 |
+| `ZoneSettings/KeyRange` | MIDI note, 0..127 | 0..127 |
+| `ZoneSettings/VelocityRange` | velocity, **1**..127 | 1..127 |
+
+Velocity starts at 1, not 0, because velocity 0 is a note-off.
+
+**[V]** All three exist on every chain of a rack Live saved, full open.
+Drawing a zone NARROWS what is already there; it does not create an
+element. So a generator that writes no zone writes a chain that answers to
+everything, which is the same file Live writes.
+
+**[V]** A zero-width fade is stored as equality, not absence:
+`CrossfadeMin == Min` and `CrossfadeMax == Max`. The crossfade bound moves
+with the hard bound when nothing is drawn.
+
+Q3, `racks/q3_a.adg` against `racks/q3_b.adg`.
 
 ## 8. Ids
 
@@ -896,8 +937,9 @@ Ordered by how much they gate the build.
 
 | | question | spike | gates |
 |---|---|---|---|
-| **[?]** | Chain zone: is `Max` inclusive? Does Live repair a violated zone ordering? | S5 tail | Phase 4, low stakes |
-| **[?]** | Key and velocity zone encoding - assumed sibling of `BranchSelectorRange`, unverified. | S5 rest | Phase 4 |
+| **[?]** | Chain zone: is `Max` inclusive? | S5 tail | Phase 4, low stakes |
+| **[V]** | Does Live repair a violated zone ordering? **Yes, by clamping every bound to `Max`.** Closed, see Â§7 | Q7 | nothing |
+| **[V]** | Key and velocity zone encoding. **`ZoneSettings/KeyRange` and `/VelocityRange`, same four fields.** Closed, see Â§7 | Q3 | multi-sampled racks |
 | **[?]** | `OriginalCrc` algorithm. 16-bit; zlib and 10 CRC-16 variants ruled out over 4 chunk choices. **Closed as irrelevant** - nothing reads it on load. | - | nothing |
 | **[V]** | Can an *unmapped* macro carry `MacroHasValue = true`? **Yes, and it does nothing.** Closed, see Â§11 | S8 tail | nothing |
 | **[V]** | Snapshot ceiling. **None at 256**, no truncation. Closed, see Â§11 | S8 tail | nothing |
@@ -922,6 +964,10 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 | `s8_a/b/c.adg` | same rack with 0, 1 and 2 macro variations | the `MacroSnapshot` structure |
 | `s9_a/b/c/d.adg` | drum rack: 2 pads, then a return, then a send raised, then a pad moved | `ZoneSettings`, `ReturnBranchPresets`, `SendInfos` |
 | `s10_c..g.adg` | one macro-metadata change per save | each `.N` family, `NumVisibleMacroControls` |
+| `q3_a.adg` / `q3_b.adg` | two-chain Instrument Rack, split first by key then by velocity | `ZoneSettings/KeyRange`, `/VelocityRange` |
+| `q7_c.adg` | `build/Q7_bad_zone.adg` dragged back out of Live | an inverted zone is repaired by clamping |
+| `q20_a..d.adg` | one `MidiScale` saved at four scale settings | `Base`, `InternalScale`, `UseCurrentScale` |
+| `q21_hp.adg` / `q21_bell.adg` | one `Eq8`, band 1 high-pass then bell | the band `Mode` enum, per band |
 | `build/s10_range_test.adg` | Drive's `MidiControllerRange/Max` set to 12 | mapping ranges are `MidiControllerRange` |
 | `build/s6_*.adg` | duplicate vs merely-gapped ids | siblings must be unique; value is free |
 | `build/s12_*.adg` | 1, 5, 9 and all 18 parameters deleted | devices may be partial |

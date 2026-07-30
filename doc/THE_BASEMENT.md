@@ -467,3 +467,48 @@ the rule that a mapping which resolves is not a mapping that moves
 anything. The first two were switched-off modulators (Q16, H6). This one is
 different in kind and worth remembering separately: the target was not
 switched off, it was never mappable.
+
+## Aftertouch as something a rack file carries
+
+**Never built, and the spike was called off rather than run.** Q2 asked for
+a diff of a rack before and after mapping aftertouch to a parameter, on the
+theory that it would be a sibling of the `KeyMidi` mechanism, which already
+encodes a virtual MIDI CC.
+
+**What killed it:** there is nothing to diff. In Live 12.4.3 aftertouch
+reaches a rack macro one of two ways, and neither is a field in the preset:
+
+- **MPE Control**, a MIDI effect placed BEFORE the rack, whose Pressure
+  output is mapped to a macro. The routing belongs to that device and to
+  the track it sits on.
+- **MIDI Map mode**, Ctrl+M, macro clicked, key pressed hard. That is a
+  MIDI mapping in the SET, the same class of fact as the sidechain source
+  in Q18: not in the `.adg`, so not authorable here.
+
+So `PATCHBAYGROUND.md` asking for aftertouch on filter and pitch for every
+sound is asking for a DEVICE in the strip plus a mapping per Set, not for a
+parameter on the instrument racks. Adding MPE Control to ARP1 or MFX1 is an
+ordinary declaration and needs a donor harvested for it; the mapping stays
+manual, beside picking the sidechain source.
+
+**What it cost:** nothing. Two saves not spent.
+
+## Meld's glide as another switched-off modulator
+
+**A theory, held for three rounds, and wrong.** LD1's Character knob moves
+`MeldVoice_EngineA_GlideTime` and glide was not heard, which matched the
+Q16 family exactly: Operator's `Lfo/LfoOn`, `Filter/LfoOn` and
+`Globals/PortamentoOn` are all switches that must be written beside the
+binding. Q17 was raised to find Meld's.
+
+**What killed it:** Meld has no glide switch. The device carries exactly
+two glide parameters per engine, `_GlideMode` and `_GlideTime`, and
+`GlideMode` is `Porta | Gliss` - two behaviours, no off. `racks/q17_a.adg`
+against `build/LD1.adg` is the one-line diff.
+
+**What replaced it:** nothing to fix in the binding. The knob reaches the
+parameter that owns the feature. Why the result was inaudible is a question
+about Meld's voicing, and it is ears, not structure.
+
+**What it cost:** two saves, and it closed the mapped-but-switched-off
+family at five members instead of leaving a sixth open forever.

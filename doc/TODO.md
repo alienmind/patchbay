@@ -17,11 +17,16 @@ reading racks out of a Set. What each one became is in `README.md`,
 `ARCHITECTURE.md`, `SCHEMA.md`, `DSL.md` or `THE_BASEMENT.md`, per the
 routine at the bottom.
 
-What is left is optional, and none of it blocks anything: **Q19** (the sidechain EQ mode enum),
-**Q20** (how a named scale is stored), **Q17** (Meld glide mode), **Q2**
-(aftertouch), **Q3** (key and velocity zones, needed only for SR1), **Q8**
-(send taper), **Q21** (the Eq8 band mode enum, for a swept sub-cut), the
-**Q7**, **S10** and **Q5** tails.
+What is left is optional, and none of it blocks anything: **Q8** (send
+taper) and **Q6** (return selectors, mostly answered by AFX1).
+
+**One thing is worth deciding, not answering.** Q19 found that 50 of the 59
+donors were saved by Live 12.0_12203 and that the schema has renamed at
+least one parameter family since. Re-harvesting every donor from 12.4.3 is
+one pass over a Live library and would move every golden; comparing
+parameter NAMES against the 12.4.3 files already in `racks/` costs nothing
+and covers only the devices those files happen to hold. The second is done
+and found one rename. The first is a call.
 
 Donors for the whole channel strip are in: `ChannelEq`, `Tuner`,
 `SpectrumAnalyzer`, `AutoShift`, `MidiArpeggiator`, `MidiNoteLength`,
@@ -166,45 +171,24 @@ EFFECT rather than the send level. The pieces are known separately, the
 combination is untested. **C1 is the same mechanism one level up**, so
 building AFX1 answers most of this for free.
 
-**Q19. The sidechain EQ mode enum.** `SideChainEq/Mode` reads 5 in the
-`Compressor2` donor and the enum is undiffed, so EQC sets the band
-frequency and leaves the mode where the donor left it. PATCHBAYGROUND.md
-asks for a low band only. Diff a compressor with the sidechain EQ set to
-each mode in turn: `racks/q19_low.adg`, `racks/q19_band.adg`,
-`racks/q19_high.adg`.
+**Q23 is worth re-opening if a hand-mapped send exists.** `Rack.sending` is
+buried on the strength of one check: the mapping resolved and the send did
+not move. A send column mapped to a macro BY LIVE, saved as a pair, would
+say whether the mechanism is impossible or whether we wrote it in the wrong
+place. Nothing depends on it; DR1's kit slots 5 and 6 stay named and
+unbound until then.
 
-**Q20. How a named scale is stored.** `MidiScale` carries twelve
-`Mapping.N` parameters, one per semitone, and no single parameter that
-selects a scale by name. So MFX1 binds Root and Transpose and leaves Scale
-Selector unbound rather than binding a knob to twelve mappings, which is a
-different control from the one the spec asks for. Save the same MIDI rack
-with two different scales chosen and diff.
+`racks/s9_c.adg` is the baseline: a drum rack with two pads, one return
+chain and a send already raised, 12 KB. Drag it in, save it straight back
+out as `racks/q23_a.adg` to absorb the session drift, then map a macro to
+one chain's Send A and save `racks/q23_b.adg`. The `a -> b` diff is the
+one change.
 
-**Q17. Meld's glide mode.** `MeldVoice_Engine{A,B}_GlideMode` reads 0 and
-the enum is undiffed, so LD1's Macro 6 moves Meld's glide TIME and glides
-nothing. The last of the mapped-but-switched-off family. Load
-`build/LD1.adg`, turn glide on for engine A only, save `racks/q17_a.adg`
-and the off twin as `racks/q17_b.adg`.
-
-**Q2. Aftertouch.** `PATCHBAYGROUND.md` wants aftertouch on filter and
-pitch for every sound, excluding drum pads. Nothing is known about how it
-is stored. Probably a sibling of the `KeyMidi` mechanism, since that
-already encodes MIDI, but that is a guess. Diff a rack before and after
-mapping aftertouch to one parameter: `racks/q2_a.adg` / `_b.adg`.
-
-**Q3. Key and velocity zones.** S5 settled chain-select zones. Key and
-velocity zones are Instrument Rack only and are PRESUMED siblings of
-`BranchSelectorRange`. Do not assume it in code until diffed. Save an
-instrument rack with two chains, drag a key zone, then a velocity zone,
-one save each: `racks/q3_key_a.adg` / `_b.adg`, `racks/q3_vel_a.adg` /
-`_b.adg`.
-*Blocks: multi-sampled racks, and SR1 with them.*
-
-**Q7 tail. Does Live REPAIR an inverted zone.** `build/Q7_bad_zone.adg`
-loads on a MIDI track with `Min 120, Max 20`, so Live does not reject the
-invariant and the DSL need not guard it. Whether the values survive is one
-drag back to the browser as `racks/q7_c.adg` and one diff. Nothing depends
-on it until a spec states a zone directly.
+**Hybrid Reverb's impulse response slot is blank** in both DR1 returns,
+because the donor was harvested and harvesting strips paths. Unlike a
+Simpler sample part, an IR slot cannot simply be removed, and whether Live
+falls back to a built-in response or reports a missing file is unchecked.
+One drag answers it.
 
 **Q8. Send taper.** Sends are linear amplitude from 0.000316 to 1, but
 whether the knob is linear in amplitude or in dB is unknown. Only matters
@@ -213,16 +197,6 @@ if a spec ever states send levels as knob percentages.
 **Q9 is closed.** The full mapping between Set form and preset form is in
 `SCHEMA.md`, read off `racks/q9_a.adg` beside `racks/q9_b.als`. Four donor
 repairs came out of it and `patchbay extract` reads a Set because of it.
-
-**S10 tail. Macro mapping range from the UI.** Live 12.4.3 has no macro
-range editor, so the reverse test at `build/s10_range_test.adg` is prepared
-and unrun: write a narrowed `MidiControllerRange`, load it, and see what
-the UI shows. Load `build/PD1.adg`, right-click Macro 3, report what the
-range UI offers.
-
-**Q5 tail.** Whether Live keeps or strips `MacroHasValue.N` on an unmapped
-macro. Save `build/probe_q5_unmapped.adg` back out of Live to
-`racks/q5_b.adg` and diff. Cheap, and nothing depends on it.
 
 ## Standing manual work
 

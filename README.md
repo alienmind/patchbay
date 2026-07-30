@@ -202,8 +202,10 @@ Every item below was gated by loading the output in Live 12.4.3.
 - read, write, lossless round trip
 - structural diff, which is the discovery engine
 - node navigation and parameter addressing, including nested paths
-- macro mappings read and written, including ranges Live's own UI cannot set
-- return chains with per-chain send levels, and a macro across all of them
+- macro mappings read and written, including ranges Live's own UI cannot
+  set, and INVERTED ranges, where the knob rises as the parameter falls
+- return chains with per-chain send levels. A send takes a value and not a
+  macro, whatever the file will let you write - see Q23
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth

@@ -1092,6 +1092,18 @@ Copy Parameter Name, Remove Mapping, Show Generic 0-127 Value, Rename,
 Edit Info Text, Exclude Macro from Randomization, Exclude Macro From
 Variations, colour palette.
 
+Re-checked on `build/PD1.adg`, Macro 3 (Resonance), Live 12.4.3: the menu
+offers `Show Generic 0-127 Values` and no range editor, and the entry
+carries the note
+
+    This macro will continue to show generic 0-127 values because of its
+    mappings
+
+So Live declines to show a macro in a parameter's units at all once the
+macro reaches more than one target, which every slot in `PATCHBAYGROUND.md`
+does by design. A knob's meaning lives in its NAME here, not in a unit
+Live will not print. The S10 tail is closed.
+
 ### Resolved by reverse test - ranges ARE `MidiControllerRange`
 
 `build/s10_range_test.adg` is `s3b` with
@@ -1569,7 +1581,7 @@ One value differed that is NOT a form difference: `Drive` read 0 in the
 with a knob moved between them. Worth stating because it is exactly the kind
 of difference a spike pair is supposed to exclude, and this one did not.
 
-## Q7. An inverted chain-select zone loads - PARTLY ANSWERED
+## Q7. An inverted chain-select zone loads, and Live REPAIRS it - ANSWERED
 
 **Evidence:** `build/Q7_bad_zone.adg`, an instrument rack whose chain 2
 carries `Min 120, Max 20` with the crossfades outside both, breaking the
@@ -1577,10 +1589,29 @@ carries `Min 120, Max 20` with the crossfades outside both, breaking the
 track.
 
 **So Live does not refuse an inverted zone**, and a DSL guard that raises
-on one would be stricter than the format. What is NOT known is whether Live
-REPAIRED the values on load or kept them as written; the answer is one drag
-back out to the browser and a diff, and nothing depends on it until a spec
-can state a zone directly.
+on one would be stricter than the format.
+
+**It does not keep it either.** Dragged straight back out to the browser as
+`racks/q7_c.adg`, chain 2's zone reads:
+
+    BranchSelectorRange/Min           120  ->  20
+    BranchSelectorRange/CrossfadeMin   10  ->  20
+    BranchSelectorRange/CrossfadeMax    5  ->  20
+
+`Max` was 20 and stayed 20, so Live collapsed the zone to `Min = XfMin =
+XfMax = Max = 20`: it clamps every bound down to `Max` rather than swapping
+Min and Max. An inverted zone is therefore silently a ONE-value zone, not
+the range that was written, which is the worst of both answers for a
+generator - no error, and not what the file said.
+
+**So the DSL should refuse an inverted zone after all**, not because Live
+rejects the file but because Live rewrites the intent. Nothing states a zone
+directly yet; the guard belongs with the first caller that does.
+
+The rest of that diff is drift from the same session, not part of the
+finding: `Operator/Filter/Frequency` 12000 -> 30 on both chains, and
+`LastPresetRef` filled in with a Drift path, which `patchbay diff` hides
+without `--all`.
 
 ## Q18. The sidechain source is not in preset form - ANSWERED
 
@@ -1735,3 +1766,214 @@ reachable.
 which fails on any mapping whose range crosses zero while its macro sits at
 0. It cannot check that a start is the RIGHT position; it can check that a
 bipolar parameter is not left at its extreme.
+
+## Q21. The Eq8 band mode enum - PARTLY ANSWERED
+
+**Evidence:** `racks/q21_hp.adg` and `racks/q21_bell.adg`, one Eq8 in an
+audio effect rack, band 1 saved as a high-pass and then as a bell.
+
+    Eq8/Bands.0/ParameterA/Mode/Manual@Value    1  ->  3
+    Eq8/Bands.0/ParameterA/Gain/Manual@Value    0  ->  15
+    Eq8/Bands.0/ParameterA/Freq/Manual@Value   30  ->  30.3010044
+
+**`Mode` is an int enum on the BAND, not on the device**, one per
+`Bands.N/ParameterA`, so eight bands carry eight independent modes.
+**Mode 1 is a high-pass and mode 3 is a bell.** The pair says nothing about
+the other six entries, and bell is the shipped default, which is why
+`q21_bell` also carries the +15 dB and the 0.3 Hz of knob drift that made
+the change visible.
+
+`Gain` reaching 15 also shows the library's harvested range for that
+parameter, `-9..9`, is the DONOR's `MidiControllerRange` and not the
+parameter's own limit. A range read out of a donor is a mapping range, not a
+validation bound.
+
+**Bands.0/ParameterA/Freq is `10..22000`**, which is what makes VOL1's Sub
+Cut a swept frequency: set `Mode` to 1 once and bind `Freq`.
+
+## Q20. A named scale IS one parameter - ANSWERED
+
+**Evidence:** four saves of one MIDI rack holding `MidiScale`,
+`racks/q20_a.adg` through `_d.adg`. Diffs, in order:
+
+    a -> b   Base            0 -> 7
+    a -> c   Base            0 -> 7      UseCurrentScale  false -> true
+    c -> d   Base            7 -> 10     InternalScale        0 -> 2
+                             UseCurrentScale  true -> false
+
+Three parameters, and the twelve `Mapping.N` never moved:
+
+    Base              root, 0..11 semitones, 0 = C, 7 = G, 10 = A#
+    InternalScale     the scale BY NAME, 0..35, 0 = User, 2 = Minor
+    UseCurrentScale   the Scale Awareness toggle - follow the Set's scale
+
+`d` is A# Minor and reads `Base 10, InternalScale 2`, which fixes both
+enum entries at once. The library reports `InternalScale` as `0..35` and
+Live 12.4.3's menu lists exactly 36 entries in this order, so the index is
+the menu position: User, Major, Minor, Dorian, Mixolydian, Lydian,
+Phrygian, Locrian, Whole Tone, Half-whole Dim., Whole-half Dim., Minor
+Blues, Minor Pentatonic, Major Pentatonic, Harmonic Minor, Harmonic Major,
+Dorian #4, Phrygian Dominant, Melodic Minor, Lydian Augmented, Lydian
+Dominant, Super Locrian, 8-Tone Spanish, Bhairav, Hungarian Minor,
+Hirajoshi, In-Sen, Iwato, Kumoi, Pelog Selisir, Pelog Tembung, Messiaen 3
+to Messiaen 7. Only 0 and 2 are diffed; the rest is the list read in order.
+
+**What this corrects.** The earlier reading, that a scale is twelve
+`Mapping.N` parameters and nothing selects one by name, was wrong: the
+twelve mappings are the USER scale, reachable only at `InternalScale 0`.
+So MFX1 gets its Scale Selector, one knob over one enum, and it must also
+write `UseCurrentScale false` or the Set's own scale wins and the knob
+moves nothing - the Q16 family, a switch in front of a binding.
+
+## Q17. Meld has no glide switch, so glide was never off - ANSWERED
+
+**Evidence:** `build/LD1.adg` beside `racks/q17_a.adg`, the same rack with
+engine A's glide set to Gliss and its glide time driven to full.
+
+    InstrumentMeld/MeldVoice_EngineA_GlideMode/Manual@Value   0  ->  1
+    InstrumentMeld/MeldVoice_EngineA_GlideTime/Manual@Value   0  ->  2
+
+**`GlideMode` is `Porta | Gliss`, not on and off.** Meld exposes exactly
+two glide parameters per engine, `MeldVoice_Engine{A,B}_GlideMode` and
+`_GlideTime`, and no enable of any kind. Mode 0 is Portamento, the shipped
+default, and mode 1 is Glissando.
+
+**So the mapped-but-switched-off diagnosis of LD1's Character knob is
+wrong.** There was no switch to find. The knob moves `GlideTime` and
+`GlideTime` is the whole feature, so whatever glide does or does not do
+under it is a question about Meld's voicing, not about a binding, and the
+Q16 family is closed at five members rather than six.
+
+## Q3. Key and velocity zones - ANSWERED
+
+**Evidence:** `racks/q3_a.adg` and `racks/q3_b.adg`, one instrument rack of
+two chains, split first across the keyboard and then across the velocity
+lane.
+
+    [0]/ZoneSettings/KeyRange/Max              61  ->  127
+    [0]/ZoneSettings/KeyRange/CrossfadeMax     61  ->  127
+    [0]/ZoneSettings/VelocityRange/Max        127  ->   56
+    [0]/ZoneSettings/VelocityRange/CrossfadeMax 127 ->  56
+    [1]/ZoneSettings/KeyRange/Min              62  ->    0
+    [1]/ZoneSettings/KeyRange/CrossfadeMin     62  ->    0
+    [1]/ZoneSettings/VelocityRange/Min          1  ->   57
+    [1]/ZoneSettings/VelocityRange/CrossfadeMin  1 ->   57
+
+**A chain's three zones are three siblings of the same shape**, each with
+`Min`, `Max`, `CrossfadeMin`, `CrossfadeMax`:
+
+    <chain>/ZoneSettings/KeyRange           0..127, MIDI note
+    <chain>/ZoneSettings/VelocityRange      1..127, velocity - note the 1
+    <chain>/BranchSelectorRange             0..127, chain select
+
+`ZoneSettings` holds the key and velocity zones and NOT the chain selector,
+which sits one level up as a sibling of `ZoneSettings` itself. Both files
+were saved with zones already present on every chain, so `ZoneSettings` is
+not created by dragging a zone: Live writes all three ranges for every
+chain, full-open, and a zone is a narrowing of what is already there.
+
+The crossfade bounds move WITH the hard bounds when no crossfade is drawn,
+which is how a zero-width fade is stored - not by absence, but by
+`CrossfadeMin == Min` and `CrossfadeMax == Max`. Velocity starts at 1 and
+not 0, because velocity 0 is a note-off.
+
+*Unblocks: multi-sampled racks, and SR1 with them.*
+
+## Q5 tail. `MacroHasValue.N` survives with no mapping - ANSWERED
+
+**Evidence:** `build/probe_q5_unmapped.adg`, written with
+`MacroHasValue.5 = true` on macro 6, which `patchbay mappings` confirms
+reaches nothing, loaded in Live 12.4.3 and dragged back out as
+`racks/q5_b.adg`.
+
+`MacroHasValue.5` is still `true`, and the other fifteen are still `false`.
+**Live neither strips the field nor validates it against the mapping
+list.** The diff is knob movement from the session plus the usual
+`MacroDefaults.N` catch-up from `-1` to `0`.
+
+So the field is not a mapping cache and cannot be used as one. Nothing
+depends on it.
+
+## Q19. The sidechain EQ mode enum, and a RENAME under it - ANSWERED
+
+**Evidence:** `racks/q19_lp.adg`, `_bp.adg` and `_hp.adg`, one Compressor
+saved three times with the sidechain EQ in each of its three modes. Each
+diff is one line:
+
+    Compressor2/SideChainEq_Mode/Manual@Value    5  ->  4  ->  3
+
+| value | band |
+|---|---|
+| 5 | low-pass |
+| 4 | band-pass |
+| 3 | high-pass |
+
+**This is NOT the Eq8 enum.** Q21 read 1 as a high-pass and 3 as a bell on
+`Eq8/Bands.N/ParameterA/Mode`. Here 3 is a high-pass. Two devices, two
+lists, and reading one off the other would have put EQC's sidechain on the
+wrong band.
+
+5 is also the value the old donor carried, so EQC's band was already the
+one `PATCHBAYGROUND.md` asks for. It is written explicitly now.
+
+### The parameters are FLAT in 12.4.3, and were NESTED in 12.2
+
+The path is `SideChainEq_Mode`, not `SideChainEq/Mode`. Live 12.4.3 writes
+five flat parameters where `donors/Compressor2.adg`, saved by 12.0_12203,
+has a `SideChainEq` element with five children:
+
+    12.0_12203, SchemaChangeCount 3    SideChainEq/On  /Mode  /Freq  /Q  /Gain
+    12.0_12402, SchemaChangeCount 5    SideChainEq_On SideChainEq_Mode ...
+
+So EQC had been writing `SideChainEq/On` and `SideChainEq/Freq` into a
+container 12.4.3 does not have. The DSL cannot catch that: it refuses a
+path the DONOR lacks, and the donor had those paths. **A parameter path is
+only as current as the donor it was checked against.**
+
+**Fixed** by re-harvesting `donors/Compressor2.adg` out of
+`racks/q19_lp.adg` and writing the flat names. EQC's golden moved.
+
+**Scanned for more of it.** Every donor holding a device that also appears
+in a 12.4.3 file under `racks/`, compared by parameter NAME:
+
+| device | difference | kind |
+|---|---|---|
+| `Compressor2` | five `SideChainEq/X` became `SideChainEq_X` | RENAME, silent breakage |
+| `MidiScale` | gained `InternalScale`, `UseCurrentScale` | addition |
+| `Delay` | gained six `Modulation_*` | addition |
+
+Only the rename can break a spec quietly; an addition is a parameter
+nothing has bound yet. 50 of the 59 donors were saved by 12.0_12203, and
+the ones no 12.4.3 file covers are unscanned.
+
+## Q26. An INVERTED mapping range - ANSWERED, and it works
+
+**Where it came from:** EQC's Duck knob drove `SideChain/DryWet`, the
+sidechain MIX, and checked in Live 12.4.3 it never made a track duck
+however far it was turned. Mix blends the external signal against the
+track's own; the control that decides how much a kick flattens this track
+is `Threshold`, and it moves the wrong way round - the knob must rise as
+the threshold FALLS.
+
+Nothing in the format says a range must ascend, so the binding writes:
+
+    Compressor2/Threshold/MidiControllerRange/Min    1
+    Compressor2/Threshold/MidiControllerRange/Max    0.0003162277571
+
+**[V] Live honours `Min > Max`.** Checked in Live 12.4.3 on
+`build/EQC.adg`: Duck full left leaves the threshold at 0 dB, Duck full
+right puts it on the floor, and the track ducks as declared. The knob runs
+backwards because the range does.
+
+There can be no Live-SAVED evidence for this, and there never will be:
+12.4.3 has no macro range editor at all (S10), so no file Live wrote has
+ever carried an inverted range. This is the second capability the format
+has and the GUI does not, after the range itself.
+
+Q7 was the reason to doubt it - Live accepts an inverted chain ZONE and
+silently clamps it - so the two constructs do not behave alike. A zone is
+repaired, a mapping range is obeyed.
+
+`Threshold` is stored as **linear amplitude**, not dB: `1.0` is 0 dB,
+`0.000316` is -70 dB, the same scale as a send (Â§12). So the knob is linear
+in amplitude and its middle sits near -6 dB.
