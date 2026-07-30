@@ -191,9 +191,10 @@ and racks nested inside racks so one instrument reaches all the others.
 [`examples/patchbayground.py`](examples/patchbayground.py) is this
 project's attempt at rebuilding that, from what is publicly visible of it
 plus everything harvesting my own devices. It serves as **one big
-example, and the end-to-end test**. Six racks, three levels of nesting, 96
-variations, eight drum pads - if a change breaks something real, it breaks
-there first. Check [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md) for more details.
+example, and the end-to-end test**. Twelve racks, six instruments and a six
+rack channel strip, three levels of nesting, 96 variations, eight drum pads
+- if a change breaks something real, it breaks there first. All twelve have
+been loaded into Live 12.4.3 and played. Check [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md) for more details.
 
 ## What works today
 
