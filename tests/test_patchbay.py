@@ -1318,6 +1318,39 @@ def _structure(root):
     return chains, maps, pos, names
 
 
+def test_a_rack_lifted_out_of_a_set_matches_its_preset_twin():
+    """T6c, gated on the Q9 pair.
+
+    `racks/q9_b.als` is a Set holding one rack; `racks/q9_a.adg` is that
+    same rack dragged out to the browser, so both were written by Live and
+    the only difference between them is the container. Lifting the Set form
+    and rebuilding it has to land on the preset form's structure.
+
+    Not fact-exact, and cannot be: the two files were saved a minute apart
+    and a knob moved between them, which is a value rather than a shape.
+    """
+    from patchbay import extract
+
+    lifted = extract.racks_in_set(io.load(RACKS / "q9_b.als"))
+    assert [name for name, _ in lifted] == ["1-Audio"]
+
+    ns = {}
+    exec(compile(extract.source(RACKS / "q9_b.als"), "q9_b.als", "exec"), ns)
+    rebuilt = ns["RACKS"][0].build()
+
+    want = _structure(io.load(RACKS / "q9_a.adg"))
+    got = _structure(rebuilt)
+    assert want[0] == got[0], "chains differ"
+    assert want[1] == got[1], "mappings differ"
+    assert want[2] == got[2], "macro positions differ"
+    assert want[3] == got[3], "macro labels differ"
+
+    # And the lifted tree is loadable in its own right, which is the whole
+    # point of preset form: the three donor repairs apply to a Set exactly
+    # as they do to a donor.
+    clone.assert_loadable(rebuilt)
+
+
 def test_extract_round_trips_structure(tmp_path=None):
     """Extract a rack, rebuild from the emitted source, compare.
 
