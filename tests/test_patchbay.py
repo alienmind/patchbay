@@ -1879,6 +1879,29 @@ def test_build_writes_one_file_per_rack_and_nothing_else():
         raise AssertionError("--clean beside --only would delete the rest")
 
 
+def test_the_send_slider_loses_20_db_per_halving():
+    """Q8, measured: `racks/q8_half.adg` and `racks/q8_quarter.adg`.
+
+    Neither guess was right. Half the travel is not 0.5 (linear in
+    amplitude) and it is not -35 dB (linear in dB over -70..0). It is
+    -20 dB, and a quarter is -40 dB, so the stored value is the slider
+    position raised to log2(10).
+    """
+    half = diff.flatten(io.load(RACKS / "q8_half.adg"))
+    quarter = diff.flatten(io.load(RACKS / "q8_quarter.adg"))
+
+    def first_send(facts):
+        return float(next(v for k, v in facts.items()
+                          if k.endswith("Send/Manual@Value")))
+
+    assert abs(first_send(half) - 0.1) < 1e-6
+    assert abs(first_send(quarter) - 0.01) < 1e-6
+    assert abs(params.send_amplitude(0.5) - 0.1) < 1e-9
+    assert abs(params.send_amplitude(0.25) - 0.01) < 1e-9
+    assert abs(params.send_knob(0.1) - 0.5) < 1e-9
+    assert params.send_amplitude(0.0) == params.SEND_FLOOR
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):

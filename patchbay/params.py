@@ -7,8 +7,13 @@ source of silently wrong output (ARCHITECTURE.md section 12):
   macros, variations  0..127 continuous
   sends               linear amplitude, 0.000316..1
 
+A send has a fourth: where its SLIDER sits, which is not its stored value.
+`send_amplitude` converts, and Q8 measured the curve.
+
 Everything here is explicit about which one it is dealing with.
 """
+
+import math
 
 MACRO_MAX = 127.0
 
@@ -209,3 +214,37 @@ def set_send_amount(mixer_el, index, amplitude):
         if idx is not None and idx.get("Value") == str(index):
             return set_value(info.find("Send"), amplitude)
     raise ValueError(f"no send with Index {index}; add a return chain first")
+
+
+#: A send slider loses 20 dB per HALVING of its travel: full is 0 dB, half
+#: is -20 dB, a quarter is -40 dB. Measured in Live 12.4.3, Q8.
+SEND_DB_PER_HALVING: float = 20.0
+
+#: Which makes the stored amplitude the slider position raised to
+#: log2(10) = 3.3219, since 10^(log2(x)) is x^log2(10).
+SEND_EXPONENT: float = math.log2(10.0)
+
+#: Live's silent floor, 10^(-70/20), reached at 8.8 percent of the travel.
+#: Below that the slider reads -inf and nothing stores lower.
+SEND_FLOOR: float = 0.0003162277571
+
+
+def send_amplitude(knob: float) -> float:
+    """The stored send value for a slider `knob` fraction of the way up.
+
+    `knob` is 0..1, the POSITION of the slider, which is neither the stored
+    amplitude nor a macro's 0..127. Three scales already, and this is the
+    conversion between the first two.
+    """
+    if not 0.0 <= knob <= 1.0:
+        raise ValueError(f"a send slider position is 0..1, got {knob:g}")
+    if knob == 0.0:
+        return SEND_FLOOR
+    return max(knob ** SEND_EXPONENT, SEND_FLOOR)
+
+
+def send_knob(amplitude: float) -> float:
+    """Where the slider sits for a stored amplitude. Inverse of the above."""
+    if amplitude <= SEND_FLOOR:
+        return 0.0
+    return amplitude ** (1.0 / SEND_EXPONENT)

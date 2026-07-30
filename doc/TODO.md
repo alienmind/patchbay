@@ -10,43 +10,13 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Q8, the send taper | you | 2 saves | Only matters if a spec ever states send levels as percentages |
-| 2 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 1 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
 **Nothing is blocked and nothing is waiting on a check.** All twelve racks
-plus 46 strip instances build, and every claim any of them rests on has
-been through Live 12.4.3.
+plus 46 strip instances build, every claim any of them rests on has been
+through Live 12.4.3, and the last open spike closed with Q8.
 
-## 1. Q8, the send taper
-
-**What this decides:** whether a spec can ever say "this pad sends 30
-percent". Nothing today needs it.
-
-**What to produce:** two files, `racks/q8_half.adg` and
-`racks/q8_quarter.adg`, plus two numbers reported back.
-
-**Steps.**
-
-1. New MIDI track. Drag `racks/s9_c.adg` onto it. It is a drum rack with
-   two pads and one return chain, so the chain list already has a Send
-   column.
-2. Open the chain list. Find pad 1's send slider.
-3. Drag it to the MIDDLE of its travel, by eye. Do not type a value.
-4. Note the dB number Live displays for it.
-5. Drag the rack's title bar into the browser to save it. Copy the file to
-   `racks/q8_half.adg`.
-6. Drag the same slider to a QUARTER of its travel, by eye. Note the dB
-   number again.
-7. Save it the same way, to `racks/q8_quarter.adg`.
-
-**Report:** the two dB numbers, one per file.
-
-By eye is deliberate: the question is where the SLIDER sits, not what a
-typed value stores, so typing a number answers a different question. The
-macro route does not work either - a driven send does not write its driven
-value to disk (Q23).
-
-## 2. The donor name scan
+## 1. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames

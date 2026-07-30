@@ -2113,3 +2113,30 @@ inner racks carry none, and that no return's send is mapped.
 **Checked in Live 12.4.3 after the fix:** every pad shows both send
 columns, kit Macro 5 sweeps all eight Send A levels together, Macro 6 does
 the same for Send B, and both returns respond.
+
+## Q8. The send slider loses 20 dB per halving - ANSWERED
+
+**Evidence:** `racks/q8_half.adg` and `racks/q8_quarter.adg`, one send
+dragged by eye to half and then a quarter of its travel in Live 12.4.3.
+
+| slider | Live displays | stored |
+|---|---|---|
+| full | 0 dB | 1 |
+| half | -20 dB | 0.1 |
+| quarter | -40 dB | 0.01 |
+
+**Neither guess was right.** Linear in amplitude would put half at `0.5`.
+Linear in dB over the -70..0 the stored range implies would put it at
+-35 dB. It is a power law: every HALVING of the travel costs 20 dB, so
+
+    amplitude = position ** log2(10)      log2(10) = 3.3219
+    position  = amplitude ** (1 / log2(10))
+
+`params.send_amplitude` and `params.send_knob` are that pair. The floor,
+`0.000316` or -70 dB, is reached at 8.8 percent of the travel, and
+everything below it reads -inf.
+
+**What it unlocks:** a spec may state a send as a slider position, which is
+what a player sees, instead of an amplitude nobody can picture. It stays a
+FOURTH scale beside the three in section 12 of `ARCHITECTURE.md`: a send's
+slider position is not its stored value, and neither is a macro's 0..127.

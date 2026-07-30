@@ -859,26 +859,36 @@ to every chain, or the rack will be inconsistent.
 **[V]** Send level is **linear amplitude**: `Min` is `0.0003162277571`
 (10^(-70/20), -70 dB, the silent floor) and `Max` is `1` (0 dB).
 
-This is a **third scale** in the format. Keep them straight:
+This is a **third and fourth scale** in the format. Keep them straight:
 
 | thing | scale |
 |---|---|
 | macros and variations | `0..127`, continuous (Â§5, Â§11) |
 | chain zones | `0..127` integer positions (Â§7) |
 | device parameters | native units, per-parameter range (Â§4) |
-| sends | linear amplitude `0.000316..1` (Â§12) |
+| sends, stored | linear amplitude `0.000316..1` (Â§12) |
+| sends, on screen | slider position `0..1`, 20 dB per halving |
 
-**[?]** Whether the send knob is linear in amplitude or in dB is untested.
+**[V] The send SLIDER loses 20 dB per halving of its travel**, so it is
+neither linear in amplitude nor linear in dB: half reads -20 dB and stores
+`0.1`, a quarter reads -40 dB and stores `0.01`. The conversion is
+`amplitude = position ** log2(10)`, and `params.send_amplitude` is it.
+Measured in Live 12.4.3, Q8.
 
-**[V] A send takes a VALUE and not a macro.** `Send` carries `LomId`,
-`Manual`, `MidiControllerRange`, `AutomationTarget` and `ModulationTarget`,
-which is the shape every macro-driven parameter has, so a `KeyMidi` written
-inside one is a valid mapping addressed by containment like any other. Live
-12.4.3 ignores it: the file loads, `patchbay mappings` reports the mapping,
-the send column shows the send, and turning the knob leaves it at -inf
-(Q23). Being shaped like a parameter is not being one.
+**[V] A send takes a macro like any other parameter.** `Send` carries
+`LomId`, `Manual`, `MidiControllerRange`, `AutomationTarget` and
+`ModulationTarget`, and a `KeyMidi` written inside one is a mapping
+addressed by containment like any other. Verified in Live 12.4.3 both ways:
+Live writes the identical element when the mapping is made by hand, and the
+knob sweeps the send (Q23).
 
-So a spec states send levels and a player moves them by hand.
+The mapping must go on the chain's OWN mixer. A chain holding a nested rack
+lists `DevicePresets` before `MixerPreset`, so a descendant search for
+`SendInfos` finds the INNER rack's first chain and every send lands one
+level too deep (Q29).
+
+So a spec states send levels, and one macro may sweep every chain's send to
+one return.
 
 ### View state worth knowing
 
