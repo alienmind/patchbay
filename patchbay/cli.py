@@ -85,6 +85,10 @@ def _main():
     ex.add_argument("-o", "--out",
                     help="write one module per rack into this directory, "
                          "plus an index, instead of printing")
+    ex.add_argument("--layout", metavar="SPEC",
+                    help="a spec whose slot names to reuse wherever an "
+                         "extracted binding agrees with one of its own; "
+                         "slots stay positional everywhere else")
 
     hv = sub.add_parser("harvest", help="lift donors out of saved files or Sets")
     hv.add_argument("src", nargs="+", help="files or directories, .adg/.adv/.als")
@@ -102,10 +106,11 @@ def _main():
     if args.cmd == "extract":
         from . import extract
         if args.out:
-            for made in extract.write_modules(args.src, args.out):
+            for made in extract.write_modules(args.src, args.out,
+                                              args.layout):
                 print(made)
         else:
-            extract.report(args.src)
+            extract.report(args.src, args.layout)
     elif args.cmd == "harvest":
         from . import harvest
         harvest.report(args.src, args.out, keep_known=args.keep_known)
