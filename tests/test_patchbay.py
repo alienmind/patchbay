@@ -825,7 +825,12 @@ def test_the_example_racks_still_build_the_same_bytes():
         text = "\n".join(f"{k}={v}" for k, v in sorted(facts.items()))
         return hashlib.sha256(text.encode()).hexdigest()[:16]
 
-    built = {rack.name: digest(rack) for rack in patchbayground.RACKS}
+    # The per-track strip instances are the same six racks under 46 names,
+    # so digesting them costs half the suite's runtime and proves nothing a
+    # digest of EQC does not already prove.
+    instances = {r.name for r in patchbayground.STRIP_INSTANCES}
+    built = {rack.name: digest(rack) for rack in patchbayground.RACKS
+             if rack.name not in instances}
 
     if os.environ.get("PATCHBAY_REGOLD"):
         GOLDEN.write_text(
@@ -1382,7 +1387,12 @@ def test_extract_round_trips_structure(tmp_path=None):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import patchbayground
 
+    # Same reason as the goldens: a strip instance is EQC under another
+    # name, and round tripping 46 of them is half this suite's runtime.
+    instances = {r.name for r in patchbayground.STRIP_INSTANCES}
     for rack in patchbayground.RACKS:
+        if rack.name in instances:
+            continue
         original = rack.build()
         out = Path(tmp_path or "build") / f"{rack.name}.extract.adg"
         out.parent.mkdir(exist_ok=True)
@@ -1733,3 +1743,79 @@ def test_the_skeletons_come_from_donors_and_not_from_evidence():
     assert float(send.find("Manual").get("Value")) == dsl.SEND_FLOOR, (
         "a lifted template carries shape, never the value it was saved at")
     assert send.find("KeyMidi") is None, "nor anybody else's mapping"
+
+
+def test_one_strip_instance_per_track_named_for_it():
+    """PATCHBAYGROUND.md's naming rule, as a loop rather than six copies.
+
+    PM1 is an audio track, so it takes the audio half of the strip and
+    neither MIDI rack: 6 racks over 7 MIDI tracks plus 4 over PM1.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+    from patchbay.dsl import RackKind
+
+    names = [r.name for r in patchbayground.STRIP_INSTANCES]
+    assert len(names) == 46 == len(set(names))
+    assert "EQC_BS1" in names and "VOL1_PM1" in names
+    assert not [n for n in names if n.startswith(("ARP1_PM1", "MFX1_PM1"))], (
+        "a MIDI effect rack cannot go on an audio track")
+    for inst in patchbayground.STRIP_INSTANCES:
+        if inst.kind is RackKind.MIDI_EFFECT:
+            continue
+        assert inst.name.split("_")[1] in patchbayground.TRACKS
+
+
+def test_a_named_layout_recovers_slot_names(tmp_path=None):
+    """T6's tail: a spec the caller NAMES is not a guess.
+
+    Extraction is positional by default because reading intent off a
+    parameter path invents it. Passing a spec makes the name a second file's
+    claim rather than the extractor's, and the rack still rebuilds fact for
+    fact.
+    """
+    from patchbay import extract
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    root = Path(__file__).resolve().parent.parent
+    spec = root / "examples" / "patchbayground.py"
+    bs1 = next(r for r in patchbayground.RACKS if r.name == "BS1")
+    out = Path(tmp_path or "build") / "BS1.named.adg"
+    out.parent.mkdir(exist_ok=True)
+    io.save(bs1.build(), out)
+
+    positional = extract.source(out)
+    assert "Slot('Macro 3'" in positional, "the default names nothing"
+
+    named = extract.source(out, layout=spec)
+    assert "Slot('Filter + Res'" in named
+    assert ".drives(bs1_layout.filter_res," in named, (
+        "the reference must be the identifier Layout will build")
+
+    ns: dict = {}
+    exec(compile(named, "<named>", "exec"), ns)
+    rebuilt = Path(tmp_path or "build") / "BS1.named.rebuilt.adg"
+    io.save(ns["RACKS"][0].build(), rebuilt)
+    changed, lost, invented = diff.compare(out, rebuilt, show_all=True)
+    assert not (changed or lost or invented), "naming a slot moved a fact"
+
+
+def test_a_donor_keeps_lives_own_installed_paths():
+    """Q27. Harvest scrubs a user's kick and must not scrub a device's IR.
+
+    `RelativePathType 7` is Live's installed content. Scrubbing it shipped
+    a Hybrid Reverb that loaded with "Media files are missing" in both DR1
+    returns, and nothing in the file said so.
+    """
+    from patchbay.library import Library
+
+    hybrid = Library.default().instance("Hybrid")
+    refs = [r for r in hybrid.iter("FileRef")
+            if (r.find("RelativePathType") is not None
+                and r.find("RelativePathType").get("Value") == "7")]
+    assert refs, "the Hybrid donor carries no installed-content reference"
+    for ref in refs:
+        assert ref.find("RelativePath").get("Value"), (
+            "the relative path is the one Live resolves for type 7; the "
+            "absolute one is the macOS path Ableton ships to both platforms")
