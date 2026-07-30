@@ -2063,3 +2063,46 @@ rack for the sake of three.
 `Resources/Core Library`, it needs no Live open, and it answers the question
 a version bump raises: not "did anything change" but "did anything I BIND
 change".
+
+## Q29. A send went into the nested rack, not the chain - ANSWERED
+
+**Evidence:** `build/DR1.adg` in Live 12.4.3. Kit Macros 5 and 6 moved
+nothing, and neither return responded, with `patchbay mappings` reporting
+16 send mappings that all resolved.
+
+A census of where those `AudioBranchSendInfo` entries actually sat:
+
+    8 + 8   DrumBranchPreset/GroupDevicePreset/InstrumentBranchPreset
+    2 + 2   ReturnBranchPresets/.../GroupDevicePreset/AudioEffectBranchPreset
+    2       ReturnBranchPresets/AudioEffectBranchPreset
+
+**The eight pads had none.** Every send, level and mapping alike, was
+written one level too deep, on the chains of the rack INSIDE each pad.
+
+The cause is one call: `branch.iter("SendInfos")` is a DESCENDANT search,
+and a chain holding a nested rack lists its children in this order:
+
+    Name  IsSoloed  DevicePresets  MixerPreset  BranchSelectorRange  ...
+
+`DevicePresets` comes first, so the first `SendInfos` in document order
+belongs to the inner rack's first chain. The fix is `MixerPreset` first,
+then search under it.
+
+**This is rule 4 in `CLAUDE.md` in a place the rule did not name.** The
+rule says a rack's `Device` and its `BranchPresets` are siblings and that
+walking up to the nearest `*GroupDevice` is wrong. The same mistake walks
+DOWN: `iter` crosses into a nested rack, and everything below a chain that
+holds one belongs to a different rack.
+
+**What it hid.** The macro mapping was written into the inner rack's send,
+so by containment it addressed the INNER rack's macro 5 - a knob no kit
+control reaches. `patchbay mappings` reported it correctly, at depth 2,
+which is exactly what the output said and nobody read.
+
+Also fixed beside it: a RETURN's own send to the other return is seeded by
+Live and belongs to nobody, so `sending` no longer maps it. Sweeping it
+would have fed the delay into the reverb as the pads got louder.
+
+**Guarded** by `test_a_send_is_written_on_the_chain_that_owns_the_return`,
+which asserts the pads carry two sends each on their own mixer, that the
+inner racks carry none, and that no return's send is mapped.

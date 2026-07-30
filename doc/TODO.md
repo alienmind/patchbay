@@ -10,7 +10,7 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Load `build/DR1.adg`, turn kit Macros 5 and 6 | you | 1 drag | Whether the restored send knobs sweep every pad, and whether the returns are now audible |
+| 1 | Load `build/DR1.adg`, turn kit Macros 5 and 6 | you | 1 drag | Whether Q29's fix landed: the sends were being written into the nested rack, one level too deep |
 | 2 | Check the Hybrid Reverb in either DR1 return names an impulse response | you | same drag | Whether Q27's fix landed: the donor keeps Live's own IR path now |
 | 3 | Q8, the send taper | you | 2 saves | Only matters if a spec ever states send levels as percentages |
 | 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
@@ -23,11 +23,16 @@ the five stale donors re-harvested.
 
 `build/DR1.adg` was rebuilt after both changes, so it carries them.
 
+The last check failed and Q29 says why: every send was written into the
+rack nested inside each pad, so the eight pads had no send column at all
+and the mapping addressed a macro no kit knob reaches. Rebuilt.
+
 | # | Do this | Should happen |
 |---|---|---|
-| 1 | Turn kit Macro 5 (Send A) up | Every pad's Send A rises together, reverb comes in |
-| 2 | Turn kit Macro 6 (Send B) up | Same for the delay return |
-| 3 | Click the Hybrid Reverb inside the `A-Rvb:Short` return | It names an impulse response instead of reporting missing media |
+| 1 | Look at the chain list before touching anything | Each pad shows two send columns, A and B, both at the bottom |
+| 2 | Turn kit Macro 5 (Send A) up | Every pad's Send A rises together, reverb comes in |
+| 3 | Turn kit Macro 6 (Send B) up | Same for the delay return |
+| 4 | Click the Hybrid Reverb inside the `A-Rvb:Short` return | It names an impulse response instead of reporting missing media |
 
 Expected still open: per-pad send levels all start at the floor, so the
 knobs are the only thing moving them.
