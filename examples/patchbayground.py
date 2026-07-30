@@ -722,14 +722,18 @@ MFX = Layout(
     # transposing everything down 128 semitones. S2a.
     Slot("Pitch", start=63.5),
     Slot("Root"),
+    Slot("Scale", start=7.3),
 )
 
-# Two things this rack does NOT carry.
+# Scale Selector is one knob over one enum. Q20: `InternalScale` selects a
+# scale by NAME over 0..35, and the twelve `Mapping.N` parameters are the
+# USER scale sitting at index 0. 7.3 of 127 is index 2, Minor, the first
+# scale that is not the user table.
 #
-# Scale Selector, from PATCHBAYGROUND.md: MidiScale stores a scale as twelve
-# `Mapping.N` parameters, one per semitone, and no single parameter selects a
-# named scale. Binding one knob to twelve mappings is a different control
-# from the one the spec asks for. Q20.
+# `UseCurrentScale` is the switch in front of the binding: left true, the
+# Set's own scale wins and the knob moves nothing. Q16 family.
+#
+# One thing this rack does NOT carry.
 #
 # Transpose. MidiScale's `Transpose` and MidiPitcher's `Pitch` both move
 # incoming notes by semitones, so two knobs for one idea, and S2a found them
@@ -742,7 +746,10 @@ MFX1 = Rack.midi_effect("MFX1", MFX).chain(
     .drives(MFX.vel_rand, "Random")
     .then(Engine("MidiPitcher")
           .drives(MFX.pitch, "Pitch", over=Range(-24.0, 24.0, "st")))
-    .then(Engine("MidiScale").drives(MFX.root, "Base")))
+    .then(Engine("MidiScale")
+          .sets("UseCurrentScale", False)
+          .drives(MFX.root, "Base")
+          .drives(MFX.scale, "InternalScale", over=Range(0.0, 35.0))))
 
 
 EQ = Layout(
@@ -750,7 +757,9 @@ EQ = Layout(
     Slot("Mid", start=64),
     Slot("Hi", start=64),
     Slot("Comp", start=127),
-    Slot("Duck", start=127),
+    # Duck drives Threshold DOWNWARD, so 64 is roughly -6 dB and 0 is no
+    # ducking at all. See the binding for why the range is written backwards.
+    Slot("Duck", start=64),
     Slot("Gain", start=64),
 )
 
@@ -758,12 +767,30 @@ EQ = Layout(
 #: PATCHBAYGROUND.md asks the EQC compressor to hear. Q is the donor's own.
 SIDECHAIN_HZ = 100.0
 
+#: How hard the kick ducks this track. WRITTEN BACKWARDS ON PURPOSE: the
+#: knob rises as the threshold falls, so Duck at 0 is 0 dB and compresses
+#: nothing, and Duck at full is the floor and compresses everything.
+#:
+#: Threshold is stored as linear amplitude, not dB - 1.0 is 0 dB and
+#: 0.000316 is -70 dB, the same scale as a send. The knob is therefore
+#: linear in amplitude, which puts its middle near -6 dB.
+#:
+#: The old binding drove `SideChain/DryWet`, the sidechain MIX, which blends
+#: the external signal against the track's own and never made the track duck
+#: however far it was turned. Checked in Live 12.4.3.
+DUCK_THRESHOLD = Range(1.0, 0.0003162277571, "amplitude")
+
 # The three shelf knobs open at centre rather than at full: an EQ's neutral
 # is 0 dB in the middle of its range, not the top of it.
 #
 # The sidechain is CONFIGURED here and its SOURCE is not, because a device
 # preset does not carry one - see Q18 in SCHEMA.md. Dropped on a track this
 # arrives with External on, the band set, and one dropdown left to fill.
+#
+# The sidechain EQ parameters are FLAT, `SideChainEq_Freq`, not nested under
+# a `SideChainEq` element. Live renamed them between 12.2 and 12.4.3 and the
+# donor this rack used predated the rename, so three settings were written
+# at paths 12.4.3 does not have. Q19.
 EQC = Rack.audio_effect("EQC", EQ).chain(
     "strip",
     Engine("ChannelEq")
@@ -772,10 +799,14 @@ EQC = Rack.audio_effect("EQC", EQ).chain(
     .drives(EQ.hi, "HighShelfGain")
     .then(Engine("Compressor2")
           .drives(EQ.comp, "DryWet")
-          .drives(EQ.duck, "SideChain/DryWet")
+          .drives(EQ.duck, "Threshold", over=DUCK_THRESHOLD)
           .sets("SideChain/OnOff", True)
-          .sets("SideChainEq/On", True)
-          .sets("SideChainEq/Freq", SIDECHAIN_HZ))
+          .sets("SideChainEq_On", True)
+          # Q19: 5 is low-pass, 4 band-pass, 3 high-pass. Low-pass is the
+          # band PATCHBAYGROUND.md asks for, and it is also the donor's
+          # value, so this line changes nothing today and says so.
+          .sets("SideChainEq_Mode", 5)
+          .sets("SideChainEq_Freq", SIDECHAIN_HZ))
     .then(Engine("StereoGain")
           .drives(EQ.gain, "Gain", over=Range(-12.0, 12.0, "dB"))))
 
@@ -875,15 +906,21 @@ VOL = Layout(
     Slot("Release", start=64),
 )
 
-# Last on the strip. Sub-Cut is Channel EQ's high-pass SWITCH rather than a
-# swept frequency: it is a plain boolean, where a swept cut would need
-# Eq8's band Mode, an enum nothing here has diffed. Q21.
+# Last on the strip. Sub Cut is a SWEPT high-pass: Q21 diffed the band mode
+# enum, mode 1 is a high-pass, and it is set once on band 1 of an Eq8 so the
+# knob can drive that band's frequency. 20 Hz at the bottom is below what a
+# monitor reproduces, so knob 0 is no cut without needing a switch.
 #
 # The limiter is what makes this the last device: Pre Gain pushes into it
 # and Ceiling says where the output stops.
+SUB_CUT_HZ = Range(20.0, 300.0, "Hz")
+
 VOL1 = Rack.audio_effect("VOL1", VOL).chain(
     "strip",
-    Engine("ChannelEq").drives(VOL.sub_cut, "HighpassOn")
+    Engine("Eq8")
+    .sets("Bands.0/ParameterA/IsOn", True)
+    .sets("Bands.0/ParameterA/Mode", 1)
+    .drives(VOL.sub_cut, "Bands.0/ParameterA/Freq", over=SUB_CUT_HZ)
     .then(Engine("StereoGain")
           .drives(VOL.pre_gain, "Gain", over=Range(-12.0, 12.0, "dB")))
     .then(Engine("Limiter")

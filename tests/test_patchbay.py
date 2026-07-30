@@ -1047,24 +1047,27 @@ def test_a_zone_inside_a_series_is_refused():
 def test_a_placed_device_does_not_inherit_the_donor_rack_mappings():
     """A donor is a device cut out of somebody's rack, mappings included.
 
-    `Compressor2.adg` carries five, on Threshold, Ratio, Gain, DryWet and
+    `Compressor2.adg` carried five, on Threshold, Ratio, Gain, DryWet and
     On, all pointing at macro 4 of a rack that no longer exists. Placed
     unchanged, one knob of the new rack moved all five. Same shape as the
     donor's Drift modulation row: a donor is for the parameter list, never
     for anybody's decisions.
+
+    `AutoFilter` carries the two this test rides on now. The Compressor2
+    donor was re-harvested for Q19 and its mappings went with the rename.
     """
     from patchbay.library import Library
 
-    donor = Library.default().device("Compressor2")
+    donor = Library.default().device("AutoFilter")
     assert mappings.find(donor.instance()), (
         "this test is pointless if the donor carries no mappings")
 
-    g = Layout(Slot("Comp"))
+    g = Layout(Slot("Cutoff"))
     rack = Rack.audio_effect("C", g).chain(
-        "strip", Engine("Compressor2").drives(g.comp, "DryWet"))
+        "strip", Engine("AutoFilter").drives(g.cutoff, "Cutoff"))
     branch = find.branches(find.preset(rack.build()))[0]
     assert {(m["macro"], m["target"]) for m in mappings.find(branch)} == {
-        (1, "DryWet")}
+        (1, "Cutoff")}
 
 
 def test_a_midi_effect_rack_builds_with_its_own_branch_tag():
@@ -1098,8 +1101,12 @@ def test_the_sidechain_is_configured_but_never_sourced():
 
     comp = next(patchbayground.EQC.build().iter("Compressor2"))
     assert find.param(comp, "SideChain/OnOff").find("Manual").get("Value") == "true"
-    assert find.param(comp, "SideChainEq/On").find("Manual").get("Value") == "true"
-    assert find.param(comp, "SideChainEq/Freq").find("Manual").get("Value") == "100"
+    # Flat, not nested: Live renamed these between 12.2 and 12.4.3, and the
+    # first donor predated the rename. Q19.
+    assert find.param(comp, "SideChainEq_On").find("Manual").get("Value") == "true"
+    assert find.param(comp, "SideChainEq_Freq").find("Manual").get("Value") == "100"
+    assert find.param(comp, "SideChainEq_Mode").find("Manual").get("Value") == "5", (
+        "5 is the low-pass sidechain band, Q19")
 
     target = find.setting(comp, "SideChain/RoutedInput/Routable/Target")
     assert target.get("Value") == "AudioIn/None", (
@@ -1168,6 +1175,15 @@ def test_a_bound_modulator_is_switched_on():
                 continue
             assert drift.find("ModulationMatrix_Target1").get("Value") == "6", (
                 f"{rack.name}: Drift's LFO is bound but routed nowhere useful")
+        # Q20. Scale Awareness makes the Set's scale win over the device's,
+        # so a bound InternalScale under it selects a scale nothing uses.
+        for scale in root.iter("MidiScale"):
+            if not params.is_mapped(find.param(scale, "InternalScale")):
+                continue
+            got = params.raw_value(find.param(scale, "UseCurrentScale"))
+            assert got == "false", (
+                f"{rack.name}: InternalScale is mapped with Scale Awareness "
+                f"on, so the Set's scale wins and the knob selects nothing")
 
 
 def test_glide_is_only_enabled_where_a_rack_spends_it():
@@ -1643,3 +1659,56 @@ if __name__ == "__main__":
             failed += 1
     print(f"\n{passed} passed, {failed} failed")
     sys.exit(1 if failed else 0)
+
+
+def test_an_earlier_harvest_path_wins_a_tie():
+    """`racks/` is evidence, and a probe ties the donor it was cut from.
+
+    Decided by filename order instead, `racks/q17_a.adg` took Operator from
+    `racks/s1_source.adg` because q sorts first, and every rack in the build
+    arrived with glide on and its filter at 30 Hz. donors/ now breaks the
+    tie, and a fuller copy still wins - which is how a 12.4.3 MidiScale out
+    of `racks/` replaces a donor harvested before Scale Awareness existed.
+    """
+    from patchbay.library import Library
+    lib = Library.default()
+    assert lib.get("Operator").source == "Operator.adg"
+    assert lib.get("MidiScale").source.startswith("q20_"), (
+        "a fuller copy still wins on parameter count")
+    assert "InternalScale" in lib.get("MidiScale").params
+
+
+def test_a_sampler_with_no_sample_declared_carries_no_sample_part():
+    """A donor names no file, and Live reads the leftover part as MISSING.
+
+    Checked in Live 12.4.3: PD1's Sample chain, built from a harvested
+    OriginalSimpler, loaded with a missing-sample warning rather than as an
+    empty sampler. `Engine.sample` refuses a path that is not a file, so a
+    blank path in the output means nobody ever named one.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    for rack in patchbayground.RACKS:
+        for part in rack.build().iter("MultiSamplePart"):
+            ref = part.find("SampleRef/FileRef/Path")
+            assert ref is not None and ref.get("Value"), (
+                f"{rack.name}: a sample part with no path is a missing "
+                f"sample in Live, not an empty sampler")
+
+
+def test_an_inverted_range_stays_inverted():
+    """Q26, and it looks like a typo, which is why it is asserted here.
+
+    EQC's Duck rises as the compressor's threshold falls. Live 12.4.3
+    honours `Min > Max` - checked on `build/EQC.adg` - and its own UI cannot
+    write one, so nothing outside this repo will ever produce the shape.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import patchbayground
+
+    comp = next(patchbayground.EQC.build().iter("Compressor2"))
+    r = find.param(comp, "Threshold").find("MidiControllerRange")
+    lo = float(r.find("Min").get("Value"))
+    hi = float(r.find("Max").get("Value"))
+    assert lo > hi, "Duck drives the threshold DOWNWARD as the knob rises"
