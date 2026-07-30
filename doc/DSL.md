@@ -475,18 +475,41 @@ the rack does not have raises.
 returns, at the silent floor. That is what Live does, and a rack missing
 one is inconsistent rather than merely sparse.
 
-**A send cannot be driven by a macro at all.** It is shaped like a
-mappable parameter and Live ignores a mapping written into one, checked in
-12.4.3 and buried in `THE_BASEMENT.md` with the knob that proved it. A spec
-states levels; a player moves them in the chain list. Writing sends flips
-`AreSendsVisible`, because Live ships it false and sends nobody can see
-look exactly like sends that failed to write.
+**A macro may sweep every chain's send to one return:**
+
+```python
+kit = kit.sending(KIT.send_a, "A-Rvb:Short")
+```
+
+One mapping per chain, written into that chain's own `SendInfos` entry,
+because a send belongs to a chain and not to the rack. So the kit knob is
+how much of the WHOLE rack reaches that return, and a per-chain `sends`
+level still sets where each chain starts.
+
+This was deleted for a release on a check that found the knob moving
+nothing, and restored when Live wrote the identical mapping by hand. Q23
+has both halves; `THE_BASEMENT.md` has what the wrong conclusion cost.
+Writing sends flips `AreSendsVisible`, because Live ships it false and
+sends nobody can see look exactly like sends that failed to write.
 
 **`unchained()` is not `chaining()`.** With no arguments `chaining` means
 the IDENTITY default, every slot the inner rack drives from the matching
 outer knob. A return's effects answer their own knobs and no outer knob at
 all, so they take `unchained()`. The two are one call apart and read
 differently on purpose; extraction emits whichever the file actually shows.
+
+## One declaration, one instance per track
+
+```python
+STRIP_INSTANCES = [rack.named(f"{rack.name}_{track}")
+                   for track in TRACKS for rack in STRIP]
+```
+
+`named` returns the same rack under another name and moves nothing else.
+`PATCHBAYGROUND.md` names each strip instance for the track it sits on,
+`EQC_BS1` on BS1, so that eight tracks do not end up staring at `EQC_LD1`
+on a pad track. 46 files out of six declarations, and they are built but
+not golden-gated: what a digest proves about EQC it proves about EQC_BS1.
 
 ## A variation is a vector, not a sound
 
@@ -616,10 +639,10 @@ mapping with its range, chain zones, samples, macro resting positions,
 macro labels, variations, and nesting to any depth with the macro-to-macro
 chaining intact.
 
-For a rack PatchBay built, extracting and rebuilding is EXACT. All six
-racks in `examples/patchbayground.py`, including DR1 at three levels with
-64 sample chains, diff clean against the original, and a test holds them
-there. That gate is what found the gaps: ranges were not being emitted at
+For a rack PatchBay built, extracting and rebuilding is EXACT. Every
+canonical rack in `examples/patchbayground.py`, including DR1 at three
+levels with 64 sample chains, diffs clean against the original, and a test
+holds them there. That gate is what found the gaps: ranges were not being emitted at
 all, variations came out as a comment, and unnamed chains were given
 invented names.
 
@@ -644,12 +667,23 @@ which is a different tool: at that point the declaration is the rack
 rather than a description of one, and the donor stops being the
 vocabulary.
 
-**Slot names never survive, from either source.** The emitted layout is
-positional, `Slot("Macro 1")` through `Slot("Macro N")`, answering to
-`macro_1` in Python. That a macro drives `Filter/Frequency` on every chain
-is in the file; that its author called the slot `Filter` is not, and
-guessing it is inventing intent. Renaming is a human edit, and every
-binding follows the rename.
+**Slot names do not survive, unless a spec is named.** By default the
+emitted layout is positional, `Slot("Macro 1")` through `Slot("Macro N")`,
+answering to `macro_1` in Python. That a macro drives `Filter/Frequency` on
+every chain is in the file; that its author called the slot `Filter` is not,
+and guessing it is inventing intent.
+
+```
+patchbay extract build/BS1.adg --layout examples/patchbayground.py
+```
+
+`--layout` reads a spec's own bindings and reuses ITS name wherever an
+extracted binding agrees, positional everywhere else. That is not a guess:
+it is a second file claiming that whatever drives
+`Voice_Filter1_Frequency` is called Filter. A macro is renamed only when
+every path it drives that the spec knows about agrees on one slot; one
+disagreement and it stays `Macro N`, because half a name is worse than
+none. The rebuild is fact for fact identical either way.
 
 ## Deliberate limits
 

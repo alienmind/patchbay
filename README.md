@@ -205,8 +205,9 @@ Every item below was gated by loading the output in Live 12.4.3.
 - node navigation and parameter addressing, including nested paths
 - macro mappings read and written, including ranges Live's own UI cannot
   set, and INVERTED ranges, where the knob rises as the parameter falls
-- return chains with per-chain send levels. A send takes a value and not a
-  macro, whatever the file will let you write - see Q23
+- return chains with per-chain send levels, and one macro that sweeps every
+  chain's send to a return at once
+- per-track instances of a rack: one declaration, one name per track
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth
@@ -291,6 +292,7 @@ was an editable install still pointing at the folder's old name.
 | `patchbay variations SRC` | list macro variations |
 | `patchbay clone SRC DEST -n N` | duplicate a chain |
 | `patchbay extract SRC` | emit DSL source for a saved rack |
+| `patchbay extract SRC --layout SPEC` | the same, naming slots from a spec whose bindings agree |
 | `patchbay harvest SRC -o DIR` | lift donors out of files or Live Sets |
 | `patchbay check SRC` | would Live accept this file? |
 | `patchbay roundtrip SRC` | prove load-then-save is lossless |

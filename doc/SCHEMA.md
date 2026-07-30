@@ -1701,7 +1701,7 @@ donor carries whatever the file it was cut from happened to contain, and
 some of that is not merely unwanted but invalid HERE. The other two are the
 missing `Id` and the blank int64 fields, both under Q9.
 
-## Q23. A send takes a value and not a macro - REOPENED
+## Q23. A send IS mappable, and the first check was wrong - ANSWERED
 
 **Evidence:** `build/DR1.adg` in Live 12.4.3, kit macros 5 and 6 mapped to
 every pad's send with `Rack.sending`, checks S1g and S1h.
@@ -1712,17 +1712,20 @@ The mapping is written exactly as every other one: a `KeyMidi` inside the
 macro-driven parameter - and is addressed by containment like the rest.
 
 **The send column was visible and every send stayed at -inf whatever the
-knob did.** So Live ignores the mapping. Being shaped like a parameter is
-not being one.
+knob did**, and that was read as Live ignoring the mapping. It was not.
+See below: Live writes the identical mapping and it works. What was wrong
+with `build/DR1.adg` at that moment is not recorded, the file is gone, and
+the reading was the error rather than the observation.
 
-**What this means for a spec.** A send LEVEL is declarable and works:
-`sends={"A-Rvb:Short": 0.35}` writes a value a player sees in the chain
-list and can move by hand. A knob that sweeps sends is not available at
-all, and `Rack.sending` is buried in `THE_BASEMENT.md`.
+**What this means for a spec.** Both work. A send LEVEL is
+`sends={"A-Rvb:Short": 0.35}` on a chain, and a knob that sweeps every
+chain's send to one return is `sending(slot, "A-Rvb:Short")` on the rack.
+DR1 carries both.
 
-**One more instance of the Q16 rule**, and the sharpest: the mapping
-resolved, `patchbay mappings` reported it, the file loaded, and nothing
-moved. Structure cannot tell you a knob works.
+**The Q16 rule still holds** - structure cannot tell you a knob works -
+but this entry is the other half of it, and the more expensive half: a knob
+that does not work tells you nothing about the FILE either. Verified in
+Live 12.4.3: Macro 5 of `racks/q23_b.adg` sweeps pad 1's Send A.
 
 ### Live writes the SAME mapping, so "not mappable" is wrong
 
@@ -1746,14 +1749,9 @@ refuses to map. The behaviour observed on `build/DR1.adg` stands unexplained
 and the ranges rule it out - every send in that build carried the full
 `0.000316..1`, the same as this one.
 
-**What is still open.** Whether the knob in `q23_b.adg` actually moves that
-send. If it does, the mechanism works and DR1's failure was ours to find;
-if it does not, Live writes a mapping it ignores, which is a stronger and
-stranger claim than the one this entry was closed on. One knob turn on a
-file that already exists.
-
-`Rack.sending` stays buried until that answer arrives, because reinstating
-it costs a rebuild of DR1 and another check either way.
+**Checked:** the knob sweeps the send. `Rack.sending` is restored, DR1's
+kit slots 5 and 6 drive the two returns again, and what the wrong
+conclusion cost is in `THE_BASEMENT.md`.
 
 ## Q24. The arpeggiator ships FREE, so a synced rate reaches nothing - ANSWERED
 
@@ -2008,3 +2006,60 @@ repaired, a mapping range is obeyed.
 `Threshold` is stored as **linear amplitude**, not dB: `1.0` is 0 dB,
 `0.000316` is -70 dB, the same scale as a send (Â§12). So the knob is linear
 in amplitude and its middle sits near -6 dB.
+
+## Q27. Live's own content is a path a donor must KEEP - ANSWERED
+
+**Evidence:** `C:/Music/Ableton/Resources/Core Library/Defaults/Audio
+Effects/Hybrid Reverb.adv`, Live 12.4.3's own default preset. Its impulse
+response reads:
+
+    ImpulseResponseHandler/SampleSlot/Value/SampleRef/FileRef
+        RelativePathType   7
+        RelativePath       Samples/Hybrid/ImpulseResponses/Hybrid_Early_...aif
+        Path               /Applications/Live_main_2026-03-05_....app/...
+
+**`RelativePathType 7` is Live's installed content**, the same value
+`AbletonDefaultPresetRef` carries on every device this repo has looked at.
+Two things follow.
+
+**The absolute `Path` is a macOS path, in a preset running on Windows.**
+Ableton ships one preset for both platforms, so for type 7 the RELATIVE
+path is the real one and the absolute is decoration. That inverts the rule
+for a user sample, where S7 established the absolute path is authoritative.
+
+**A donor must keep it.** `patchbay harvest` scrubs paths so a donor names
+no file, which is right for a kick somebody dragged in and wrong for an
+impulse response that is part of the device: the scrubbed `Hybrid` donor
+shipped in both DR1 returns and Live reported "Media files are missing".
+`harvest.scrub` now skips `Path` and `RelativePath` under a type 7 ref, and
+`extract` skips them too, because emitting `.sample()` for one produces
+source that refuses to build on the machine that extracted it.
+
+## Q28. What 50 stale donors actually cost - ANSWERED
+
+**Evidence:** every donor in `donors/` compared BY PARAMETER NAME against
+the same device harvested from Live 12.4.3's factory library, 73 files
+covering 59 devices.
+
+| donor | difference | kind |
+|---|---|---|
+| `Compressor2` | `SideChainEq/X` became `SideChainEq_X` | rename, Q19 |
+| `Limiter` | `LinkChannels` became `LinkAmount`, plus `Maximize` | rename |
+| `MultiSampler` | `AuxLfos.0/Slot/...` became `Lfo/Slot/...` | rename |
+| `Chorus2`, `LoungeLizard`, `MidiRandom` | 1 to 2 new parameters | addition |
+| the other 53 | none | - |
+
+**So the answer to "re-harvest everything" is no.** Three renames in 59
+devices, and a rename is the only kind that breaks a spec silently: a spec
+binds a path the donor has, and if the donor is the only thing that says
+the path exists, the binding is checked against a fiction. An ADDITION
+cannot break anything, it is a parameter nothing has bound yet.
+
+Re-harvesting only the five that differ moved five racks in the goldens and
+left the other seven untouched. Re-harvesting all 59 would have moved every
+rack for the sake of three.
+
+**The scan is the durable part**, not the fix. It is one pass over
+`Resources/Core Library`, it needs no Live open, and it answers the question
+a version bump raises: not "did anything change" but "did anything I BIND
+change".

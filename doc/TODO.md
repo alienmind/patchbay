@@ -10,58 +10,48 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Turn Macro 5 in `racks/q23_b.adg` | you | 1 knob | Whether a macro can sweep a send, and whether `Rack.sending` comes back |
-| 2 | Open Hybrid Reverb in either DR1 return | you | 1 drag | Whether a harvested donor's blank IR slot is a missing file or a fallback |
-| 3 | Name each strip instance for its track, `EQC_BS1` on BS1 | me | small | Nothing. It is a loop over a name, wanted when the strip is pasted across eight tracks |
-| 4 | Decide whether to re-harvest 50 donors from 12.4.3 | you | a call | Whether every golden moves once now, or a rename bites later |
-| 5 | `patchbay extract --layout patchbayground` | me | small | Whether extracted slots come out named or positional |
-| 6 | Q8, the send taper | you | 2 saves | Only matters if a spec ever states send levels as percentages |
+| 1 | Load `build/DR1.adg`, turn kit Macros 5 and 6 | you | 1 drag | Whether the restored send knobs sweep every pad, and whether the returns are now audible |
+| 2 | Check the Hybrid Reverb in either DR1 return names an impulse response | you | same drag | Whether Q27's fix landed: the donor keeps Live's own IR path now |
+| 3 | Q8, the send taper | you | 2 saves | Only matters if a spec ever states send levels as percentages |
+| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
-Items 1 and 2 are checks in Live. Nothing is waiting on them, but they are
-the two cheapest facts left to buy.
+Items 1 and 2 are the same drag. Everything else that was on this table has
+landed: `sending` restored, per-track strip instances, `extract --layout`,
+the five stale donors re-harvested.
 
-## 1. Does a mapped send move
+## 1 and 2. One drag answers both
 
-`Rack.sending` is buried in `THE_BASEMENT.md` on one check: the mapping
-resolved and every send stayed at -inf. Q23 in `SCHEMA.md` now shows Live
-writing the identical mapping by hand, reproduced byte for byte, so the
-structural half of that conclusion is dead.
+`build/DR1.adg` was rebuilt after both changes, so it carries them.
 
-**Load `racks/q23_b.adg`, turn Macro 5, watch pad 1's Send A.** Moves means
-the mechanism works and DR1's failure was ours to find. Does not move means
-Live writes a mapping it ignores, which is a stronger claim than the one the
-feature was buried on.
+| # | Do this | Should happen |
+|---|---|---|
+| 1 | Turn kit Macro 5 (Send A) up | Every pad's Send A rises together, reverb comes in |
+| 2 | Turn kit Macro 6 (Send B) up | Same for the delay return |
+| 3 | Click the Hybrid Reverb inside the `A-Rvb:Short` return | It names an impulse response instead of reporting missing media |
 
-Until then DR1's kit slots 5 and 6 stay named and unbound.
+Expected still open: per-pad send levels all start at the floor, so the
+knobs are the only thing moving them.
 
-## 2. The blank impulse response in DR1's returns
+## 3. Q8, the send taper
 
-Harvesting strips paths, so the Hybrid Reverb in both DR1 return chains
-carries an IR slot naming no file. A Simpler sample part in that state is
-removed at build time; an IR slot cannot be, because the device needs one.
+Sends are linear amplitude from `0.000316` to `1`. Whether the KNOB between
+those is linear in amplitude or in dB is unknown, and it only matters if a
+spec ever wants to say "this pad sends 30 percent".
 
-**Drag `build/DR1.adg` in and open either return's Hybrid Reverb.** Either
-Live falls back to a built-in response, and nothing needs doing, or it
-reports a missing file, and the donor needs re-harvesting with its IR.
+Two saves settle it: a rack with one return, its send dragged to exactly
+halfway on the slider, saved as `racks/q8_half.adg`, and the same at a
+quarter as `racks/q8_quarter.adg`. If half reads `0.5`, the knob is linear
+in amplitude; if it reads about `0.018`, it is linear in dB.
 
-## 4. The 50 donors that predate 12.4.3
+## 4. The donor name scan
 
-Q19 found Live renaming a parameter family between 12.0_12203 and
-12.0_12402: Compressor's sidechain EQ went from five children of a
-`SideChainEq` element to five flat `SideChainEq_X` parameters. EQC wrote
-three settings at the old paths for a release, and no test could see it,
-because the DSL validates against the donor and the donor had them.
+Every donor has been compared by parameter NAME against Live 12.4.3's own
+factory library, 73 files over 59 devices, no Live open. Three renames
+found and fixed, three harmless additions, 53 unchanged. Q28 has the table.
 
-50 of the 59 donors were saved by 12.0_12203. Two ways out:
-
-- **Re-harvest the lot from a 12.4.3 library.** One pass, and every golden
-  moves at once, on purpose, with the checks that implies.
-- **Leave them and compare names** against whatever 12.4.3 files land in
-  `racks/`. Free, already done once, and covers only the devices those
-  files happen to hold. It found the one rename above.
-
-The second is in place. The first is a call about how much a silent wrong
-path is worth avoiding.
+Worth re-running after a Live update, because a rename is the one change
+that breaks a spec silently: the DSL validates a binding against the donor,
+so a stale donor is a stale vocabulary and the check passes on a fiction.
 
 ## Standing manual work
 
@@ -73,8 +63,10 @@ fails. A check that asks whether something SOUNDS right belongs here.
   is not structure and no test can check one.
 - Whether one knob feels comparable across engines. The ranges that make it
   so are declared and tested; whether the result is musical is ears.
-- Assembling the Set: eight tracks, naming, routing, returns, tempo. Half an
-  hour, once. `THE_BASEMENT.md` says why it is not automated.
+- Assembling the Set: eight tracks, naming, routing, returns, tempo. The
+  strip is generated per track now, `EQC_BS1` on BS1, so this is dragging
+  and naming rather than rebuilding. `THE_BASEMENT.md` says why it is not
+  automated.
 - Picking the sidechain source, one dropdown per track. A device preset does
   not carry one at all (Q18). Everything around it is declared.
 - Confirming a mapped macro DOES something. Which mappings exist is not

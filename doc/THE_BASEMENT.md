@@ -444,29 +444,37 @@ spends a working, gated toolchain to get it.
 browser-hosted version is ever wanted, Pyodide ships lxml and running the
 existing compiler unchanged is the cheap thing to try first.
 
-## `Rack.sending`, a macro across every chain's send
+## `Rack.sending`, buried on a false negative and dug back up
 
-**Built, shipped in DR1, and disproved by one knob turn.** The idea was
-that a `Send` is shaped exactly like a mappable parameter - `LomId`,
-`Manual`, `MidiControllerRange`, `AutomationTarget`, `ModulationTarget` -
-and mappings are addressed by containment, so writing a `KeyMidi` into one
-should give a kit-level knob for how much of the whole rack goes to a
+**Built, shipped in DR1, buried by one knob turn, and restored by another.**
+A `Send` is shaped exactly like a mappable parameter - `LomId`, `Manual`,
+`MidiControllerRange`, `AutomationTarget`, `ModulationTarget` - and
+mappings are addressed by containment, so writing a `KeyMidi` into one
+should give a kit-level knob for how much of the whole rack reaches a
 return.
 
-The file was valid, the mapping resolved, `patchbay mappings` listed it,
-Live loaded it, the send column showed the sends. Turning the knob moved
-nothing: every send stayed at -inf. Q23 in `SCHEMA.md` has the check.
+The first check said no: the file was valid, the mapping resolved,
+`patchbay mappings` listed it, Live loaded it, and every send stayed at
+-inf. That was written up as Q23 and the verb was deleted.
 
-**What replaced it:** send LEVELS, which work. `sends={"A-Rvb:Short": 0.35}`
-on a chain writes a value the player sees and can move by hand. DR1's kit
-slots 5 and 6 keep the names Send A and Send B and drive nothing, which is
-the honest state.
+**What killed the burial:** Live writing the same mapping by hand.
+`racks/q23_a.adg` against `racks/q23_b.adg` is one macro mapped to one
+chain's Send A in Live's own UI, and it is a `KeyMidi` inside the `Send`
+element, channel 16, macro index as the CC. Reproducing it with
+`params.map_to_macro` gives a file `patchbay diff` calls identical to the
+one Live saved, and the knob sweeps the send.
 
-**What it cost, and what it bought:** one session, and the third example of
-the rule that a mapping which resolves is not a mapping that moves
-anything. The first two were switched-off modulators (Q16, H6). This one is
-different in kind and worth remembering separately: the target was not
-switched off, it was never mappable.
+**What it cost:** a release with the feature deleted, a rewritten `DSL.md`
+section, a README line that told users a send takes no macro, and a spec
+comment explaining a limit that did not exist. All of it from one check that
+was read as proof of impossibility rather than as one file failing.
+
+**What it bought, and this is the part worth keeping:** the rule that a
+check which finds nothing has TWO readings. Live ignoring what we wrote is
+one. Us writing it somewhere Live does not look is the other, and the second
+is not visible from the file. A negative result closes a question only when
+something known-good produces the same file - which for a Live construct
+means Live making it, and diffing.
 
 ## Aftertouch as something a rack file carries
 
