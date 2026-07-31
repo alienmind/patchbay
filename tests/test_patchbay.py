@@ -2002,6 +2002,32 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_sample_discovery_sorts_by_whole_filename():
+    """Both numbering conventions have to order the way they read.
+
+    `samples/README.md` allows `NNN_name.wav` and `name_NNN.wav`, so the
+    sort is over the whole filename rather than a parsed index. Chain order
+    is sort order, so this is what makes a rebuilt rack the same rack.
+    """
+    import tempfile
+    from patchbay import samples
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for name in ("010_b.wav", "002_a.wav", "001_c.WAV", "notes.txt",
+                     "003_d.wav.asd", "004_e.aiff"):
+            (root / name).write_bytes(b"")
+        (root / "Beta").mkdir()
+        (root / "alpha").mkdir()
+
+        got = [p.name for p in samples.audio(root)]
+        assert got == ["001_c.WAV", "002_a.wav", "004_e.aiff", "010_b.wav"], got
+        assert [p.name for p in samples.folders(root)] == ["alpha", "Beta"]
+
+        assert samples.audio(root / "nothing") == [], "a missing folder is empty"
+        assert samples.folders(root / "nothing") == []
+
+
 def test_the_set_carries_one_send_pre_flag_per_return():
     """Q38. `LiveSet/SendsPre` is indexed by RETURN, not by track.
 
