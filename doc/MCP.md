@@ -89,43 +89,46 @@ another track, and the sidechain source.
 ## Division of labour
 
 **`patchbay` - files.** Racks, macro mappings, chain zones, sample
-retargeting, variations. Everything the API cannot express. Produces
-`.adg` files dropped into the User Library.
+retargeting, variations, AND the Set: tracks, returns, tempo, every rack
+placed. Everything the API cannot express, which turned out to include
+placing a generated rack at all.
 
-**`ableton-mcp` - the live session.** Tracks, naming, routing, tempo,
-clips, loading presets by URI, reading back what is actually there.
-Everything the API can express.
-
-They meet at the User Library: `patchbay` writes a rack, `ableton-mcp` loads
-it onto a track by browser URI.
+**`ableton-mcp` - the live session.** Reading back what is actually on a
+track, transport, tempo, clips and notes, creating tracks. What it cannot
+do is load a rack this toolchain just wrote, for the browser reason above.
 
 **Do not migrate MCP code into `patchbay`.** They have different runtime
 models - one writes files offline, the other holds a socket to a running
 Live. Merging them would put a network dependency inside a library whose
-whole value is working without Live open. Keep the submodule, extend its
-remote script.
+whole value is working without Live open.
 
 ## Verification harness
 
-`KICKOFF.md` anticipated this and it is now concrete. `get_track_info`
-returns the devices present on a track, and `load_instrument_or_effect`
-loads a preset by browser URI. Together they give a smoke test:
+**The smoke test as designed does not run.** It was: generate a rack, have
+MCP load it onto a track, read the device tree back with `get_track_info`.
+Step two is the browser step, and the browser cannot see a file written
+after Live started.
 
-1. `patchbay` generates a rack
-2. MCP loads it onto a track
-3. `get_track_info` confirms the expected device tree appeared
+What remains usable: `get_track_info` against a Set opened by hand reads
+back what Live made of a file, which is a real check and needs no dragging
+once the Set is open. It still cannot confirm a macro mapping -
+`mapped_parameter` does not exist in the LOM - so that stays ears and eyes,
+exactly as `KICKOFF.md` said.
 
-That catches gross failures without a human dragging files. It **cannot**
-confirm macros are mapped correctly - `mapped_parameter` does not exist -
-so that check stays manual, exactly as `KICKOFF.md` says.
+## Where this leaves the submodule
 
-## Revised plan
-
-- **S11 and Phase 6 as written are dropped.** Do not reverse-engineer
-  `.als` structure. The `sets/` folder and its spike are unnecessary.
-- **New Phase 6:** extend the remote script with audio/return track
-  creation and output routing. Smaller, and immune to schema drift.
-- **Sidechain stays manual** until proven annoying.
+- **S11 and Phase 6 as written are dropped, and Set structure WAS mapped
+  after all.** Q9 read it, Q30 and Q31 wrote it, `live_set.py` is the
+  module, and the shapes are templates read from Live's factory content
+  rather than reverse-engineered from nothing.
+- **The remote script additions in `mcp/remote_script_additions.py` are no
+  longer on the critical path.** `create_audio_track` and
+  `create_return_track` were wanted so MCP could build the Set; the Set is
+  a file now. They stay written down because reading a running Live is
+  still worth having.
+- **Sidechain and track-to-track routing stay manual** until a Set carrying
+  one exists to diff. Neither is in the LOM, and neither appears in any of
+  Live's 26 factory Sets.
 - **Phase 5 stays file-level.** `store_variation` exists, but variations
   cannot be *named* through the API, and generated names encoding their own
   parameter values are what make culling informed rather than blind.

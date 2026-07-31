@@ -70,6 +70,13 @@ re-run.
 *preset* representation, which is **not** the same shape a rack has
 inside a Live Set (`.als`), where chains live under `DeviceChain`.
 
+**Both directions are implemented**: `extract.preset_from_set` reads a rack
+out of a Set, `live_set.set_from_preset` writes one into a Set, and
+`patchbay session` writes a whole Set of them. Q9 has the mapping, Q30 what
+writing it costs, and Q31 the one field whose REQUIRED value is opposite in
+the two forms - a pointee id must be zero in a preset and must not be zero
+in a Set.
+
 This distinction is the single most important structural fact in the
 format, because it inverts the containment you would expect.
 
@@ -954,7 +961,9 @@ Ordered by how much they gate the build.
 | **[V]** | Can an *unmapped* macro carry `MacroHasValue = true`? **Yes, and it does nothing.** Closed, see Â§11 | S8 tail | nothing |
 | **[V]** | Snapshot ceiling. **None at 256**, no truncation. Closed, see Â§11 | S8 tail | nothing |
 | **[?]** | Drum rack pad-to-note (`ReceivingNote`, `SendingNote` seen but uncharacterised), internal returns, per-chain sends. | S9 | Phase 4 |
-| **[?]** | `.als` track routing, sidechain source, return tracks. | S11 | Phase 6 |
+| **[V]** | `.als` structure: tracks, returns, and a rack in Set form. **Written by `live_set.py`.** Closed, see Â§3 and Q30 | S11 | nothing |
+| **[?]** | Routing a track into another TRACK. `AudioOut/Main` and `AudioOut/GroupTrack` are the only targets any factory Set here shows. | Q30 | one dropdown per track |
+| **[?]** | The sidechain source, at Set level. Absent from preset form (Q18) and from the LOM. | Q30 | one dropdown per track |
 | **[?]** | Does element order within a parameter matter? `KeyMidi` is written between `LomId` and `Manual`. | - | writer safety |
 
 ## 15. Evidence

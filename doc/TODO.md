@@ -69,12 +69,13 @@ fails. A check that asks whether something SOUNDS right belongs here.
   is not structure and no test can check one.
 - Whether one knob feels comparable across engines. The ranges that make it
   so are declared and tested; whether the result is musical is ears.
-- Assembling the Set: eight tracks, naming, routing, returns, tempo. The
-  strip is generated per track now, `EQC_BS1` on BS1, so this is dragging
-  and naming rather than rebuilding. `THE_BASEMENT.md` says why it is not
-  automated.
-- Picking the sidechain source, one dropdown per track. A device preset does
-  not carry one at all (Q18). Everything around it is declared.
+- Routing the seven MIDI tracks into PM1, and picking each EQC's sidechain
+  source. Fifteen dropdowns. NOT here because the ratio is bad, but because
+  neither is writable: no file in Live's factory content has a track routed
+  into another track, and a sidechain source is in neither the preset (Q18)
+  nor the LOM. Both leave this list the moment a Set carrying one exists to
+  diff. Everything else about the Set - tracks, names, returns, tempo, all
+  52 racks placed - is written by `patchbay session`.
 - Confirming a mapped macro DOES something. Which mappings exist is not
   manual: `patchbay mappings` reads them out of the file and the tests
   assert the matrix, including the switch behind each modulator.

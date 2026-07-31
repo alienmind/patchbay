@@ -252,11 +252,14 @@ proves it here rather than by dragging files into Live.
 
 ## What it does not do
 
-`patchbay` authors RACKS. It does not assemble a Set: creating eight
-tracks, naming them, routing them and adding returns is half an hour with a
-mouse, once, against a rack that is six figures of XML nobody would type.
-Live's API can do it and `doc/MCP.md` records how, but the ratio does not
-justify depending on a remote script for it. See `doc/THE_BASEMENT.md`.
+`patchbay` authors racks, and places them in a Set. What it cannot write is
+the two things no Live file here has an example of: **a track routed into
+another track**, and **a compressor's sidechain source**. Live writes
+`AudioOut/Main`, or `AudioOut/GroupTrack` inside a group, and none of its 26
+factory Sets routes one track into another, so the target's shape is
+unknown. A sidechain source is in neither a device preset nor the Object
+Model. Both are dropdowns, and both become writable the moment a Set that
+contains one exists to diff.
 
 Nor does it choose sounds. Which kick is good, whether one knob feels
 comparable across two synthesis engines, and where the mix sits are the
@@ -365,10 +368,17 @@ and a potential future scope (maybe a more complete MCP server?)
 While being one working example of driving the LOM, it inherits every
 limit the LOM has. This project aims to complement where Live's API falls short.
 
-For now, ableton-mcp is simply used as the test harness. A file that passes
-`patchbay check` is still only a file, and no unit test proves Live will
-load it. MCP is how a build gets tested **live**: drive a running Live,
-put the device we just wrote onto a track, read back what Live made of
-it, and do that programmatically rather than by hand. That makes
-integration tests possible against the real application, and it is the
-only way PatchBay ever confirms a device actually deploys.
+That test-harness plan does not work, and the reason is worth stating
+because it looks like it should. **A device can only be put on a track by
+BROWSER URI, and Live's browser index is a snapshot taken at startup.** A
+rack written to the User Library while Live is running is not in it, and
+neither is a file dropped into a folder Live has already indexed - checked
+against a running 12.4.3 by polling for a file that never appeared. So the
+one thing the harness needed, "load the rack we just wrote", is the one
+thing it cannot do without restarting the Live it is driving.
+
+What the socket is still good for: reading back what is actually on a
+track, transport control, tempo, clips and notes, and creating tracks. What
+replaced the rest is `patchbay session`, which writes the Set - see
+`doc/MCP.md` for the current division and `Q30` in `doc/SCHEMA.md` for what
+Set form cost.

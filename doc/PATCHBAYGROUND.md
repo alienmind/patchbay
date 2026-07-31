@@ -334,48 +334,10 @@ is for:
 
 ## Current state
 
-**In Live, by hand:**
-
-- 8 tracks created and named, PM1 recreated as audio
-- One DR1 pad built and mapped end to end, three levels deep, verified
-  working through all three macro hops. That rack is `racks/s1_source.adg`
-  and it is the evidence for the whole nesting model.
-
-**In code, `examples/patchbayground.py`:**
-
-- The layout, PD1 as a two engine slice, and VA1 as a two level nest.
-  Compiles and loads in Live 12.4.3.
-- 96 variations on PD1 over engine, cutoff, decay and resonance. All 96
-  recall in Live.
-
-The eight slot layout above IS what the code declares. Slot 2, `Sound`,
-binds nothing yet, because neither rack has sound chains to select between.
-A layout slot that nothing drives writes no mapping, which is the intended
-behaviour rather than a gap.
-
-**Both racks are gated in Live 12.4.3 under this layout.** PD1 sweeps
-engines, filter, release and volume, and its variations recall and select
-their own engine. VA1 switches sub-racks with macro 1 and chains the rest
-into whichever is selected.
-
-**A slot is only as consistent as its ranges.** Both engines bound slot 8
-to their own volume parameter, which satisfies the sound family rule and
-was still wrong in the room: Operator's volume is linear amplitude
-bottoming at -70 dB, Simpler's is decibels bottoming at -36. One knob, two
-unit systems, and macro-zero silenced one engine while the other kept
-playing. Binding the right parameter on every engine is necessary and not
-sufficient; the RANGES are what make one knob feel like one knob. See Q14
-in `SCHEMA.md`.
-
-**Not yet declarable, and why:**
-
-| rack | blocked on |
-|---|---|
-| DR1 | rack-inside-chain nesting in the DSL, and per-pad sends |
-| BS1, PD1 proper, LD1 | donors for Wavetable, Drift, Meld |
-| SR1 | sample retargeting bound into the DSL |
-| VA1, VA2 | rack-in-rack composition |
-| PM1 | not a rack; built through `ableton-mcp` |
+**Not here.** What is built lives in `README.md`, what is unfinished lives
+in `doc/TODO.md`, and this file is the target rather than the progress
+report. The table that used to sit here listed DR1, BS1, LD1 and VA1 as
+blocked on capabilities that have all landed.
 
 ## Not built yet, but within reach
 
@@ -404,13 +366,16 @@ rather than by accident:
 
 ## What was tried and rejected
 
-- **AbletonMCP for the build.** Can create tracks, load presets, write
-  notes, set names and tempo. Cannot group devices, map macros, or set
-  chain zones, because the Live API does not expose those. Verified against
-  Live's own Object Model in `MCP.md`, not assumed. Still useful for
-  loading finished `.adg` presets onto tracks and writing starter clips,
-  and it CAN do track routing and audio/return track creation, which is why
-  Sets are not generated as `.als`.
+- **AbletonMCP for the build.** Can create tracks, write notes, set names
+  and tempo. Cannot group devices, map macros, or set chain zones, because
+  the Live API does not expose those. Verified against Live's own Object
+  Model in `MCP.md`, not assumed.
+
+  It also cannot load the racks this project generates, which is the part
+  that killed it as a build route: a device reaches a track only by browser
+  URI, and Live's browser index is a snapshot taken at startup, so a rack
+  written while Live is running is not there to load. The Set is written as
+  a file instead, by `patchbay session`. See `MCP.md` and Q30.
 - **Building on ableton-inspector.** Read only, `.als` only, and its schema
   coverage stops well short of devices and racks. Useful only as
   confirmation that these files are gzipped XML and that samples live in

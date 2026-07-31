@@ -692,9 +692,15 @@ none. The rebuild is fact for fact identical either way.
 test rather than the point of the library. Generality comes from real
 second cases, not from anticipating them.
 
-**Racks only, not Sets.** Per `MCP.md`, Live's API *does* expose track
-creation and routing, so Sets are built by driving `ableton-mcp`, not by
-generating `.als`. A Set-level layer should emit MCP calls, not XML.
+**Sets are a second, thinner surface.** `live_set.Track` and
+`live_set.Session` say which racks sit on which track, in what order, and
+what the returns are called. That is all a Set declaration is here: no
+clips, no automation, no envelopes, and nothing that belongs to a
+performance rather than to an instrument. The DSL proper is still about
+racks - a Session names them and places them.
+
+The two things it deliberately does NOT express are the two nothing can
+write: a track routed into another track, and a sidechain source. Q30.
 
 **Donors are the vocabulary.** A device the library has never seen cannot
 be used, and the error says so and lists what is available. That is

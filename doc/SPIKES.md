@@ -27,7 +27,7 @@ the constructed failure tests, in `build/`.
 | S10 | macro metadata | one field per menu item; ranges are `MidiControllerRange` |
 | S12 | minimal devices | load with ALL parameters deleted |
 | S13 | nested racks | a top-level `GroupDevicePreset` must carry no `Id` |
-| S11 | `.als` structure | RETIRED. Live's API does tracks and routing, see `MCP.md` |
+| S11 | `.als` structure | ANSWERED after being retired once. Q9 read Set form, Q30 and Q31 wrote it |
 
 ## Open questions
 
@@ -455,18 +455,25 @@ track; compare a return track against a regular track.
 This decides whether Phase 6 is viable or gets skipped per KICKOFF's
 fallback.
 
-**Dropped, and the reason is better than the fallback.** Live's API *does*
-expose `create_audio_track`, `create_return_track`, `output_routing_type`
-and `output_routing_channel` - verified against Live 12.4.3's own
-`_MxDCore/LomTypes.pyc`. The `ableton-mcp` submodule simply has not wired
-them up.
+**Dropped once, then run.** The reason for dropping it was that Live's API
+exposes `create_audio_track`, `create_return_track`, `output_routing_type`
+and `output_routing_channel`, verified against Live 12.4.3's own
+`_MxDCore/LomTypes.pyc`, so extending the remote script looked smaller than
+reverse-engineering Set structure.
 
-So there is no reason to reverse-engineer Set structure: adding a few
-command handlers to the remote script is smaller work and survives Live
-updates, which `.als` generation would not. See `MCP.md`.
+**What that missed:** a device reaches a track only through the browser,
+and the browser index is a snapshot taken at startup, so a running Live
+cannot load a rack written after it launched. The API could build the
+tracks and not fill them.
 
-Sidechain source is the one exception - absent from the LOM - and stays
-manual.
+**Answered instead by Q9, Q30 and Q31.** Q9 mapped Set form to preset form
+for reading; `live_set.py` runs the same map backwards, and the tracks,
+returns and branch shapes are templates read from Live's own factory
+content rather than synthesised. `patchbay session` writes the Set.
+
+Two things stay manual, and neither is a ratio argument: routing a track
+into another track has no example in any of the 26 factory Sets, and a
+sidechain source is absent from the LOM and from preset form both.
 
 Both kill criteria passed, and all remaining spikes are answered or
 retired. **Phase 0 is complete.**
