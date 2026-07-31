@@ -2,6 +2,48 @@
 
 Author Ableton Live racks in code instead of by clicking.
 
+## TLDR
+
+Needs Python 3.10+, [uv](https://docs.astral.sh/uv/), and an install of
+Live 12 (the Set writer reads Live's own factory templates).
+
+```
+uv sync                         # creates .venv, installs patchbay editable
+```
+
+**Sort a pile of samples.** Drop a pack into `samples/all/` in whatever
+shape it arrived in. The first command only says what it would do:
+
+```
+uv run python examples/reorg_samples.py
+uv run python examples/reorg_samples.py --apply
+```
+
+It copies each file into `samples/<RACK>/<category>/`, renamed and numbered
+from the first free index. Nothing is moved or deleted, so a wrong
+classification costs a re-run. `samples/README.md` is the contract.
+
+**Build the racks and the Set**, both from the one example spec:
+
+```
+uv run patchbay build examples/patchbayground.py -o build/
+uv run patchbay session examples/patchbayground.py -o build/PATCHBAYGROUND.als
+```
+
+The first writes 52 `.adg` files. The second writes one `.als` holding all
+52 of them, placed on 8 tracks with 6 returns, coloured, routed and
+sidechained. Build first only if you want the individual racks: the Set is
+compiled from the same spec and does not read `build/`.
+
+Then drag `build/PATCHBAYGROUND.als` into Live. **Do not double-click an
+`.adg`** - that starts a second Live instance and loads nothing.
+
+```
+uv run pytest tests/ -q         # 120 tests, ~2 min
+```
+
+Everything below is why any of it works.
+
 ## What this is
 
 A Python DSL and a toolchain for writing Live racks as source. You declare
