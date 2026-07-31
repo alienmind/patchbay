@@ -12,6 +12,12 @@ taste, from a declaration, because doing it by hand is thousands of macro
 mappings entered by mouse.
 
     patchbay build examples/patchbayground.py -o build/
+    patchbay session examples/patchbayground.py -o build/PATCHBAYGROUND.als
+
+One file, both halves. The racks are declared first and the Set that places
+them is at the bottom, built from the SAME objects rather than from the
+`.adg` files on disk, so the Set can never describe a rack that has since
+been edited.
 
 ## How to read this file
 
@@ -60,8 +66,10 @@ from __future__ import annotations
 from itertools import product
 from pathlib import Path
 
-from patchbay import samples
+from patchbay import clone, live_set, samples
 from patchbay.dsl import Engine, Layout, Rack, RackKind, Range, Slot
+from patchbay.library import Library
+from patchbay.live_set import Session, Track
 
 # ===========================================================================
 # The layout
@@ -974,6 +982,9 @@ RACKS: list[Rack] = (
     [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None]
     + STRIP + STRIP_INSTANCES)
 
+#: Every rack in this file by name, which is how the Set below places them.
+BY_NAME: dict[str, Rack] = {r.name: r for r in RACKS}
+
 
 # ===========================================================================
 # DRAFT - the end target
@@ -1053,38 +1064,124 @@ RACKS: list[Rack] = (
 # existing.
 
 
-# ---------------------------------------------------------------------------
-# The Set. Blocked on: extending the ableton-mcp remote script.
-# NOT generated as .als. doc/MCP.md establishes that track creation,
-# routing and clips ARE in the Live API, so a Set is built by driving a
-# running Live rather than by writing XML that breaks on every update.
-# ---------------------------------------------------------------------------
+# ===========================================================================
+# The Set
+# ===========================================================================
 #
-# from patchbay.live import LiveSet, TrackKind
+#     patchbay session examples/patchbayground.py -o build/PATCHBAYGROUND.als
 #
-# def patchbayground_set() -> LiveSet:
-#     s = LiveSet("PATCHBAYGROUND", tempo=128)
+# Which rack sits on which track, in what order, what the returns are
+# called, and how it is all coloured and routed. The racks above are the
+# parts; this is the finished instrument.
 #
-#     s.track("DR1", DR1)
-#     s.track("BS1", BS1)
-#     s.track("PD1", PD1)
-#     s.track("LD1", LD1)
-#     s.track("SR1", sr1())
-#     s.track("VA1", VA1)
-#     s.track("VA2", VA1)
-#
-#     # PM1 exists because the Master track has no Session clip slots, so
-#     # master bus moves cannot be automated in Session view. Everything
-#     # routes here instead, and silent dummy clips carry the automation.
-#     pm1 = s.track("PM1", kind=TrackKind.AUDIO)
-#     for name in ("DR1", "BS1", "PD1", "LD1", "SR1", "VA1", "VA2"):
-#         s.route(name, to=pm1)
-#
-#     s.returns(8)
-#
-#     # Sidechain source is absent from the Live Object Model AND not yet
-#     # found in the file format. It stays manual: set the channel strip
-#     # compressor on each track to sidechain from DR1, low band only.
-#     s.note_manual_step("sidechain every channel strip from DR1")
-#
-#     return s
+# `SESSION` is a FUNCTION rather than a value. Assembling it compiles all 52
+# racks, and `patchbay build` has no use for that, so it is built only when
+# a Set is being written. `live_set.report` calls it.
+
+#: Which instrument rack each track carries. SR1 is absent because it is
+#: blocked on samples, so its track is built with the strip and no
+#: instrument: the strip is the useful half, and an empty track says what is
+#: missing more honestly than a stand-in.
+INSTRUMENT_ON = {
+    "DR1": "DR1",
+    "BS1": "BS1",
+    "PD1": "PD1W",
+    "LD1": "LD1",
+    "SR1": None,
+    "VA1": "VA1",
+    "VA2": "VA1",
+    "PM1": None,
+}
+
+#: Named for character, not for device, per PATCHBAYGROUND.md. The first
+#: four are the spread it asks for; the last two are the pair it leaves to
+#: us. The device on each is stock, because what a return SOUNDS like is a
+#: decision by ear and not one this file can make.
+RETURNS = [
+    ("A-Rvb:Short", "Reverb"),
+    ("B-Rvb:Long", "Hybrid"),
+    ("C-Dly:Short", "Delay"),
+    ("D-Dly:Long", "Echo"),
+    ("E-Spc:Wide", "Chorus2"),
+    ("F-Drv:Grit", "Saturator"),
+]
+
+
+def _preset(name: str):
+    """One rack from this file, as the preset element a Set holds.
+
+    Compiled in memory rather than read back from `build/`. A Set assembled
+    from files on disk is a Set assembled from whatever was built LAST,
+    which is how a check once came back describing a binding that had
+    already been moved. There is no version of that failure here: the rack
+    in the Set is the rack declared above it.
+    """
+    rack = BY_NAME.get(name)
+    if rack is None:
+        raise KeyError(f"{name} is not a rack in this file")
+    return rack.build().find("GroupDevicePreset")
+
+
+def _stock(tag: str):
+    """A bare device at donor values, placed the way a rack places one."""
+    device = Library.default().instance(tag)
+    device.set("Id", "0")
+    clone.strip_macro_mappings(device)
+    clone.fill_empty_int64_fields(device)
+    clone.strip_legacy_path_elements(device)
+    clone.zero_session_ids(device)
+    return device
+
+
+def _spread(count: int) -> list[int]:
+    """`count` colours spaced evenly across Live's palette.
+
+    The palette is 70 swatches, 0 to 69 (`live_set.PALETTE`). Stepping by
+    `70 / count` from a half step in puts one colour in each equal band, so
+    no two tracks land next to each other and none lands on an edge.
+
+    Tracks and returns are spread SEPARATELY rather than as one list of
+    fourteen. Live keeps two auto-colour counters for exactly that split,
+    `AutoColorPickerForPlayerAndGroupTracks` and
+    `...ForReturnAndMainTracks`, so two groups each walking the whole
+    palette is what Live itself does.
+    """
+    step = live_set.PALETTE / count
+    return [int((i + 0.5) * step) for i in range(count)]
+
+
+def _strip(track: str, instrument: str | None):
+    """The channel strip in spec order, with the instrument third.
+
+    Channel EQ stays stock per the spec, so it is placed as a bare device
+    rather than wrapped in a rack.
+    """
+    made = []
+    if track != "PM1":
+        made += [_preset(f"ARP1_{track}"), _preset(f"MFX1_{track}")]
+    if instrument:
+        made.append(_preset(instrument))
+    made += [_preset(f"EQC_{track}"), _preset(f"AFX1_{track}"),
+             _preset(f"AFXS1_{track}"), _stock("ChannelEq"),
+             _preset(f"VOL1_{track}")]
+    return made
+
+
+def SESSION() -> Session:
+    """PATCHBAYGROUND as a Live Set: eight tracks, six returns, every rack.
+
+    Every track but PM1 feeds PM1, and every EQC but DR1's sidechains from
+    DR1, which is what the spec asks for. DR1 is the sidechain source, and a
+    track cannot duck from itself.
+    """
+    tracks = []
+    for name, color in zip(TRACKS, _spread(len(TRACKS))):
+        tracks.append(Track(
+            name, "audio" if name == "PM1" else "midi",
+            _strip(name, INSTRUMENT_ON[name]),
+            out=None if name == "PM1" else "PM1",
+            sidechain=None if name == "DR1" else "DR1",
+            color=color))
+    returns = [Track(name, "audio", [_stock(tag)], color=color)
+               for (name, tag), color in zip(RETURNS, _spread(len(RETURNS)))]
+    return Session(tracks, returns, tempo=120.0)

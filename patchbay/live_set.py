@@ -697,8 +697,17 @@ def report(spec_path, out: Path | str) -> Path:
     got = getattr(module, "SESSION", None)
     if got is None:
         raise compile_spec.SpecError(
-            f"{Path(spec_path).name} exports no SESSION. A session spec "
-            f"assigns one at module level.")
+            f"{Path(spec_path).name} exports no SESSION. A spec assigns one "
+            f"at module level, or defines it as a function.")
+    # A spec that declares its racks AND its Set is one module, and building
+    # 52 racks to answer `patchbay build` would be waste. So SESSION may be
+    # a function, called only when a Set is actually being written.
+    if callable(got):
+        got = got()
+    if not isinstance(got, Session):
+        raise compile_spec.SpecError(
+            f"{Path(spec_path).name} exports SESSION as {type(got).__name__}, "
+            f"expected a Session or a function returning one.")
     made = save(build_session(got), out)
     print(f"{Path(spec_path).name} -> {made}")
     print(f"  {len(got.tracks)} track(s), {len(got.returns)} return(s)")

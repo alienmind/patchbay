@@ -300,7 +300,7 @@ was an editable install still pointing at the folder's old name.
 |---|---|
 | `patchbay build SPEC -o DIR` | compile a spec into rack presets, one `.adg` per rack and nothing else |
 | `patchbay build SPEC --clean` | the same, dropping `.adg` files in the output directory this build did not write |
-| `patchbay session SPEC -o OUT.als` | write a Live Set: tracks, returns, tempo, every rack placed |
+| `patchbay session SPEC -o OUT.als` | write a Live Set from the same spec: tracks, returns, colours, routing, every rack placed |
 | `patchbay diff A B` | structural diff - the discovery engine |
 | `patchbay mappings SRC` | list macro mappings |
 | `patchbay variations SRC` | list macro variations |
