@@ -2325,3 +2325,43 @@ and reported success. Reloading the repaired file crashed it:
 
 so a repaired Set is not a loadable Set, and a file that needs repairing is
 still a file this writer got wrong.
+
+## Q35. A preset-only child on a Set-form branch CRASHES Live - ANSWERED
+
+**Evidence:** `build/PATCHBAYGROUND.als` at its fourth attempt. No corrupt
+dialog and no validation error this time - the document parsed, and then
+
+    2026-07-31T06:59:17.689112: info: Loaded document was created by Ableton Live 12.4d1
+    2026-07-31T06:59:17.866762: error: Windows Exception: EXCEPTION_ACCESS_VIOLATION
+
+177 ms after `Begin ExchangeDocument`. Compared branch by branch against
+the Q33 reference Set, where Live itself converted three of these racks.
+
+**Live's Set-form branch children, per kind:**
+
+| branch | carries |
+|---|---|
+| `MidiEffectBranch` | `ZoneSettings`, before `MixerDevice` |
+| `InstrumentBranch` | `ZoneSettings`, after `MixerDevice` |
+| `AudioEffectBranch` | neither |
+| `ReturnBranch` | neither |
+| `DrumBranch` | `BranchInfo`, and NO `ZoneSettings` |
+
+**No branch of any kind carries `DocumentColorIndex`.** That is preset
+form's name for what a Set calls `Color`, and both were present in every
+branch this wrote.
+
+`_branch_from_preset` copied a list of tags from the preset, replacing the
+template's node where there was one and APPENDING where there was not. The
+append was the bug: the template comes from a Set Live saved, so a tag it
+lacks is a tag Set form does not have. 221 branches in PATCHBAYGROUND, each
+with one or two children Live's schema does not expect.
+
+**The failure mode is the point.** Q31 and Q32 were refusals naming the
+element. Q34 was a refusal naming the id. This one parsed clean and took
+the process down, so **a Set that loads no further than a crash gives you
+nothing to read**. The log is the only witness, and what it says is the
+version of the file and the exception, not what was wrong with it.
+
+The rule is now: **the template decides.** A tag the Set-form template
+lacks is never added.

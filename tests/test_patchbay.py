@@ -2002,6 +2002,45 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_a_set_form_branch_carries_nothing_the_template_lacks():
+    """Q35. Preset-only children on a Set-form branch CRASH Live.
+
+    `DocumentColorIndex` is preset form's name for what a Set calls
+    `Color`, and `ZoneSettings` belongs on a MIDI effect and an instrument
+    branch but not on a drum branch, whose note is in `BranchInfo`. Both
+    were copied across because `_branch_from_preset` appended a tag the
+    template lacked. Live did not refuse the file, it took an access
+    violation while installing the document.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    root = Path(__file__).resolve().parent.parent
+    for name in ("DR1", "PD1W", "EQC", "ARP1"):
+        src = root / "build" / f"{name}.adg"
+        if not src.exists():
+            continue
+        made = live_set.set_from_preset(
+            io.load(src).find("GroupDevicePreset"), 0)
+        branches = [el for el in made.iter()
+                    if isinstance(el.tag, str) and el.tag.endswith("Branch")
+                    and el.find("DeviceChain") is not None]
+        assert branches, f"{name} converted to no branches at all"
+        for branch in branches:
+            kids = {k.tag for k in branch if isinstance(k.tag, str)}
+            assert "DocumentColorIndex" not in kids, (
+                f"{name}: a Set-form {branch.tag} has no DocumentColorIndex")
+            if branch.tag == "DrumBranch":
+                assert "ZoneSettings" not in kids, (
+                    f"{name}: a Set-form DrumBranch has no ZoneSettings")
+                assert "BranchInfo" in kids, (
+                    f"{name}: a DrumBranch keeps BranchInfo, the pad's note")
+
+
 def test_a_pointee_is_found_by_shape_not_by_a_list_of_tags():
     """Q34. `ControllerTargets.N` is a pointee and its NAME says nothing.
 

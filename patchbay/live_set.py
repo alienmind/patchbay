@@ -199,17 +199,22 @@ def _branch_from_preset(branch_preset: Element, position: int,
 
     # What both forms carry and the Set side needs. A drum branch keeps its
     # BranchInfo, which is where the pad's note lives.
+    #
+    # **The template decides which of these Set form has.** Q35: a tag the
+    # template lacks is a tag Set form does not carry, and appending it
+    # anyway is how three of them got in. `DocumentColorIndex` is preset
+    # form's name for what a Set calls `Color` and belongs on no branch;
+    # `ZoneSettings` belongs on a MIDI effect and an instrument branch and
+    # NOT on a drum branch, whose note is in `BranchInfo`. Live did not
+    # refuse either, it crashed.
     for tag in ("IsSoloed", "BranchSelectorRange", "ZoneSettings",
                 "SessionViewBranchWidth", "BranchInfo",
-                "DocumentColorIndex", "AutoColored", "AutoColorScheme"):
+                "AutoColored", "AutoColorScheme"):
         theirs = branch_preset.find(tag)
-        if theirs is None:
-            continue
         mine = made.find(tag)
-        if mine is not None:
-            made.replace(mine, copy.deepcopy(theirs))
-        else:
-            made.append(copy.deepcopy(theirs))
+        if theirs is None or mine is None:
+            continue
+        made.replace(mine, copy.deepcopy(theirs))
 
     devices = _chain_container(made)
     for child in list(devices):

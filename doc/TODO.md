@@ -10,7 +10,7 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Drag `build/PATCHBAYGROUND.als` into Live, attempt 4 | you | 1 drag | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed, all routing written |
+| 1 | Drag `build/PATCHBAYGROUND.als` into Live, attempt 5 | you | 1 drag | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed, all routing written |
 | 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33's evidence can live in `racks/` |
 | 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
 | 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
@@ -42,7 +42,13 @@ not, and so far each attempt has found exactly one more thing:
 | 1 | `Invalid Pointee Id.` | preset form writes `Id="0"` on every pointee; a Set refuses zero. Q31 |
 | 2 | `Illegal class of list member (AudioEffectBranch)` | a rack's return chain is `ReturnBranch` in Set form. Q32 |
 | 3 | `PointeeId 341 is used 8 times.` x131 | `ControllerTargets.N` is a pointee and Q31's rule named tags, not the shape. Q34 |
-| 4 | unrun | |
+| 4 | nothing. `EXCEPTION_ACCESS_VIOLATION`, Live gone | 221 branches carried `DocumentColorIndex`, and every drum branch a `ZoneSettings`. Both are preset-only. Q35 |
+| 5 | unrun | |
+
+**A crash is a worse answer than a refusal.** Attempt 4 parsed clean and
+took Live down 177 ms later, so the log says only the version and the
+exception. Where a refusal names the element, a crash names nothing, and
+the finding came from diffing against the Q33 reference Set instead.
 
 **Do not accept Live's repair offer.** Attempt 3 repaired, reported
 success, and then crashed Live with `EXCEPTION_ACCESS_VIOLATION` on
