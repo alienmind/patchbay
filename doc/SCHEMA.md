@@ -2397,3 +2397,40 @@ is what Live writes, so an empty list stays empty.
 skeleton and something spliced into it. `_seed_sends` was the first one -
 one send per return, on every track. This is the second. Both are silent in
 the file and fatal in Live.
+
+## Q37. A send on a RETURN track is disabled - ANSWERED
+
+**Evidence:** a bisect of `EXCEPTION_ACCESS_VIOLATION` down to nine probe
+files, and the Q33 reference Set for the value.
+
+| probe | loads |
+|---|---|
+| the skeleton parsed and written back | yes |
+| the same plus pointee renumbering | yes |
+| one MIDI track | yes |
+| one MIDI track, one return | yes |
+| one MIDI and one audio track | yes |
+| eight MIDI tracks | yes |
+| one MIDI track, **six returns** | **crash** |
+
+In the reference Set, every `TrackSendHolder` on a return carries
+
+    <EnabledByUser Value="false" />
+
+on **both** returns and in **both** directions, while every send on a
+player track carries `true`. So the flag follows the TRACK KIND, not the
+index: a return does not send to a return, including itself.
+
+`_seed_sends` cloned its holder from a player track's mixer, which carries
+`true`, onto every track including the returns. Six returns each enabled
+into six returns is a feedback graph, and Live builds it before it checks
+it.
+
+**One return did not crash and six did**, which is why this survived four
+attempts: the smallest case that would have shown it is two.
+
+**Three crashes, three counting bugs.** Q36 was slots against scenes, this
+is send flags against track kind, and both were invisible in the file and
+fatal in Live. A count or a flag that has to agree with something spliced
+in from elsewhere is the shape to look for first when a Set crashes rather
+than being refused.

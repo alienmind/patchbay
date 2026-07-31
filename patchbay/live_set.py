@@ -370,12 +370,19 @@ def _seed_sends(track: Element, count: int, template: Element) -> None:
     a Set where the counts disagree is inconsistent rather than sparse. The
     holders come from a factory template so nothing here writes a `Send`
     from nothing, and they open at the silent floor.
+
+    **A send on a RETURN track is `EnabledByUser="false"`.** Q37. Every send
+    on both returns of the reference Set carries it, in both directions, so
+    the rule is the track kind and not the index. Writing `true` there is a
+    return feeding a return feeding a return, and Live takes an access
+    violation rather than refusing it. Six returns crashed; one did not.
     """
     sends = track.find("DeviceChain/Mixer/Sends")
     if sends is None:
         raise ValueError(f"<{track.tag}> template has no Mixer/Sends")
     for child in list(sends):
         sends.remove(child)
+    enabled = "false" if track.tag == "ReturnTrack" else "true"
     for i in range(count):
         holder = copy.deepcopy(template)
         holder.set("Id", str(i))
@@ -386,6 +393,10 @@ def _seed_sends(track: Element, count: int, template: Element) -> None:
         manual = holder.find("Send/Manual")
         if manual is not None:
             manual.set("Value", str(SEND_FLOOR))
+        flag = holder.find("EnabledByUser")
+        if flag is None:
+            raise ValueError("the send template carries no EnabledByUser")
+        flag.set("Value", enabled)
         sends.append(holder)
 
 

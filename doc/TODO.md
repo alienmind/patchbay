@@ -10,7 +10,7 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Drag `build/PATCHBAYGROUND.als` into Live, attempt 6 | you | 1 drag | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed, all routing written |
+| 1 | Drag `build/PATCHBAYGROUND.als` into Live, attempt 7 | you | 1 drag | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed, all routing written |
 | 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33's evidence can live in `racks/` |
 | 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
 | 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
@@ -44,7 +44,8 @@ not, and so far each attempt has found exactly one more thing:
 | 3 | `PointeeId 341 is used 8 times.` x131 | `ControllerTargets.N` is a pointee and Q31's rule named tags, not the shape. Q34 |
 | 4 | nothing. `EXCEPTION_ACCESS_VIOLATION`, Live gone | 221 branches carried `DocumentColorIndex`, and every drum branch a `ZoneSettings`. Both are preset-only. Q35 |
 | 5 | nothing. `EXCEPTION_ACCESS_VIOLATION` again | 8 scenes over tracks holding 1 clip slot each. The skeleton and the track templates are different factory files. Q36 |
-| 6 | unrun | |
+| 6 | nothing. `EXCEPTION_ACCESS_VIOLATION` again | every send on every return was `EnabledByUser="true"`, so six returns fed each other. Q37 |
+| 7 | unrun | |
 
 **A crash is a worse answer than a refusal.** Attempt 4 parsed clean and
 took Live down 177 ms later, so the log says only the version and the

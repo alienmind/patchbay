@@ -2002,6 +2002,37 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_a_send_on_a_return_track_is_disabled():
+    """Q37. `EnabledByUser="false"` on every send a RETURN carries.
+
+    Read off the reference Set: both returns, both sends each, all false,
+    so the rule is the track kind and not the index. Enabled means a return
+    feeds a return, and Live crashes on it rather than refusing it. Six
+    returns took an access violation; one did not.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    root = live_set.build([live_set.Track("T1", "midi"),
+                           live_set.Track("PM1", "audio")],
+                          returns=["A", "B", "C"])
+    for track in root.find("LiveSet/Tracks"):
+        name = track.find("Name/EffectiveName").get("Value")
+        want = "false" if track.tag == "ReturnTrack" else "true"
+        sends = track.find("DeviceChain/Mixer/Sends")
+        assert len(sends) == 3, f"{name}: one send per return"
+        for holder in sends:
+            flag = holder.find("EnabledByUser")
+            assert flag is not None, f"{name}: a send with no EnabledByUser"
+            assert flag.get("Value") == want, (
+                f"{name}: send {holder.get('Id')} is {flag.get('Value')}, "
+                f"a {track.tag} wants {want}")
+
+
 def test_every_track_carries_one_clip_slot_per_scene():
     """Q36. Scene count comes from the skeleton, slot count from the track.
 
