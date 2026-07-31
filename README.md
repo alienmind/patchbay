@@ -208,11 +208,14 @@ Every item below was gated by loading the output in Live 12.4.3.
 - return chains with per-chain send levels, and one macro that sweeps every
   chain's send to a return at once
 - per-track instances of a rack: one declaration, one name per track
-- a whole Live Set: tracks, named returns, a send per return on every
-  track, every rack placed in order, a track routed into another track,
-  and each sidechain fed from a track you name. PATCHBAYGROUND is 8
+- a whole Live Set: tracks, named returns, track colours, a send per return
+  on every track, every rack placed in order, a track routed into another
+  track, and each sidechain fed from a track you name. PATCHBAYGROUND is 8
   tracks, 6 returns and 52 racks, written by one command and opened in
   Live 12.4.3
+- ONE spec for both: the same file declares the racks and the Set that
+  places them, and the Set is built from those rack objects rather than
+  from `.adg` files on disk, so it can never describe a stale one
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth

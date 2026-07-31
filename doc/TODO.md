@@ -10,55 +10,28 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Colour tracks, chains and clips from the DSL | me | small, the format is already read off | Whether a Set arrives looking like a Set someone laid out |
+| 1 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
 | 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33 and Q37's evidence can live in `racks/` |
 | 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
 | 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
-## 1. Colour
+## 1. Colour inside a rack
 
-**The research is done and no spike is left.** Read off `q32_set.als`, the
-26 factory Sets, and the templates `live_set` already uses.
+**Tracks and returns are done**, Q39: `<Color Value="N" />`, 0 to 69, `-1`
+for none, written by `live_set._color_track` and spread evenly across the
+palette by `examples/patchbayground.py`.
 
-**One element, one integer, everywhere it appears:**
+What is left is the same element one level in. A Set-form `*Branch` carries
+`Color`, so a rack's chains can be coloured, and so can a clip. **One diff
+first**, because a branch also carries `AutoColored` and `AutoColorScheme`
+and a track does not: save a rack with a hand-coloured chain, and see
+whether `Color` survives with `AutoColored` still true, or whether Live
+flips it. That is a five minute spike and it decides whether the DSL sets
+one field or two.
 
-    <Color Value="19" />
-
-| carried by | scope |
-|---|---|
-| `MidiTrack`, `AudioTrack`, `ReturnTrack`, `MainTrack` | the track |
-| `MidiClip`, `AudioClip` | one clip |
-| every `*Branch` in Set form | one chain inside a rack |
-| `Scene` | one scene |
-| `PreHearTrack` | always `-1` |
-
-**The value is an index into Live's palette, 0 to 69.** Established across
-the 26 factory Sets: minimum 0, maximum 69, 39 distinct values in use, and
-70 is the size of the swatch grid Live shows. **`-1` means no colour**, and
-`Scene` and `PreHearTrack` carry it.
-
-Two counters sit at Set level and drive Live's own auto-colouring:
-`AutoColorPickerForPlayerAndGroupTracks/NextColorIndex` and
-`AutoColorPickerForReturnAndMainTracks/NextColorIndex`. A Set that sets
-every colour explicitly does not need them, and what they do when a colour
-is written by hand is unchecked.
-
-A branch also carries `AutoColored` and `AutoColorScheme`, which a track
-does not. Whether writing `Color` on a branch while `AutoColored` is true
-survives a save is the one thing worth a diff before this ships.
-
-### What it needs
-
-`live_set.Track` already accepts `color` and does nothing with it, which is
-the worst of both. Wire that, and add the same on the return list and on a
-rack's chains in the DSL. A palette index is a number a person should not
-have to memorise, so the DSL surface is the open question rather than the
-format: an integer is honest and unreadable, a name is readable and is
-sixty-nine names to invent and defend.
-
-**Class 2 at most.** `Color` is a value inside a construct every shipped
-Set already carries, so the file loads either way. A human eye confirms the
-colour is the one asked for.
+The open shape question is the DSL surface, not the format. A palette index
+is honest and unreadable; sixty-nine names are readable and are sixty-nine
+names to invent and defend.
 
 ## 2. The Q33 reference Set
 

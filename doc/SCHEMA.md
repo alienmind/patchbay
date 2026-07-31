@@ -2507,3 +2507,36 @@ return, `DeviceChain/Mixer/Sends` on every track by return, and
 `MainSequencer/ClipSlotList` and `FreezeSequencer/ClipSlotList` on every
 track by scene. `live_set` sizes all four. A fifth would be a fifth crash,
 so the sweep is worth re-running against any other skeleton.
+
+## Q39. Colour is one integer, everywhere it appears - ANSWERED
+
+**Evidence:** `q32_set.als`, the 26 factory Sets, and the templates
+`live_set` already reads.
+
+    <Color Value="19" />
+
+| carried by | scope |
+|---|---|
+| `MidiTrack`, `AudioTrack`, `ReturnTrack`, `MainTrack` | the track |
+| `MidiClip`, `AudioClip` | one clip |
+| every `*Branch` in Set form | one chain inside a rack |
+| `Scene` | one scene |
+| `PreHearTrack` | always `-1` |
+
+**The value indexes Live's palette, 0 to 69.** Across the 26 factory Sets:
+minimum 0, maximum 69, 39 distinct values in use. **`-1` is no colour**, and
+`Scene` and `PreHearTrack` carry it.
+
+Two counters sit at Set level and drive Live's own auto-colouring:
+`AutoColorPickerForPlayerAndGroupTracks/NextColorIndex` and
+`AutoColorPickerForReturnAndMainTracks/NextColorIndex`. A Set that colours
+every track explicitly does not need them. That split is why
+`examples/patchbayground.py` spreads tracks and returns over the palette
+SEPARATELY rather than as one list of fourteen: Live keeps two counters
+because it treats them as two groups.
+
+Written for tracks and returns by `live_set._color_track`, which refuses an
+index outside the palette rather than writing a colour Live has never
+written. A branch also carries `AutoColored` and `AutoColorScheme`, which a
+track does not, and whether setting `Color` while `AutoColored` is true
+survives a save is unchecked. That is what gates chains and clips.
