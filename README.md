@@ -2,7 +2,31 @@
 
 Author Ableton Live racks in code instead of by clicking.
 
-## TLDR
+## What this is
+
+A Python DSL and a toolchain for writing Live racks as source. You declare
+what a rack is - engines, macro layout, bindings, ranges, zones,
+variations, nesting - and `patchbay build` produces the `.adg` Live opens.
+It also runs backwards: `patchbay extract` reads a saved rack and prints
+the declaration that rebuilds it.
+
+A spec is an ordinary Python module. It imports from `patchbay.dsl`, and
+the racks it declares are values, so anything Python does - a loop, a
+function, a list comprehension - is available for describing them. That is
+the point of a DSL embedded in a language rather than a config format: 96
+variations are a `product()` over a few lists, not 96 stanzas.
+
+As an example, we provide a full (opinionated) live set that is constructed
+as a composition of many racks, ideal for live performance on the Push (PATCHBAYGROUND.als)
+See [PATCHBAYGRND, the end-to-end test](#patchbaygrnd---the-ultimate-end-to-end-test) for details.
+
+But based on that example, you could automate whatever!
+
+Inspired in ideas from [strudel.cc](https://strudel.cc) and TidalCycles,
+but PatchBay is about **offline authoring** and not live coding of music.
+Nothing here makes a sound. It produces the assets you will load in your DAW.
+
+## TLDR - How do I run this
 
 Needs Python 3.10+, [uv](https://docs.astral.sh/uv/), and an install of
 Live 12 (the Set writer reads Live's own factory templates).
@@ -11,19 +35,19 @@ Live 12 (the Set writer reads Live's own factory templates).
 uv sync                         # creates .venv, installs patchbay editable
 ```
 
-**Sort a pile of samples.** Drop a pack into `samples/all/` in whatever
-shape it arrived in. The first command only says what it would do:
+**Sort a pile of samples.** Drop your packs into `samples/all/` in whatever
+shape it arrived in. 
 
 ```
-uv run python examples/reorg_samples.py
-uv run python examples/reorg_samples.py --apply
+uv run python examples/reorg_samples.py         # Will show some help
+uv run python examples/reorg_samples.py --apply # Will classify (copy) into the required folders
 ```
 
-It copies each file into `samples/<RACK>/<category>/`, renamed and numbered
+The result is a copy of each file into `samples/<RACK>/<category>/`, renamed and numbered
 from the first free index. Nothing is moved or deleted, so a wrong
-classification costs a re-run. `samples/README.md` is the contract.
+classification can be fixed with a re-run. See `samples/README.md` for details.
 
-**Build the racks and the Set**, both from the one example spec:
+**Building PATCHBAYGRND: the exemplary racks and Set**, both from the one example spec:
 
 ```
 uv run patchbay build examples/patchbayground.py -o build/
@@ -44,28 +68,11 @@ uv run pytest tests/ -q         # 120 tests, ~2 min
 
 Everything below is why any of it works.
 
-## What this is
-
-A Python DSL and a toolchain for writing Live racks as source. You declare
-what a rack is - engines, macro layout, bindings, ranges, zones,
-variations, nesting - and `patchbay build` produces the `.adg` Live opens.
-It also runs backwards: `patchbay extract` reads a saved rack and prints
-the declaration that rebuilds it.
-
-A spec is an ordinary Python module. It imports from `patchbay.dsl`, and
-the racks it declares are values, so anything Python does - a loop, a
-function, a list comprehension - is available for describing them. That is
-the point of a DSL embedded in a language rather than a config format: 96
-variations are a `product()` over a few lists, not 96 stanzas.
-
-Inspired in ideas from [strudel.cc](https://strudel.cc) and TidalCycles,
-but PatchBay is about **offline authoring** and not live coding of music.
-Nothing here makes a sound. It produces the assets you will load in your DAW.
 
 ## Motivation
 
 Instead of spending an afternoon dragging, dropping, patching
-and connecting macros, you just do an edit and a rebuild from a layout you
+and connecting macros, I've spend two weeks of frantly coding this tool, so you just do an edit and a rebuild from a layout you
 already trust.
 
 That changes what maintenance costs of a large number of racks, which can be useful
@@ -91,10 +98,7 @@ live Set, script through the LOM.
 The LOM stops short in two ways. Parts of it are undocumented, and parts of
 what a Set contains have no API at all. Grouping devices into a rack,
 creating a macro mapping, setting a chain zone: none of these are in the
-Object Model. Or at least that I've been slowly digging while looking into
-other examples, like ableton-mcp (see [`doc/MCP.md`](doc/MCP.md) and
-[On MCP and potential way forward](#on-mcp-and-potential-way-forward)
-at the end).
+Object Model.
 
 PatchBay covers the other half by writing the **files**. An `.adg` is a
 gzipped XML document, so is an `.als`, so is an `.adv`. What the API will
@@ -149,12 +153,12 @@ Most of the vocabulary is Live's. A few terms are this project's own:
 | **zone** | Live | the span of 0..127 over which one chain answers the selector |
 | **pad** | Live | a drum rack chain, chosen by a MIDI note instead of a zone |
 | **variation** | Live | a stored position for every macro, recalled as one. Live's UI says Variations, the XML says Snapshots |
+| **mapping** | Live | the stored link from a macro to a parameter. What a binding compiles INTO |
 | **engine** | PatchBay | one chain and the device in it, treated as one way of making the sound |
 | **slot** | PatchBay | one position in the layout. Slot N is macro N, and it carries its own name, opening position and label |
 | **layout** | PatchBay | the ordered list of slots, shared by every rack that uses it |
 | **engine profile** | PatchBay | how one device answers a layout: a value, reusable across racks |
 | **role** | PatchBay | what a rack asks its wildcard slot to do. An engine `offers` roles, a rack `spends` a slot on one |
-| **mapping** | Live | the stored link from a macro to a parameter. What a binding compiles INTO |
 | **binding** | PatchBay | one slot pointed at one parameter of one device |
 | **setting** | PatchBay | a device control with no `Manual`, so it can be set but never driven. Drift's modulation routing is one |
 | **range** | PatchBay | the span of that parameter the macro drives, in the parameter's own units |
@@ -171,7 +175,7 @@ by discipline.
 **A binding names a parameter, and parameter names are not the GUI
 labels.** `Filter/Slot/Value/SimplerFilter/Freq` is Simpler's cutoff. This
 is why `donors/` exists and why a binding is written against one, never
-from memory: see [Everything here is guessed from empirical evidence](#everything-here-is-guessed-from-empirical-evidence).
+from memory: see [how this was reverse engineered](#the-amazing-adventure-of-reverse-engineering-how-ableton-saves-stuff) for details.
 
 **A range is what makes a slot mean the same thing twice.** Two engines can
 bind the same slot to the right parameter each and still disagree, because
@@ -203,7 +207,7 @@ VA1 = (Rack.instrument("VA1", PB)
 only those, and `PB.character.to(INNER.movement)` drives an inner slot with
 a different name.
 
-## Everything here is guessed from empirical evidence
+## The amazing adventure of reverse engineering how Ableton saves stuff
 
 Ableton publishes no schema, and its element names are not the GUI labels:
 Saturator's Drive knob is `PreDrive`, Simpler's cutoff is
@@ -231,9 +235,8 @@ using knobs to quickly switch between instruments, a semi fixed channel strip on
 and racks nested inside racks so one instrument reaches all the others.
 
 [`examples/patchbayground.py`](examples/patchbayground.py) is this
-project's attempt at rebuilding that, from what is publicly visible of it
-plus everything harvesting my own devices. It serves as **one big
-example, and the end-to-end test**. Twelve racks, six instruments and a six
+project's attempt at rebuilding something like that.
+It serves as **one big example, and the end-to-end test**. Twelve racks, six instruments and a six
 rack channel strip, three levels of nesting, 96 variations, eight drum pads
 - if a change breaks something real, it breaks there first. All twelve have
 been loaded into Live 12.4.3 and played. Check [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md) for more details.
@@ -314,6 +317,9 @@ each cost to find.
 It does not choose sounds either. Which kick is good, whether one knob feels
 comparable across two synthesis engines, and where the mix sits are the
 parts worth doing by hand, and the tool exists to leave time for them.
+
+This is where the valuable expertise of a music producer comes in! your taste I cannot replace nor
+automate.
 
 ## Install
 

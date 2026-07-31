@@ -17,19 +17,16 @@ costs against what it decides.
 
 ## 1. Classifying by sound
 
-`examples/reorg_samples.py` sorts a drop folder by reading FILENAMES. Over
-the 1332 files currently in `samples/all/`, ten commercial packs, that
-places 1331 and leaves 1. The names carried more than expected, and the
-ceiling is not accuracy: it is that a filename says what a sample IS and
-never says whether it is any good.
+We currently have a basic classification algorithm for samples based on file names `examples/reorg_samples.py`,
+which sorts a drop folder. But this is not enough to properly cluster the samples as we want them to be:
 
-### What the name cannot say
+### Enhancements
 
-Three cases, all present in the current drop:
+Based on some of the exmaples used:
 
 | case | example in the drop | what would settle it |
 |---|---|---|
-| one-shot or bar | `EBM_KIT_5_BASS_126_Gm_7`, a tempo and a key and no `loop` | LENGTH against the tempo |
+| one-shot or bar | `WHAEVER_KIT_5_BASS_126_Gm_7`, a tempo and a key and no `loop` | LENGTH against the tempo |
 | near duplicates | five packs each ship a 909 clap | spectral distance, not a content hash |
 | is it usable | anything | nothing automatic. Ears |
 
@@ -71,8 +68,7 @@ because it can ship with no new dependency.
 
 Everything past duration wants FFT. `numpy` alone does the first four.
 `librosa` does all of them and drags in `scipy`, `numba` and a compile
-step. `trackster` uses `meyda` in the browser for MFCCs, and the same
-clustering idea ported here would want the heavy end.
+step.
 
 This project currently depends on `lxml` and nothing else, which is why a
 clone builds in seconds. **Adding `numpy` for duration and attack is a
@@ -129,6 +125,9 @@ bookkeeping.
 **A Pack of PATCHBAYGROUND would carry the samples**, which is the same
 licence question as `samples/`. A Pack is a distribution format, so this
 task decides how a build is shipped, not just how it is written.
+Samples used for this experiment cannot be redistributed, but at least we should
+provide a way to build a pack for any user willing to build it from their
+sample collection.
 
 ## 4. The donor name scan
 

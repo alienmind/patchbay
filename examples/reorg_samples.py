@@ -19,8 +19,9 @@ Classification is a list of STAGES, tried in order, first verdict wins.
 Each stage answers from a different kind of evidence, and a stage that
 cannot answer returns nothing rather than guessing:
 
-    1. NameStage    a regex over the filename
-    2. FolderStage  the same regexes over the enclosing folder names
+    1. FolderFormStage  a folder that says LOOP, whatever the file is named
+    2. NameStage        a regex over the filename
+    3. FolderStage      the same regexes over the enclosing folder names
 
 A stage records itself on the verdict, so `--explain` says which evidence
 decided each file and every classification is answerable. That is the whole
@@ -49,7 +50,7 @@ the design. Specific before general, always:
     loop before everything a `kick_loop` is a loop, not a kick
     ohat before hat        "open_hat" contains "hat"
     clap, rim before snare a pack that ships "snare_clap" means the clap
-    crash, ride before cy  the abbreviation is the fallback
+    crash, ride before cy  the abbreviation is the fallback (all in misc)
 
 Abbreviations are matched at word boundaries only. Bare `bd` inside
 `bd_01` is a kick; inside `abdomen` it is nothing, and `\\b` is what keeps
@@ -89,10 +90,15 @@ class Rule:
     `dest` is a path under `samples/`, which is the per-rack scheme
     `samples/README.md` documents: `<RACK>/<category>/` for a rack with
     categories, `<RACK>/` for a flat one.
+
+    **`dest = None` means recognised and deliberately not placed.** Only
+    `samples/<RACK>/` is ever read by a build, so sorting a file no rack
+    can play would create a folder nothing opens. Saying so is more useful
+    than either inventing a home for it or failing to classify it.
     """
 
     category: str
-    dest: str
+    dest: str | None
     patterns: tuple[str, ...]
 
     def matches(self, text: str) -> bool:
@@ -110,7 +116,11 @@ RULES: tuple[Rule, ...] = (
     #
     # `mix` is here because `Kit 01 Full Mix 126 G#` is a bar of the whole
     # kit, and `sequence`/`sq` because a sequence is a loop by another name.
-    Rule("loop", "loops/misc",
+    #
+    # NOT PLACED. No rack here plays a loop: a pad is a one-shot and SR1
+    # walks one-shots too. Recognising them is what keeps 271 files out of
+    # the pads; giving them a folder would only be a folder nothing reads.
+    Rule("loop", None,
          (r"\bloop\b", r"\d{2,3}\s?bpm", r"\bbreak\b", r"\bfull.?mix\b",
           r"\bmix\b", r"\bsequence\b", r"\bsq\b")),                    # 239
 
@@ -125,8 +135,6 @@ RULES: tuple[Rule, ...] = (
          (r"kick", r"\bbd\b", r"bass.?drum", r"\b808\b", r"thump",
           r"\bbdrum")),                                                # 144
     Rule("tom", "DR1/tom", (r"\btom\b", r"\btm\b", r"conga", r"bongo")),  # 0
-    Rule("crash", "cymbals/crash", (r"crash", r"splash")),                # 0
-    Rule("ride", "cymbals/ride", (r"\bride\b", r"\bbell\b")),             # 0
 
     # The pad is MISC, and `perc` stays in the patterns because that is the
     # word packs put in filenames. A category name and a filename token are
@@ -137,7 +145,11 @@ RULES: tuple[Rule, ...] = (
     # is where they are playable.
     Rule("misc", "DR1/misc",
          (r"perc", r"glitch", r"shaker", r"tamb", r"cowbell", r"clave",
-          r"wood", r"block", r"click", r"\bcym", r"\bcy\b", r"\bpc\b")),  # 357
+          r"wood", r"block", r"click", r"\bcym", r"\bcy\b", r"\bpc\b",
+          # Cymbals land here rather than in a `cymbals/` folder of their
+          # own. There are eight pads and none of them is a crash, so misc
+          # is the pad that plays one.
+          r"crash", r"splash", r"\bride\b", r"\bbell\b")),               # 357
 
     # Everything with no pad: atmospheres, alarms, drones, speech, stabs.
     Rule("fx", "SR1",
@@ -158,9 +170,39 @@ class Verdict:
     """What a file was classified as, and what decided it."""
 
     category: str
-    dest: str
+    dest: str | None
     stage: str
     evidence: str
+
+
+#: The loop tokens that are safe to read off a FOLDER name. `bpm` and
+#: `mix` are absent: `Kit 01 G# 126 BPM/` holds one-shots, so a tempo in a
+#: folder name describes the kit rather than the file.
+FOLDER_LOOP = Rule("loop", None, (r"\bloop", r"\bbreak\b", r"\bsequence\b"))
+
+
+class FolderFormStage:
+    """A folder that says LOOP, before any rule about what the sound is.
+
+    Form outranks sound on ANY evidence, not just on the filename. A pack
+    filed under `loops/kick/` and named `kick_004.wav` is a bar of kick, and
+    reading the name first puts it on the kick pad where it is unplayable.
+    That is not hypothetical: it is what happened when 20 such files were
+    reclaimed into the drop.
+
+    Only the unambiguous tokens, for the reason `FolderStage` gives.
+    """
+
+    name = "folder-form"
+
+    def verdict(self, path: Path) -> Verdict | None:
+        for parent in path.parents:
+            if parent == DROP or DROP not in parent.parents:
+                break
+            if FOLDER_LOOP.matches(_normalise(parent.name)):
+                return Verdict(FOLDER_LOOP.category, FOLDER_LOOP.dest,
+                               self.name, parent.name)
+        return None
 
 
 class NameStage:
@@ -218,7 +260,7 @@ class FolderStage:
 
 #: Tried in order, first verdict wins. Audio analysis becomes a third entry
 #: here and nothing above it changes. `doc/TODO.md` has the design.
-PIPELINE = (NameStage(RULES), FolderStage(RULES))
+PIPELINE = (FolderFormStage(), NameStage(RULES), FolderStage(RULES))
 
 
 def _normalise(text: str) -> str:
@@ -263,11 +305,12 @@ class Plan:
 
     moves: list[tuple[Path, Path, Verdict]]
     duplicates: list[Path]
+    unplaced: list[tuple[Path, Verdict]]
     unknown: list[Path]
 
 
 def plan() -> Plan:
-    """What a run would copy, skip as a duplicate, and fail to classify.
+    """What a run would copy, skip, leave in place, and fail to classify.
 
     Duplicates are exact CONTENT matches against what is already in the
     destination, which is what a second copy of the same pack produces.
@@ -275,16 +318,19 @@ def plan() -> Plan:
     be: that is a listening decision.
     """
     if not DROP.is_dir():
-        return Plan([], [], [])
+        return Plan([], [], [], [])
 
     known: dict[str, set[str]] = {}
     counters: dict[str, int] = {}
-    made = Plan([], [], [])
+    made = Plan([], [], [], [])
 
     for src in samples.audio(DROP, recursive=True):
         got = classify(src)
         if got is None:
             made.unknown.append(src)
+            continue
+        if got.dest is None:
+            made.unplaced.append((src, got))
             continue
         folder = SAMPLES / got.dest
 
@@ -319,7 +365,7 @@ def main() -> int:
         return 0
 
     got = plan()
-    if not (got.moves or got.duplicates or got.unknown):
+    if not (got.moves or got.duplicates or got.unplaced or got.unknown):
         print(f"{DROP} holds no audio")
         return 0
 
@@ -336,6 +382,10 @@ def main() -> int:
         print(f"  {dest:<16} {per_dest[dest]:>4}")
     if got.duplicates:
         print(f"  {'already there':<16} {len(got.duplicates):>4} (same content)")
+    if got.unplaced:
+        kinds = sorted({w.category for _, w in got.unplaced})
+        print(f"  {'not placed':<16} {len(got.unplaced):>4} "
+              f"({', '.join(kinds)}: no rack plays these)")
     if got.unknown:
         print(f"  {'UNCLASSIFIED':<16} {len(got.unknown):>4} "
               f"(left where they are)")
@@ -347,6 +397,9 @@ def main() -> int:
             print(f"    {why.category:<6} {why.stage:<7} "
                   f"{why.evidence[:44]:<46} -> "
                   f"{dst.relative_to(SAMPLES).as_posix()}")
+        for src, why in got.unplaced:
+            print(f"    {why.category:<6} {why.stage:<7} "
+                  f"{why.evidence[:44]:<46} -> not placed")
         for p in got.unknown:
             print(f"    ?      -       {p.relative_to(DROP).as_posix()[:44]}")
 
@@ -364,6 +417,9 @@ def main() -> int:
     print(f"\n{len(got.moves)} copied, logged to "
           f"{MANIFEST.relative_to(ROOT)}")
     print(f"{DROP.relative_to(ROOT)} is untouched. Delete it when satisfied.")
+    if got.unplaced:
+        print(f"{len(got.unplaced)} recognised and left alone: no rack reads "
+              f"anything outside samples/<RACK>/.")
     if got.unknown:
         print(f"{len(got.unknown)} file(s) classified as nothing. Rename them "
               f"so the sound is in the name, or add a pattern to RULES.")

@@ -2131,7 +2131,6 @@ def test_sample_classification_is_ordered_specific_first():
     assert names.index("ohat") < names.index("hat")
     assert names.index("clap") < names.index("snare")
     assert names.index("rim") < names.index("snare")
-    assert names.index("crash") < names.index("misc")
 
     for filename, want in (
             ("kick_loop_120bpm.wav", "loop"),
@@ -2150,6 +2149,8 @@ def test_sample_classification_is_ordered_specific_first():
             ("sidestick.wav", "rim"),
             ("conga_hi.wav", "tom"),
             ("Clave 2.wav", "misc"),
+            ("Crash 1.wav", "misc"),
+            ("ride_02.wav", "misc"),
             ("001 SETECHNO - Glitch.wav", "misc"),
             ("ISR_EBM_57_Perc.wav", "misc"),
             ("vox_chop.wav", "fx"),
@@ -2171,6 +2172,47 @@ def test_sample_classification_is_ordered_specific_first():
         assert classify(Path(filename)) is None, f"{filename} classified"
 
 
+def test_a_loop_is_not_placed_at_all():
+    """No rack reads anything outside `samples/<RACK>/`, so a loop has no home.
+
+    Recognising one is still worth doing: it is what keeps 311 bar-length
+    files out of the pads, where they are unplayable. `dest = None` says
+    recognised and deliberately left alone, which is a different answer
+    from "no rule matched".
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import reorg_samples as rs
+
+    placed = {r.dest for r in rs.RULES if r.dest is not None}
+    assert all(d.split("/")[0] in ("DR1", "SR1") for d in placed), (
+        f"a rule writes outside samples/<RACK>/: {sorted(placed)}")
+
+    got = rs.classify(Path("kick_loop_126bpm.wav"))
+    assert got is not None and got.category == "loop" and got.dest is None
+
+
+def test_a_folder_that_says_loop_outranks_the_filename():
+    """Form beats sound on ANY evidence, which is why there are two folder stages.
+
+    `loops/kick/kick_001.wav` is a bar of kick. Reading the name first puts
+    it on the kick pad where it is unplayable, and that is not hypothetical:
+    20 such files did exactly that until `FolderFormStage` went in front.
+
+    It carries only the unambiguous tokens. `bpm` is not among them for the
+    reason the next test gives.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import reorg_samples as rs
+
+    got = rs.classify(rs.DROP / "loops" / "kick" / "kick_001.wav")
+    assert got is not None, "a folder saying loop was ignored"
+    assert got.category == "loop" and got.dest is None
+    assert got.stage == "folder-form", got
+
+    assert not rs.FOLDER_LOOP.matches("kit 01 g 126 bpm"), (
+        "a tempo in a folder name describes the kit, not the file")
+
+
 def test_the_folder_stage_is_a_fallback_and_skips_the_loop_rule():
     """Q: why not read the folder first? Because a kit folder carries a tempo.
 
@@ -2181,8 +2223,9 @@ def test_the_folder_stage_is_a_fallback_and_skips_the_loop_rule():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import reorg_samples as rs
 
-    assert [s.name for s in rs.PIPELINE] == ["name", "folder"]
-    assert "loop" not in [r.category for r in rs.PIPELINE[1].rules], (
+    assert [s.name for s in rs.PIPELINE] == ["folder-form", "name", "folder"]
+    folder = next(st for st in rs.PIPELINE if st.name == "folder")
+    assert "loop" not in [r.category for r in folder.rules], (
         "a tempo in a FOLDER name describes the kit, not the file")
 
     drop = rs.DROP

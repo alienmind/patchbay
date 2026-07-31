@@ -25,10 +25,14 @@ samples/
     kick/     tom/      snare/    hat/
     rim/      misc/     clap/     ohat/
   SR1/        flat, no categories
-  cymbals/    unclaimed
-  loops/      unclaimed, tempo locked
   manifests/  the move log, never read by a build
 ```
+
+**There are no other folders, and that is the rule.** A build reads
+`samples/<RACK>/` and nothing else, so a folder no rack is named for is a
+folder nothing opens. `cymbals/` and `loops/` used to exist and were
+exactly that: write-only. Cymbals now go to the `misc` pad, which is the
+pad that plays one, and loops go nowhere at all.
 
 **A rack with categories has one subfolder per category. A flat rack has
 none.** DR1 is a drum rack, so a category is a pad and a pad is a MIDI
@@ -72,8 +76,7 @@ folder, `.asd` analysis files included, is ignored.
 
     DR1/      307 over eight categories
     SR1/        6
-    cymbals/   47 over two, unclaimed
-    loops/     40 over two, unclaimed
+    all/     1419 waiting to be sorted
 
 Counts change as the collection does. Ask the filesystem, not this file.
 
@@ -93,13 +96,17 @@ Classification is a pipeline of STAGES, tried in order, first verdict
 wins. `--explain` prints which stage decided each file and on what, so
 every placement is answerable:
 
-1. **the filename**, which is what survives a pack being copied around.
-2. **the enclosing folders**, as a fallback for packs that number their
+1. **a folder that says LOOP**, before anything about what the sound is.
+   `loops/kick/kick_001.wav` is a bar of kick, and reading the filename
+   first would put it on the kick pad where it is unplayable.
+2. **the filename**, which is what survives a pack being copied around.
+3. **the enclosing folders**, as a fallback for packs that number their
    files and put the sound in the folder.
 
-The folder is weaker evidence and deliberately skips the loop rule: a kit
-folder called `Kit 01 G# 126 BPM` holds one-shots, so a tempo in a FOLDER
-name describes the kit and not the file.
+Why two folder stages rather than one: FORM outranks sound, but only the
+unambiguous tokens are safe to read off a folder. A kit folder called
+`Kit 01 G# 126 BPM` holds one-shots, so a tempo in a FOLDER name describes
+the kit and not the file, and the `bpm` pattern is filename-only.
 
 Within a stage the rules are one ordered list and the first match wins:
 
@@ -117,6 +124,11 @@ Within a stage the rules are one ordered list and the first match wins:
 The rules were derived from 1332 files across ten commercial packs, by
 token frequency and then by checking what each rule caught. They place
 1331 of them.
+
+**A loop is recognised and then left alone.** No rack plays one: a pad is a
+one-shot and SR1 walks one-shots too. Recognising them is what keeps 311
+bar-length files out of the pads; giving them a folder would only be a
+folder nothing reads.
 
 A file whose name and folder both say nothing is left in `all/` and counted
 as UNCLASSIFIED. Rename it so the sound is in the name, or add a pattern.
