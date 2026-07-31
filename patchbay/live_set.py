@@ -400,6 +400,30 @@ def _seed_sends(track: Element, count: int, template: Element) -> None:
         sends.append(holder)
 
 
+def _fit_sends_pre(live_set: Element, count: int) -> None:
+    """One `SendPreBool` per RETURN, on the Set itself.
+
+    Q38. Pre/post is a property of the send SLOT, so the flags live once at
+    Set level rather than per track, and the list is indexed by return.
+    The skeleton has two returns and two flags; six returns over a
+    two-element list is a read past the end, which is a crash and not a
+    refusal.
+
+    The skeleton's own ids are 0 and 2, so they are unique among siblings
+    and nothing more (rule 2). These are written 0 upward.
+    """
+    holder = live_set.find("SendsPre")
+    if holder is None or not len(holder):
+        raise ValueError(f"{SET_SKELETON} carries no SendsPre to model on")
+    template = copy.deepcopy(holder[0])
+    for child in list(holder):
+        holder.remove(child)
+    for i in range(count):
+        flag = copy.deepcopy(template)
+        flag.set("Id", str(i))
+        holder.append(flag)
+
+
 def _fit_clip_slots(track: Element, scenes: int) -> None:
     """One clip slot per SCENE, on every clip-slot list this track has.
 
@@ -523,6 +547,7 @@ def build(tracks: list[Track], returns: list[str] | None = None,
         container.append(track)
         made += 1
 
+    _fit_sends_pre(live_set, count)
     _renumber_pointees(root)
 
     if tempo is not None:

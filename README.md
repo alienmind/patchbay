@@ -210,7 +210,9 @@ Every item below was gated by loading the output in Live 12.4.3.
 - per-track instances of a rack: one declaration, one name per track
 - a whole Live Set: tracks, named returns, a send per return on every
   track, every rack placed in order, a track routed into another track,
-  and each sidechain fed from a track you name
+  and each sidechain fed from a track you name. PATCHBAYGROUND is 8
+  tracks, 6 returns and 52 racks, written by one command and opened in
+  Live 12.4.3
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth
@@ -242,7 +244,7 @@ own:
 patchbay harvest "path/to/Project"
 ```
 
-`uv run pytest tests/ -q` runs 78 tests asserting the library still agrees
+`uv run pytest tests/ -q` runs 116 tests asserting the library still agrees
 with every recorded finding. One of them clears the variations Live wrote
 in `racks/s8_c.adg`, writes them back through `patchbay`, and requires the
 diff to be empty. Another holds a digest of every example rack, DR1's
@@ -253,6 +255,13 @@ proves it here rather than by dragging files into Live.
 
 `patchbay` authors racks, and places them in a Set. It does not write
 clips, arrangement, automation envelopes or a groove pool.
+
+A Set it writes must agree with Live on four counts that no schema states:
+one send-pre flag per return, one send per return on every track, and one
+clip slot per scene on both of a track's clip slot lists. Getting one wrong
+does not produce an error, it produces a file that parses and then takes
+Live down. `live_set` sizes all four, and `SCHEMA.md` Q36 to Q38 is what
+each cost to find.
 
 It does not choose sounds either. Which kick is good, whether one knob feels
 comparable across two synthesis engines, and where the mix sits are the

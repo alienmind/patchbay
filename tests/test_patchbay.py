@@ -2002,6 +2002,35 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_the_set_carries_one_send_pre_flag_per_return():
+    """Q38. `LiveSet/SendsPre` is indexed by RETURN, not by track.
+
+    Pre/post is a property of the send slot, so the flags sit once at Set
+    level. The skeleton has two returns and two flags, and six returns over
+    a two-element list is a read past the end: a crash, not a refusal, and
+    the same shape as the clip slots in Q36.
+
+    Three returns is the smallest case that fails, and the earlier probes
+    used one, which is why this survived six attempts.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    for count in (1, 3, 6):
+        root = live_set.build([live_set.Track("T1", "midi")],
+                              returns=[f"R{i}" for i in range(count)])
+        holder = root.find("LiveSet/SendsPre")
+        assert holder is not None, "the Set carries no SendsPre at all"
+        assert len(holder) == count, (
+            f"{len(holder)} flags against {count} returns")
+        ids = [f.get("Id") for f in holder]
+        assert len(set(ids)) == len(ids), "sibling flag ids collide"
+
+
 def test_a_send_on_a_return_track_is_disabled():
     """Q37. `EnabledByUser="false"` on every send a RETURN carries.
 

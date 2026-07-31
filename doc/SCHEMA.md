@@ -2434,3 +2434,41 @@ is send flags against track kind, and both were invisible in the file and
 fatal in Live. A count or a flag that has to agree with something spliced
 in from elsewhere is the shape to look for first when a Set crashes rather
 than being refused.
+
+## Q38. `SendsPre` is one flag per RETURN, at Set level - ANSWERED
+
+**Evidence:** `build/probe_10_six_returns.als`, one MIDI track and six
+returns and nothing else, `EXCEPTION_ACCESS_VIOLATION`. Q37 was found in
+the same file and was not the whole of it.
+
+    <SendsPre>
+      <SendPreBool Id="0" Value="false" />
+      <SendPreBool Id="1" Value="false" />
+    </SendsPre>
+
+**Two returns, two flags** in the reference Set. Pre/post is a property of
+the send SLOT rather than of a track, so the flags sit once on the Set and
+the list is indexed by return.
+
+`live_set` resized `Mixer/Sends` on every track and left this alone, so
+every Set it wrote carried the skeleton's two flags whatever the return
+count. Six returns over a two-element list is a read past the end.
+
+**One return loads and six crash**, because a list of two is oversized for
+one and short for three. Every probe before this used one return, which is
+why six attempts and two other fixes went past it.
+
+The skeleton's own ids are `0` and `2`. Not contiguous, not matching the
+index, and Live saved that itself: rule 2 says unique among siblings and
+nothing more.
+
+**This is the third of the same bug.** Q36 clip slots against scenes, Q37
+send flags against track kind, Q38 pre-flags against return count. A
+factory template carries a count that matched ITS Set; splicing it into a
+Set of a different size is where all three came from. `_seed_sends` was the
+one case that had already been handled, and it was handled because S9 hit
+it inside a rack.
+
+**What to sweep before writing a Set:** every homogeneous list whose length
+equals the skeleton's track, return or scene count. In the 8-Track Template
+those are `SendsPre`, `Mixer/Sends` on each track, and both `ClipSlotList`s.

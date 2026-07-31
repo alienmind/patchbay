@@ -72,10 +72,23 @@ inside a Live Set (`.als`), where chains live under `DeviceChain`.
 
 **Both directions are implemented**: `extract.preset_from_set` reads a rack
 out of a Set, `live_set.set_from_preset` writes one into a Set, and
-`patchbay session` writes a whole Set of them. Q9 has the mapping, Q30 what
-writing it costs, and Q31 the one field whose REQUIRED value is opposite in
-the two forms - a pointee id must be zero in a preset and must not be zero
-in a Set.
+`patchbay session` writes a whole Set of them, verified by loading
+`build/PATCHBAYGROUND.als` in Live 12.4.3. Q9 has the mapping and Q30 what
+writing it costs.
+
+**Four things are required to DIFFER between the forms**, and none of them
+is announced anywhere: a pointee id must be zero in a preset and non-zero
+in a Set (Q31, Q34), a rack's return chain is `AudioEffectBranchPreset` in
+one and `ReturnBranch` in the other (Q32), the branch mixer is renamed
+(Q30), and a branch's `DocumentColorIndex` and a drum branch's
+`ZoneSettings` exist only in preset form (Q35).
+
+**Three counts are required to AGREE** between the Set skeleton and
+anything spliced into it: `SendsPre` by return count (Q38), `Mixer/Sends`
+on every track by return count (S9), and both `ClipSlotList`s on every
+track by scene count (Q36). Plus one flag, `EnabledByUser`, which is false
+on every send a return carries (Q37). These are the dangerous class: a
+wrong count parses clean and crashes Live with no message.
 
 This distinction is the single most important structural fact in the
 format, because it inverts the containment you would expect.

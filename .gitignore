@@ -14,3 +14,7 @@ samples/*
 # packaging
 *.egg-info/
 .venv/
+
+# Local scratch, never committed
+glm.ps1
+payload.json
