@@ -22,8 +22,8 @@ negotiate over a folder, and a folder no rack is named for is never read.
 samples/
   all/        DROP ANYTHING HERE. Never read by a build
   DR1/        one subfolder per pad category
-    kick/     rim/      snare/    clap/
-    perc/     hat/      tom/      ohat/
+    kick/     tom/      snare/    hat/
+    rim/      misc/     clap/     ohat/
   SR1/        flat, no categories
   cymbals/    unclaimed
   loops/      unclaimed, tempo locked

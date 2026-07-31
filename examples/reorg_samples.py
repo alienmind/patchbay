@@ -82,7 +82,10 @@ RULES: list[tuple[str, str, list[str]]] = [
     ("tom",   "DR1/tom",      [r"\btom\b", r"\btm\b", r"conga", r"bongo"]),
     ("crash", "cymbals/crash", [r"crash", r"splash"]),
     ("ride",  "cymbals/ride", [r"\bride\b", r"\bbell\b"]),
-    ("perc",  "DR1/perc",     [r"perc", r"shaker", r"tamb", r"cowbell",
+    # The pad is MISC, and `perc` stays in the patterns because that is the
+    # word packs put in filenames. Category name and filename token are two
+    # different things and only the first is ours to choose.
+    ("misc",  "DR1/misc",     [r"perc", r"shaker", r"tamb", r"cowbell",
                                r"clave", r"wood", r"block", r"click",
                                r"\bcym", r"\bcy\b", r"\bpc\b"]),
     ("fx",    "SR1",          [r"\bfx\b", r"vox", r"vocal", r"voice",

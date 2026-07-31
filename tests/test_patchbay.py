@@ -2130,7 +2130,7 @@ def test_sample_classification_is_ordered_specific_first():
     assert names.index("ohat") < names.index("hat")
     assert names.index("clap") < names.index("snare")
     assert names.index("rim") < names.index("snare")
-    assert names.index("crash") < names.index("perc")
+    assert names.index("crash") < names.index("misc")
 
     for filename, want in (
             ("kick_loop_120bpm.wav", "loop"),
@@ -2145,6 +2145,7 @@ def test_sample_classification_is_ordered_specific_first():
             ("BD 4.wav", "kick"),
             ("sidestick.wav", "rim"),
             ("conga_hi.wav", "tom"),
+            ("Clave 2.wav", "misc"),
             ("vox_chop.wav", "fx")):
         got = classify(filename)
         assert got is not None and got[0] == want, f"{filename} -> {got}"

@@ -497,28 +497,30 @@ PAD = PB.deriving(selects=PB.sound)
 # Pad layout, and the folder each pad draws from. The names are the ones
 # samples/README.md documents, not a vendor's.
 #
-# The reference is Live's own 808 Core Kit, because a Push player reads the
-# 4x4 grid by position before reading any label. That kit lays out:
+# Laid out for the PLAYER, on the bottom two rows of Push's 8x8 grid. A
+# drum grid is notes 36 upward, four to a row from the bottom left, so rows
+# 7 and 8 of the pad grid are notes 40..43 and 36..39:
 #
-#   48..51  maracas   cymbal    cow bell   claves
-#   44..47  low tom   mid tom   OPEN HAT   hi tom
-#   40..43  low conga mid conga CLOSED HAT hi conga
-#   36..39  kick      rim       snare      clap
+#   row 7   40 rim    41 misc   42 clap   43 open hat
+#   row 8   36 kick   37 tom    38 snare  39 closed hat
 #
-# so the bottom row is the backbeat, hats stack in column 3, percussion sits
-# on row 2 and toms on row 3. Eight sounds fill the bottom row plus the two
-# hats in their column, PERC on the conga row and TOM on the tom row.
-# Putting TOM at 41 instead, which is a conga slot in every kit Live ships,
-# read as wrong on the grid.
+# The bottom row is what a hand plays: kick and snare under the strong
+# fingers, the closed hat in column D where the open hat sits directly above
+# it. Column D is the hat pair, and a choke group is the obvious next step
+# there. Everything hit less often is on row 7.
+#
+# This is NOT Live's 808 Core Kit order, which puts toms on row 3 and congas
+# on row 2. That layout is General MIDI's and it is right for reading a kit
+# somebody else made; this one is right for playing this kit.
 PADS = (
     ("KICK", 36, "kick"),
-    ("RIM", 37, "rim"),
+    ("TOM", 37, "tom"),
     ("SNARE", 38, "snare"),
-    ("CLAP", 39, "clap"),
-    ("PERC", 41, "perc"),
-    ("HAT", 42, "hat"),
-    ("TOM", 44, "tom"),
-    ("OHAT", 46, "ohat"),
+    ("HAT", 39, "hat"),
+    ("RIM", 40, "rim"),
+    ("MISC", 41, "misc"),
+    ("CLAP", 42, "clap"),
+    ("OHAT", 43, "ohat"),
 )
 
 #: Where a rack's audio lives: `samples/<rack>/<category>/`. One folder per
