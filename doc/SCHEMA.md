@@ -2222,7 +2222,7 @@ written into a Set carries preset zeros that a Set must not have. **The
 same field is required to be zero in one form and non-zero in the other**,
 which is why neither direction can be a straight copy.
 
-## Q32. `ReturnBranch` is the Set-form tag for a rack's return chain - OPEN
+## Q32. `ReturnBranch` is the Set-form tag for a rack's return chain - ANSWERED
 
 **Evidence:** `build/PATCHBAYGROUND.als`, refused by Live 12.4.3 with
 
@@ -2237,9 +2237,9 @@ is (S9). Set form calls it `ReturnBranch`.** So it is the second tag that
 differs between the forms, after the branch mixer in Q30, and the third
 thing that is not a straight copy after the pointee ids in Q31.
 
-Fixed in `live_set._branch_from_preset`, and the file is rebuilt. **Whether
-Live now loads it is unchecked**: the error moved once already, from
-Invalid Pointee Id to this, so the next attempt may find a fourth.
+Fixed in `live_set._branch_from_preset`. The error moved on to Q34 and then
+to four crashes; `build/PATCHBAYGROUND.als` loads in Live 12.4.3 at the
+eighth attempt, with 221 branches in it.
 
 ## Q33. A track routed into a track, and a sidechain source - ANSWERED
 
@@ -2472,3 +2472,38 @@ it inside a rack.
 **What to sweep before writing a Set:** every homogeneous list whose length
 equals the skeleton's track, return or scene count. In the 8-Track Template
 those are `SendsPre`, `Mixer/Sends` on each track, and both `ClipSlotList`s.
+
+## The Set loads
+
+`build/PATCHBAYGROUND.als` opens in Live 12.4.3: 8 tracks, 6 returns, 52
+racks placed, 221 branches, every track routed into PM1 and every EQC but
+DR1's sidechained from it. Eight attempts, and each one found exactly one
+thing, in two kinds.
+
+| | Live said | found by |
+|---|---|---|
+| Q31 | `Invalid Pointee Id.` | the message |
+| Q32 | `Illegal class of list member (AudioEffectBranch)` | the message |
+| Q34 | `PointeeId 341 is used 8 times.` | the message |
+| Q35 | nothing, `EXCEPTION_ACCESS_VIOLATION` | diffing against a Live-saved Set |
+| Q36 | nothing | counting scenes against clip slots |
+| Q37 | nothing | bisecting to nine probe files |
+| Q38 | nothing | bisecting further, then a sweep for return-sized lists |
+
+**The first three named the element. The last four named nothing**, and the
+method that worked on them was not reading the log. It was building the
+smallest file that still failed, and comparing what a Live-saved Set of the
+same shape actually contains.
+
+**Two classes, and they want different tools.** A tag or value that must
+differ between preset form and Set form (Q31, Q32, Q34, Q35) is found by
+diffing one file against the other. A COUNT that must agree between the
+skeleton and something spliced into it (Q36, Q37, Q38) is invisible in a
+diff, because both files are internally consistent. It is found by
+enumerating the lists whose length is a function of the Set's shape.
+
+There are four of those in the 8-Track Template: `LiveSet/SendsPre` by
+return, `DeviceChain/Mixer/Sends` on every track by return, and
+`MainSequencer/ClipSlotList` and `FreezeSequencer/ClipSlotList` on every
+track by scene. `live_set` sizes all four. A fifth would be a fifth crash,
+so the sweep is worth re-running against any other skeleton.
