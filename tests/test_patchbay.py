@@ -1968,6 +1968,40 @@ def test_a_written_set_carries_a_send_per_return_on_every_track():
     assert next(root.iter("Tempo")).find("Manual").get("Value") == "132.0"
 
 
+def test_a_set_hands_out_a_unique_pointee_id():
+    """Live refuses a Set with a zero pointee id: "Invalid Pointee Id."
+
+    A preset writes `Id="0"` on every `AutomationTarget`,
+    `ModulationTarget` and `Pointee` - 28,214 of them in PATCHBAYGROUND -
+    and that is correct for a `.adg` and invalid in a `.als`. Read off
+    `racks/q9_b.als`, a Set Live saved: 267 pointees, none zero, no
+    duplicates, `NextPointeeId` one above the highest.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    src = Path(__file__).resolve().parent.parent / "build" / "EQC.adg"
+    if not src.exists():
+        return
+    preset = io.load(src).find("GroupDevicePreset")
+    root = live_set.build([live_set.Track("T1", "midi", [preset])],
+                          returns=["A"])
+
+    seen = []
+    for el in root.iter():
+        if isinstance(el.tag, str) and live_set._is_pointee(el.tag):
+            seen.append(el.get("Id"))
+    assert seen, "the Set carries no pointees at all"
+    assert "0" not in seen, "a zero pointee id is what Live refuses"
+    assert len(set(seen)) == len(seen), "pointee ids are unique document-wide"
+    nxt = int(root.find("LiveSet/NextPointeeId").get("Value"))
+    assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):

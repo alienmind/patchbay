@@ -387,6 +387,8 @@ def build(tracks: list[Track], returns: list[str] | None = None,
         container.append(track)
         made += 1
 
+    _renumber_pointees(root)
+
     if tempo is not None:
         for el in live_set.iter("Tempo"):
             manual = el.find("Manual")
@@ -394,6 +396,65 @@ def build(tracks: list[Track], returns: list[str] | None = None,
                 manual.set("Value", str(float(tempo)))
             break
     return root
+
+
+#: The id space Live calls POINTEES: anything a clip envelope or a
+#: modulation source can point at. `Pointee`, `AutomationTarget` and every
+#: `*ModulationTarget` share one numbering, and `LiveSet/NextPointeeId` is
+#: the next free number.
+def _is_pointee(tag: str) -> bool:
+    return (tag in ("Pointee", "AutomationTarget")
+            or tag.endswith("ModulationTarget"))
+
+
+def _renumber_pointees(root: Element) -> int:
+    """Give every pointee a unique non-zero id. Returns the next free one.
+
+    A PRESET writes `Id="0"` on all of them - 28,214 of them in
+    PATCHBAYGROUND - and a SET refuses that outright:
+
+        The document "..." is corrupt and cannot be loaded.
+        (Invalid Pointee Id.)
+
+    Verified against `racks/q9_b.als`, a Set Live saved: 267 pointees, no
+    duplicates, none zero, and `NextPointeeId` one above the highest. So
+    zero is not "unassigned" here, it is invalid, and the number has to be
+    handed out at write time.
+
+    References are rewritten with the nodes: a `*PointeeId` naming an id
+    that was unique before renumbering follows it to the new one.
+    """
+    nodes = [el for el in root.iter()
+             if isinstance(el.tag, str) and _is_pointee(el.tag)]
+
+    seen: dict[str, int] = {}
+    for el in nodes:
+        got = el.get("Id")
+        if got not in (None, "0"):
+            seen[got] = seen.get(got, 0) + 1
+    unique_before = {k for k, n in seen.items() if n == 1}
+
+    remap: dict[str, str] = {}
+    next_id = 1
+    for el in nodes:
+        old = el.get("Id")
+        el.set("Id", str(next_id))
+        if old in unique_before:
+            remap[old] = str(next_id)
+        next_id += 1
+
+    for el in root.iter():
+        if isinstance(el.tag, str) and el.tag.endswith("PointeeId"):
+            moved = remap.get(el.get("Value"))
+            if moved is not None:
+                el.set("Value", moved)
+
+    live_set = root.find("LiveSet")
+    if live_set is not None:
+        holder = live_set.find("NextPointeeId")
+        if holder is not None:
+            holder.set("Value", str(next_id))
+    return next_id
 
 
 def save(root: Element, path: Path | str) -> Path:

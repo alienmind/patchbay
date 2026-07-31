@@ -2189,3 +2189,34 @@ Library after Live started is not in the browser: a file dropped into an
 already-indexed folder is not visible either, so it is the index and not
 the folder. Driving a running Live therefore cannot place a rack this
 toolchain just built, and writing the Set is the way round it.
+
+## Q31. A zero pointee id is valid in a preset and refused in a Set
+
+**Evidence:** `build/PATCHBAYGROUND.als` at its first attempt, refused by
+Live 12.4.3 with
+
+    The document "PATCHBAYGROUND.als" is corrupt and cannot be loaded.
+    (Invalid Pointee Id.)
+
+and `racks/q9_b.als`, a Set Live saved, for what the rule actually is.
+
+**The pointee id space is one numbering shared by three families:**
+`Pointee`, `AutomationTarget`, and every tag ending `ModulationTarget` -
+`TranspositionModulationTarget`, `GrainSizeModulationTarget` and the rest.
+In `q9_b.als`: 267 of them, **no duplicates, none zero**, and
+`LiveSet/NextPointeeId` exactly one above the highest.
+
+A PRESET writes `Id="0"` on all of them. PATCHBAYGROUND has 28,608, of
+which 28,214 read zero, because that is what every `.adg` this repo builds
+carries and what Q9 said a preset should carry.
+
+**So zero does not mean "unassigned" in a Set, it means invalid.** The id
+has to be handed out at write time: `live_set._renumber_pointees` walks the
+document, numbers every pointee from 1, rewrites any `*PointeeId`
+reference that was unambiguous before, and sets `NextPointeeId`.
+
+This is the mirror of Q9's fourth donor repair. There, a device harvested
+from a Set carried session ids that a preset must not have. Here, a rack
+written into a Set carries preset zeros that a Set must not have. **The
+same field is required to be zero in one form and non-zero in the other**,
+which is why neither direction can be a straight copy.
