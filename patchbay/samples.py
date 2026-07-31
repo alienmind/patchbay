@@ -34,6 +34,45 @@ ABSOLUTE = 0
 PATH_FIELDS = ("Path", "RelativePath", "RelativePathType")
 
 
+#: What a spec discovers audio by. Live reads more than this; these are
+#: what the sorting convention below is written for.
+AUDIO = (".wav", ".aif", ".aiff", ".flac")
+
+
+def folders(root: Path | str) -> list[Path]:
+    """The subdirectories of `root`, sorted by name. Empty when absent.
+
+    A spec asks the filesystem what is there rather than carrying a list,
+    because the list cannot be committed: the tree is licensed audio and
+    even an index of its filenames is content this repo does not publish.
+    """
+    root = Path(root)
+    if not root.is_dir():
+        return []
+    return sorted((p for p in root.iterdir() if p.is_dir()),
+                  key=lambda p: p.name.lower())
+
+
+def audio(root: Path | str, recursive: bool = False) -> list[Path]:
+    """Every audio file directly under `root`, sorted by name.
+
+    Sorted case insensitively by the whole filename, so the ordering holds
+    whether files are numbered at the front or at the back. A spec that
+    turns this into chains gets a stable order across machines, which is
+    what makes a rebuilt rack the same rack.
+
+    Nothing here caps the count. How many of these become chains is a
+    decision about the instrument, and the library does not have one.
+    """
+    root = Path(root)
+    if not root.is_dir():
+        return []
+    found = root.rglob("*") if recursive else root.iterdir()
+    return sorted((p for p in found
+                   if p.is_file() and p.suffix.lower() in AUDIO),
+                  key=lambda p: str(p).lower())
+
+
 def _set(ref, tag: str, value: str) -> bool:
     el = ref.find(tag)
     if el is None:

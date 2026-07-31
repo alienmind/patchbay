@@ -218,6 +218,9 @@ Every item below was gated by loading the output in Live 12.4.3.
   positions, variations, nesting to any depth
 - sample retargeting, so a chain plays a file you name rather than whichever
   one the donor happened to carry
+- sample DISCOVERY: a rack reads `samples/<RACK>/`, one subfolder per
+  category, and turns every file it finds into a chain. Adding audio to a
+  folder adds a chain on the next build, with no list in the spec
 - extraction, the compiler backwards, from a rack preset OR from every rack
   on every track of a Live Set
 - donor harvesting from any saved file, Live Sets included

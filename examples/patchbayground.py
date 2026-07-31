@@ -60,6 +60,7 @@ from __future__ import annotations
 from itertools import product
 from pathlib import Path
 
+from patchbay import samples
 from patchbay.dsl import Engine, Layout, Rack, RackKind, Range, Slot
 
 # ===========================================================================
@@ -512,7 +513,16 @@ PADS = (
     ("OHAT", 46, "ohat"),
 )
 
-SAMPLES_PER_PAD = 8
+#: Where a rack's audio lives: `samples/<rack>/<category>/`. One folder per
+#: rack, so a second rack that wants samples does not have to negotiate with
+#: this one, and nothing in the library knows the name.
+SAMPLE_ROOT = Path(__file__).resolve().parent.parent / "samples"
+
+#: The pad folder names above are the CATEGORY axis and are fixed at eight,
+#: because a pad is a note and eight notes are laid out on the grid. How
+#: many files sit inside one is not fixed at all: that is the drum rack's
+#: whole shape, and renaming a category is one edit to the third field.
+DR1_SAMPLES = SAMPLE_ROOT / "DR1"
 
 # What a pad calls its knobs, over the shared pairing. The layout is
 # positional: same slot, same chaining, different word, which is the drum
@@ -537,20 +547,25 @@ PAD_VOICE = (Engine("OriginalSimpler")
              .offers("attack", "VolumeAndPan/Envelope/AttackTime"))
 
 
-def pad_samples(sound: str, n: int = SAMPLES_PER_PAD) -> list[Path]:
-    """The first n files for one pad sound, in sorted order.
+def pad_samples(category: str) -> list[Path]:
+    """Every file in one pad's category folder, in sorted order.
 
     Asks the filesystem rather than a checked-in list. `samples/` is never
     committed, not even as an index of filenames, so a manifest in the repo
-    would be the thing CLAUDE.md forbids. The naming convention documented
-    in samples/README.md is the interface: `<sound>/<sound>_NNN.wav`,
-    numbered from 1 and stable once written, so a path in a spec keeps
-    pointing at the same audio.
+    would be the thing CLAUDE.md forbids.
+
+    **No cap.** Eight categories is the fixed part, because a pad is a note;
+    how many samples a category holds is the part that is meant to grow.
+    Adding a file to a folder adds a chain to that pad on the next build,
+    and nothing here has to be told.
+
+    Sorting is by whole filename, case insensitively, so `BD_001_room.wav`
+    and `001_BD_room.wav` both order the way they read. What that costs is
+    that inserting a file ahead of the others moves every chain after it,
+    which changes what the Sound knob lands on at a given position. Number
+    from the first free index and it does not happen.
     """
-    folder = Path(__file__).resolve().parent.parent / "samples" / "drums" / sound
-    if not folder.is_dir():
-        return []
-    return sorted(folder.glob(f"{sound}_*.wav"))[:n]
+    return samples.audio(DR1_SAMPLES / category)
 
 
 def pad_rack(name: str, sound: str) -> Rack | None:
@@ -563,6 +578,9 @@ def pad_rack(name: str, sound: str) -> Rack | None:
     Slot 6 is attack, for the same reason PD1 spends it there: it turns a
     sample into a softer version of itself without reaching for the sample
     list.
+
+    A category with no folder yields no pad, so the kit is whatever
+    `samples/DR1/` currently holds.
     """
     files = pad_samples(sound)
     if not files:

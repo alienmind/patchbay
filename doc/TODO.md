@@ -10,11 +10,57 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33 and Q37's evidence can live in `racks/` |
-| 2 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
-| 3 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 1 | Colour tracks, chains and clips from the DSL | me | small, the format is already read off | Whether a Set arrives looking like a Set someone laid out |
+| 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33 and Q37's evidence can live in `racks/` |
+| 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
+| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
-## 1. The Q33 reference Set
+## 1. Colour
+
+**The research is done and no spike is left.** Read off `q32_set.als`, the
+26 factory Sets, and the templates `live_set` already uses.
+
+**One element, one integer, everywhere it appears:**
+
+    <Color Value="19" />
+
+| carried by | scope |
+|---|---|
+| `MidiTrack`, `AudioTrack`, `ReturnTrack`, `MainTrack` | the track |
+| `MidiClip`, `AudioClip` | one clip |
+| every `*Branch` in Set form | one chain inside a rack |
+| `Scene` | one scene |
+| `PreHearTrack` | always `-1` |
+
+**The value is an index into Live's palette, 0 to 69.** Established across
+the 26 factory Sets: minimum 0, maximum 69, 39 distinct values in use, and
+70 is the size of the swatch grid Live shows. **`-1` means no colour**, and
+`Scene` and `PreHearTrack` carry it.
+
+Two counters sit at Set level and drive Live's own auto-colouring:
+`AutoColorPickerForPlayerAndGroupTracks/NextColorIndex` and
+`AutoColorPickerForReturnAndMainTracks/NextColorIndex`. A Set that sets
+every colour explicitly does not need them, and what they do when a colour
+is written by hand is unchecked.
+
+A branch also carries `AutoColored` and `AutoColorScheme`, which a track
+does not. Whether writing `Color` on a branch while `AutoColored` is true
+survives a save is the one thing worth a diff before this ships.
+
+### What it needs
+
+`live_set.Track` already accepts `color` and does nothing with it, which is
+the worst of both. Wire that, and add the same on the return list and on a
+rack's chains in the DSL. A palette index is a number a person should not
+have to memorise, so the DSL surface is the open question rather than the
+format: an integer is honest and unreadable, a name is readable and is
+sixty-nine names to invent and defend.
+
+**Class 2 at most.** `Color` is a value inside a construct every shipped
+Set already carries, so the file loads either way. A human eye confirms the
+colour is the one asked for.
+
+## 2. The Q33 reference Set
 
 The hand-built Set that answered track-to-track routing and the sidechain
 source is `build/q32_set Project/q32_set.als`, and it **cannot be
@@ -29,7 +75,7 @@ To close it: open that Set, delete DR1 from T2, drop any stock device on T2
 in its place so the sidechain still has a source, and save as
 `q33_set.als`. Then it goes in `racks/` and the tests read it.
 
-## 2. A `.alp` as a second output
+## 3. A `.alp` as a second output
 
 `patchbay session` writes a `.als`, which is one file that refers to
 samples wherever they happen to sit. A **Live Pack** is the packed form of
@@ -54,7 +100,7 @@ bookkeeping.
 licence question as `samples/`. A Pack is a distribution format, so this
 task decides how a build is shipped, not just how it is written.
 
-## 3. The donor name scan
+## 4. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames
