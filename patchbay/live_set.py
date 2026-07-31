@@ -177,7 +177,12 @@ def set_from_preset(preset: Element, position: int = 0) -> Element:
     if ret_preset is not None and len(ret_preset):
         if returns is None:
             returns = etree.SubElement(made, "ReturnBranches")
-        ret_template = _template(BRANCH_SOURCE, "AudioEffectBranch")
+        # A rack's RETURN chain is `<ReturnBranch>` in Set form, not
+        # `AudioEffectBranch`. Live refuses the wrong one outright:
+        # "Illegal class of list member (AudioEffectBranch)". Preset form
+        # calls it `AudioEffectBranchPreset` whatever the parent rack is
+        # (S9), so this is a second tag that differs between the forms.
+        ret_template = _template(BRANCH_SOURCE, "ReturnBranch")
         for i, branch_preset in enumerate(ret_preset):
             returns.append(_branch_from_preset(branch_preset, i, ret_template))
     return made
