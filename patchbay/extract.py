@@ -22,7 +22,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from . import find, io, mappings, params as P, samples, variations
+from . import clone, find, io, mappings, params as P, samples, variations
 from .harvest import INSTALLED_CONTENT
 from .library import Library
 
@@ -270,7 +270,10 @@ def _receiving_note(branch) -> str | None:
     if zs is None:
         return None
     rn = zs.find("ReceivingNote")
-    return None if rn is None else rn.get("Value")
+    if rn is None:
+        return None
+    # Stored counting down from 128, not as the MIDI note. Q42.
+    return str(clone.encode_note(int(rn.get("Value"))))
 
 
 def _send_slots(branches, names) -> dict[str, int]:
@@ -873,6 +876,21 @@ def _lift_branch(branch, position, branch_template, wrapper_template):
         mine = made.find(tag)
         if mine is not None:
             made.replace(mine, copy.deepcopy(theirs))
+
+    # A DRUM pad's note is `BranchInfo` in Set form and `ZoneSettings` in
+    # preset form, and the loop above cannot move it: the tag on one side is
+    # not the tag on the other, so `mine` is None and the note is dropped.
+    # Q40 going the other way, and `live_set._branch_from_preset` is the
+    # mirror of this. Without it every pad keeps the TEMPLATE's note - eight
+    # pads of BerlinTechno.als all arrived on 92 - and a kit of eight pads
+    # extracts as one pad holding eight chains. Live loads that.
+    theirs = branch.find("BranchInfo")
+    mine = made.find("ZoneSettings")
+    if theirs is not None and mine is not None and branch.find("ZoneSettings") is None:
+        for field in ("ReceivingNote", "SendingNote", "ChokeGroup"):
+            src, dst = theirs.find(field), mine.find(field)
+            if src is not None and dst is not None:
+                dst.set("Value", src.get("Value"))
 
     devices = made.find("DevicePresets")
     for child in list(devices):

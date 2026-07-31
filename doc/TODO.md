@@ -15,6 +15,77 @@ costs against what it decides.
 | 3 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
 | 4 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
 | 5 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 6 | A chain that holds a rack AND devices | me | a DSL surface change | Whether a real-world rack shape can be declared at all |
+| 7 | A macro on a BOOLEAN writes no threshold | you, one check | one load in Live | Whether a knob can carry a device's bypass |
+| 8 | Donor tie-break is wrong for a device with optional slots | me | small | Which donor wins, on every Sampler-shaped device |
+
+Items 6 to 8 all came out of `examples/berlintechno.py`. `doc/BERLINTECHNO.md`
+has the comparison they sit in.
+
+## 6. A chain that holds a rack AND devices
+
+Every drum pad in `donors/BerlinTechno/BerlinTechno.als` is
+
+    [Select rack] -> [FX rack] -> Eq8 -> StereoGain
+
+and that cannot be declared. `Engine.then` chains ENGINES into a `Series`;
+`Rack.chaining`/`unchained` wraps ONE rack in a `Nested`. A chain is either
+a series of devices or a single nested rack, never a rack followed by
+devices, so `examples/berlintechno.py` builds the Select racks and the FX
+racks as separate presets and concatenating them is by hand.
+
+This is not an exotic shape. It is what you get whenever somebody groups
+part of a chain and keeps working, which is how racks are built in Live.
+
+**The extractor half is worse than the DSL half and should go first.**
+`patchbay extract` DROPS the extra devices silently: Amb 1's chain holds
+eleven devices and emits as one, with no warning. `extract.preset_from_set`
+is not the problem - it keeps all eleven - so this is the DSL emitter
+choosing a `Nested` and discarding the rest. Under "fail loudly" it should
+refuse rather than emit a rack missing ten devices, and that refusal is
+worth having even before the syntax exists to fix it.
+
+Two smaller gaps sit with this one and need no separate entry:
+
+- **A chain with NO devices.** `RIDE DELAY`'s `Dry` branch is a bypass
+  path, and `chain()` requires content.
+- **A send from one RETURN to another.** `ret()` takes no `sends=`, and in
+  the donor both delay returns feed the reverb return at 0.1413.
+
+## 7. A macro on a boolean writes no threshold
+
+`patchbay` has never written or read `MidiCCOnOffThresholds`. A continuous
+parameter's mapping range is `MidiControllerRange` and `Range` writes that;
+a BOOLEAN's is a different element, and `.drives(slot, "On")` writes a
+`KeyMidi` and leaves the thresholds to whatever the donor carries.
+
+It matters because of what the technique buys. BerlinTechno drives a
+device's `DryWet` and its `On` from ONE macro, so ten effects in series are
+bypassed until their knob is turned. Every `sets(..., True)` in
+`examples/patchbayground.py` is the static version of the same idea.
+
+**What `Min=1 Max=0` means is not known.** The donor writes that pair on
+every switch, the natural reading is inverted, and guessing is rule 1. One
+load answers it, and the check table is at the bottom of
+`doc/BERLINTECHNO.md`. Until then `build/bt/*.adg` carry switch mappings
+whose behaviour is unverified.
+
+## 8. Donor tie-break, for a device with optional slots
+
+`Library.harvest` breaks a tie on PARAMETER COUNT, fuller wins. A Sampler's
+LFO, Shaper and AuxEnv are SLOTS, and an empty slot contributes no
+parameters, so two donors for one device can have disjoint vocabularies
+and neither is fuller in any useful sense.
+
+The shipped `donors/MultiSampler.adg` had LFO and Shaper filled, AuxEnv
+empty, and NO `SampleRef` at all: 97 parameters, and unable to play a
+sample. The copy in BerlinTechno is the mirror at 95, so it lost the
+tie-break while being the only usable one. It has been swapped in by hand.
+
+Count is a proxy for "more configured" and it fails on exactly the devices
+this project uses most. What would settle it is unclear and that is the
+work: a rule that prefers a donor whose slots are all filled, or a merge,
+or simply refusing to guess and naming the donor per spec.
 
 ## 1. Classifying by sound
 

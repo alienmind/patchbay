@@ -11,6 +11,18 @@ samples/*
 # output is not.
 *.roundtrip.adg
 
+# A donor Set arrives with its Project folder, and that folder carries the
+# AUDIO. `donors/` being tracked is what makes this dangerous: `git add -A`
+# over donors/BerlinTechno/ would publish seven .wav files from a commercial
+# pack. The `samples/*` pair above does not reach here, so pin it again.
+# The `.als` itself is fine and is the donor; the audio beside it is not.
+donors/**/Samples/
+donors/**/*.wav
+donors/**/*.aif
+donors/**/*.aiff
+donors/**/*.flac
+donors/**/*.asd
+
 # packaging
 *.egg-info/
 .venv/

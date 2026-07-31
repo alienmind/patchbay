@@ -537,12 +537,60 @@ def _kit():
 
 
 def test_a_pad_is_addressed_by_note():
+    """Q42. `ReceivingNote` counts DOWN from 128; it is not the MIDI note.
+
+    This test used to assert the stored value EQUALS the note, which is
+    what shipped a rack whose pads sat on 92 and 91, off the top of the
+    grid. It agreed with the code and both were wrong, which is what a test
+    written from the same assumption as the code is worth.
+
+    The encoding is now pinned against Live's own content, below.
+    """
     branches = find.branches(find.preset(_kit().build()))
     notes = [b.find("ZoneSettings/ReceivingNote").get("Value") for b in branches]
-    assert notes == ["36", "37"]
+    assert notes == ["92", "91"], "stored as 128 - note, so 36 and 37"
+    assert [clone.encode_note(int(v)) for v in notes] == [36, 37]
     for b in branches:
         assert b.find("ZoneSettings/SendingNote").get("Value") == "60", (
             "a pad's sampler plays at root pitch wherever the pad sits")
+
+
+def test_the_pad_note_encoding_matches_lives_own_kits():
+    """The evidence for Q42, read off Live rather than off our own writer.
+
+    `Acuff Kit.adg` is a 16 pad factory kit. Its stored values decode to
+    exactly 36..51, which is where Live's drum grid sits. The 909 kit in
+    `racks/q32_set.als` decodes Bass Drum to 36, Rim Shot to 37 and Snare
+    to 38, which is General MIDI.
+    """
+    from patchbay import live_set
+
+    try:
+        res = Path(live_set.live_resources())
+    except FileNotFoundError:
+        return
+    kit = next(iter(res.rglob("Acuff Kit.adg")), None)
+    if kit is not None:
+        stored = [int(b.find("ZoneSettings/ReceivingNote").get("Value"))
+                  for b in io.load(kit).iter("DrumBranchPreset")]
+        assert len(stored) == 16
+        assert sorted(clone.encode_note(v) for v in stored) == list(range(36, 52))
+
+    ref = Path(__file__).resolve().parent.parent / "racks" / "q32_set.als"
+    if not ref.exists():
+        return
+    for device in io.load(ref).iter("DrumGroupDevice"):
+        # Two chains are called Bass Drum, so this is a list and not a dict.
+        pads = [(b.find("Name/EffectiveName").get("Value"),
+                 clone.encode_note(
+                     int(b.find("BranchInfo/ReceivingNote").get("Value"))))
+                for b in device.find("Branches")]
+        notes = sorted(n for _, n in pads)
+        assert notes == list(range(36, 36 + len(pads))), (
+            f"a kit's pads are contiguous from 36: {notes}")
+        assert ("Rim Shot", 37) in pads, pads
+        assert 36 in [n for name, n in pads if name == "Bass Drum"], pads
+        break
 
 
 def test_pads_are_exempt_from_zone_distribution():
@@ -694,7 +742,8 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
     root = kit.build()
     pre = find.preset(root)
 
-    notes = sorted(int(el.get("Value")) for el in root.iter("ReceivingNote"))
+    notes = sorted(clone.encode_note(int(el.get("Value")))
+                   for el in root.iter("ReceivingNote"))
     assert notes == sorted(n for _, n, _ in patchbayground.PADS)
     assert len(notes) == len(set(notes)), "two pads on one note fire together"
 
@@ -2360,6 +2409,51 @@ def test_every_track_carries_one_clip_slot_per_scene():
                 f"{name}: {len(holder)} slots against {scenes} scenes")
             ids = [s.get("Id") for s in holder]
             assert len(set(ids)) == len(ids), f"{name}: sibling slot ids collide"
+
+
+def test_a_drum_pads_note_survives_into_set_form():
+    """Q40. `ZoneSettings` in a preset is `BranchInfo` in a Set.
+
+    Same three children, `ReceivingNote`, `SendingNote` and `ChokeGroup`,
+    under a different tag. The third rename after the branch mixer (Q30)
+    and the return branch (Q32).
+
+    Q35 dropped `ZoneSettings` from a drum branch without translating it,
+    which was half right: Set form really has no `ZoneSettings` there. What
+    it cost is that every pad kept the TEMPLATE's note, all eight landed on
+    92, and an eight pad kit arrived in Live as ONE pad holding eight
+    chains. Live loaded it without a word.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    src = Path(__file__).resolve().parent.parent / "build" / "DR1.adg"
+    if not src.exists():
+        return
+    preset = io.load(src).find("GroupDevicePreset")
+
+    want = []
+    for branch in preset.iter("DrumBranchPreset"):
+        zone = branch.find("ZoneSettings/ReceivingNote")
+        assert zone is not None, "a preset pad keeps its note in ZoneSettings"
+        want.append(zone.get("Value"))
+    assert len(want) > 1, "one pad cannot show this"
+    assert len(set(want)) == len(want), "the source rack has duplicate notes"
+
+    made = live_set.set_from_preset(preset, 0)
+    got = []
+    for branch in made.find("Branches"):
+        assert branch.find("ZoneSettings") is None, (
+            "Set form has no ZoneSettings on a drum branch")
+        info = branch.find("BranchInfo")
+        assert info is not None, "a Set-form drum branch keeps BranchInfo"
+        got.append(info.find("ReceivingNote").get("Value"))
+
+    assert got == want, f"pad notes did not survive: {want} -> {got}"
 
 
 def test_a_set_form_branch_carries_nothing_the_template_lacks():

@@ -557,17 +557,33 @@ PAD_VOICE = (Engine("OriginalSimpler")
              .offers("attack", "VolumeAndPan/Envelope/AttackTime"))
 
 
-def pad_samples(category: str) -> list[Path]:
-    """Every file in one pad's category folder, in sorted order.
+#: How many samples one pad may hold.
+#:
+#: **This is a RAM budget, not a taste limit.** A chain is a Simpler and a
+#: Simpler preloads its sample, so the kit costs one decoded buffer per
+#: chain whether or not a knob ever reaches it. Uncapped over the 1058
+#: files now in `samples/DR1/`, DR1 built 1058 Simplers over 613 MB of
+#: audio, Live sat at about 10 GB, and Push stopped responding.
+#:
+#: 16 also keeps the Sound knob playable: 128 positions over 16 chains is 8
+#: units each, so a pad can be walked by hand. At 428 it is a sweep and
+#: nothing else.
+#:
+#: Which 16 is curation's job, and sort order decides it. Number the ones
+#: worth having lowest.
+SAMPLES_PER_PAD = 16
+
+
+def pad_samples(category: str, limit: int = SAMPLES_PER_PAD) -> list[Path]:
+    """The first `limit` files in one pad's category folder, sorted.
 
     Asks the filesystem rather than a checked-in list. `samples/` is never
     committed, not even as an index of filenames, so a manifest in the repo
     would be the thing CLAUDE.md forbids.
 
-    **No cap.** Eight categories is the fixed part, because a pad is a note;
-    how many samples a category holds is the part that is meant to grow.
-    Adding a file to a folder adds a chain to that pad on the next build,
-    and nothing here has to be told.
+    Eight categories is the fixed part, because a pad is a note. How many
+    samples a category HOLDS is meant to grow; how many the kit LOADS is
+    capped, for the reason on `SAMPLES_PER_PAD`.
 
     Sorting is by whole filename, case insensitively, so `BD_001_room.wav`
     and `001_BD_room.wav` both order the way they read. What that costs is
@@ -575,7 +591,7 @@ def pad_samples(category: str) -> list[Path]:
     which changes what the Sound knob lands on at a given position. Number
     from the first free index and it does not happen.
     """
-    return samples.audio(DR1_SAMPLES / category)
+    return samples.audio(DR1_SAMPLES / category)[:limit]
 
 
 def pad_rack(name: str, sound: str) -> Rack | None:

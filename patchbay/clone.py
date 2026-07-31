@@ -107,17 +107,33 @@ def clone_branch_per_macro(branch, count, stride):
     return made, report
 
 
+#: `ReceivingNote` counts DOWN from here, so the stored value is not the
+#: MIDI note. Q42: Live's own `Acuff Kit.adg` stores 92, 91, 90 ... 77 for
+#: a 16 pad kit, which is notes 36 to 51, and the 909 kit in
+#: `racks/q32_set.als` stores 92 for the pad Live labels Bass Drum.
+#:
+#: Writing the MIDI note straight in puts C1 on note 92, off the top of the
+#: grid, and the rack opens with eight named chains and an empty pad
+#: layout. Live neither refuses nor warns.
+NOTE_ORIGIN = 128
+
+
+def encode_note(note: int) -> int:
+    """MIDI note to the value `ReceivingNote` stores. Its own inverse."""
+    return NOTE_ORIGIN - note
+
+
 def set_receiving_note(branch, note):
     """Set which MIDI note a drum pad answers to.
 
-    ReceivingNote is the pad's grid position. SendingNote stays at 60 so
-    the chain's instrument still plays at root pitch - see ARCHITECTURE.md
-    section 12.
+    Takes the MIDI note and stores what Live stores, `128 - note` (Q42).
+    SendingNote stays at 60 so the chain's instrument still plays at root
+    pitch - see ARCHITECTURE.md section 12.
     """
     zs = branch.find("ZoneSettings")
     if zs is None:
         raise ValueError(f"<{branch.tag}> has no ZoneSettings; not a drum pad")
-    zs.find("ReceivingNote").set("Value", str(note))
+    zs.find("ReceivingNote").set("Value", str(encode_note(note)))
     return branch
 
 
@@ -132,10 +148,10 @@ def free_receiving_notes(preset_el, count, start=36):
         if zs is not None:
             rn = zs.find("ReceivingNote")
             if rn is not None:
-                used.add(rn.get("Value"))
+                used.add(encode_note(int(rn.get("Value"))))
     out, n = [], start
     while len(out) < count and n < 128:
-        if str(n) not in used:
+        if n not in used:
             out.append(n)
         n += 1
     if len(out) < count:

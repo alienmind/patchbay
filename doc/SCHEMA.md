@@ -2544,3 +2544,152 @@ index outside the palette rather than writing a colour Live has never
 written. A branch also carries `AutoColored` and `AutoColorScheme`, which a
 track does not, and whether setting `Color` while `AutoColored` is true
 survives a save is unchecked. That is what gates chains and clips.
+
+## Q40. A drum pad's note is `ZoneSettings` in a preset and `BranchInfo` in a Set - ANSWERED
+
+**Evidence:** `build/DR1.adg` against the `DrumBranch` template in
+`Core Library/Templates/Quick Start Beat.als`. Same three children under a
+different tag:
+
+    preset  <ZoneSettings><ReceivingNote Value="36" />
+                          <SendingNote Value="60" />
+                          <ChokeGroup Value="0" /></ZoneSettings>
+
+    Set     <BranchInfo>  <ReceivingNote Value="92" />
+                          <SendingNote Value="60" />
+                          <ChokeGroup Value="0" /></BranchInfo>
+
+**The third rename between the forms**, after the branch mixer in Q30 and
+the return branch in Q32. Nothing announces it, and the two tags do not
+appear together: a preset drum branch has `ZoneSettings` and no
+`BranchInfo`, a Set-form one has `BranchInfo` and no `ZoneSettings`.
+
+### What getting it wrong cost, and why no test caught it
+
+Q35 established that a Set-form drum branch carries no `ZoneSettings` and
+made `_branch_from_preset` stop copying it. That half was right. The half
+it missed is that the note has to be TRANSLATED rather than dropped, so
+every pad kept the template's `ReceivingNote` of 92.
+
+**Eight pads all on note 92 is a kit Live loads without a word.** It is
+valid: eight chains stacked on one pad. In Live it appears as a single pad
+holding eight chains, and seven eighths of the kit is unreachable. No
+error, no crash, no message in the log.
+
+The gate that would have caught it is the one that exists for exactly this:
+lifting a placed rack back out with `extract.preset_from_set` and diffing
+against its `.adg`. That test runs over `build/EQC.adg`, an audio effect
+rack with no pads, so a drum-only field was outside what it compared.
+**A round-trip test proves only what the fixture exercises.**
+
+## Q41. A chain per sample is a RAM budget - ANSWERED
+
+**Evidence:** `build/PATCHBAYGROUND.als` with `samples/DR1/` holding 1058
+files. Live 12.4.3 reached roughly 10 GB resident and Push 3 stopped
+responding.
+
+| | uncapped | at 16 per pad |
+|---|---|---|
+| `OriginalSimpler` instances in the Set | 1058 | 128 |
+| distinct samples referenced | 1058 | 128 |
+| audio on disk behind them | 613 MB | 14 MB |
+
+**A chain is a Simpler and a Simpler preloads its sample.** So a drum rack
+built one chain per file costs a decoded buffer per file whether or not any
+knob position reaches it, and 613 MB of 16-bit audio is several times that
+in RAM once decoded, before device overhead.
+
+There is no setting that avoids this while keeping the shape. Fewer chains
+is the only lever, which is what `SAMPLES_PER_PAD` is.
+
+**16 is also where the knob stays playable.** 128 selector positions over
+16 chains is 8 units each, walkable by hand. Over 428 it is 0.3 units per
+chain: a sweep, and nothing you can aim.
+
+## Q42. `ReceivingNote` counts DOWN from 128 - ANSWERED
+
+**Evidence:** `Acuff Kit.adg`, a 16 pad factory kit in Live's Core Library,
+and the 909 Core Kit inside `racks/q32_set.als`.
+
+    Acuff Kit stored:  92 91 90 89 88 87 86 85 84 83 82 81 80 79 77 78
+    128 - stored:      36 37 38 39 40 41 42 43 44 45 46 47 48 49 51 50
+
+**MIDI note = `128 - ReceivingNote`.** The 909 kit agrees and is checkable
+by name: the chain Live labels Bass Drum stores 92, which decodes to 36;
+Rim Shot 91 to 37; Snare Drum 90 to 38. That is General MIDI, and it is
+where Live's drum grid starts.
+
+`SendingNote` is NOT encoded this way. It stays 60 and means note 60.
+
+### What it cost
+
+`clone.set_receiving_note` wrote the MIDI note straight in, so a pad asked
+for at 36 was stored as 36 and therefore answered note **92**. Every pad in
+DR1 sat two octaves above the grid.
+
+**Live neither refuses nor warns.** The rack opens, the chain list shows
+all eight chains with their names and colours, and the pad grid is empty.
+Nothing plays, because nothing on the grid triggers anything.
+
+### Why the tests agreed with the bug
+
+`test_a_pad_is_addressed_by_note` asserted the stored value EQUALS the
+note, and `test_dr1_is_three_levels...` compared the raw values against
+`PADS`. Both passed for a year of commits and both were wrong in exactly
+the way the code was wrong, because both were written from the same
+assumption rather than from a file Live wrote.
+
+**A test derived from the implementation proves the implementation is
+self-consistent and nothing else.** The encoding is now pinned against
+`Acuff Kit.adg` and the 909 kit, which are Live's, not ours. That is the
+rule this repo already had for the format and had not applied here.
+
+## Q43. A macro on a BOOLEAN carries `MidiCCOnOffThresholds` - OPEN
+
+**Evidence:** `donors/BerlinTechno/BerlinTechno.als`, the PERC pad's FX
+rack. Macro 5 is mapped to a Saturator's `DryWet` AND to its `On`, and the
+two mappings are not the same shape.
+
+    <DryWet>
+      <KeyMidi>... <NoteOrController Value="4"/> ...</KeyMidi>
+      <Manual Value="0"/>
+      <MidiControllerRange><Min Value="0"/><Max Value="1"/></MidiControllerRange>
+    </DryWet>
+
+    <On>
+      <KeyMidi>... <NoteOrController Value="4"/> ...</KeyMidi>
+      <Manual Value="false"/>
+      <MidiCCOnOffThresholds><Min Value="1"/><Max Value="0"/></MidiCCOnOffThresholds>
+    </On>
+
+**The `KeyMidi` is identical.** Same channel 16, same controller number, so
+the mapping mechanism is unchanged (S3) and only the RANGE element differs
+with the parameter's type. A boolean has no `MidiControllerRange` and a
+continuous parameter has no `MidiCCOnOffThresholds`.
+
+The Set uses this on 15 switches across two racks, always pairing a
+device's `On` with its `DryWet` or amount on one macro, so the knob
+bypasses the device at 0 and enables it on the way up.
+
+### What is NOT answered
+
+**What `Min=1 Max=0` means.** Written in that order it reads as inverted -
+on at the bottom, off at the top - which contradicts what the rack is
+plainly for. It could equally be an OFF-threshold and an ON-threshold in
+that order rather than a range. Nothing here settles it and guessing is
+rule 1.
+
+Two saves would: map a macro to one device's `On`, save, then invert the
+mapping in Live's browser and save again. The diff is the whole finding.
+
+### What it means for the DSL
+
+`Range` writes `MidiControllerRange` and nothing else, and no code in
+`patchbay/` reads or writes the threshold element. So `.drives(slot, "On")`
+writes a valid `KeyMidi` into the switch and leaves the thresholds to
+whatever the donor device carried, which is not a decision anybody made.
+
+`examples/patchbayground.py` sidesteps this entirely: every switch it
+touches is a `sets(..., True)`, set once and never driven. That is why the
+gap went unnoticed - it is invisible until a spec wants a knob to carry a
+bypass.

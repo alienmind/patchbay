@@ -216,6 +216,24 @@ def _branch_from_preset(branch_preset: Element, position: int,
             continue
         made.replace(mine, copy.deepcopy(theirs))
 
+    # A DRUM branch's note is `ZoneSettings` in preset form and `BranchInfo`
+    # in Set form: same three children, `ReceivingNote`, `SendingNote` and
+    # `ChokeGroup`, under a different tag. Q40, and the third rename after
+    # the branch mixer (Q30) and the return branch (Q32).
+    #
+    # The loop above cannot do it, because the tag on one side is not the
+    # tag on the other. Dropping `ZoneSettings` without translating it is
+    # what Q35 shipped: every pad kept the TEMPLATE's note, all eight landed
+    # on 92, and a kit of eight pads arrived as one pad holding eight
+    # chains. Live loaded it without complaint.
+    theirs = branch_preset.find("ZoneSettings")
+    mine = made.find("BranchInfo")
+    if theirs is not None and mine is not None and made.find("ZoneSettings") is None:
+        for field in ("ReceivingNote", "SendingNote", "ChokeGroup"):
+            src, dst = theirs.find(field), mine.find(field)
+            if src is not None and dst is not None:
+                dst.set("Value", src.get("Value"))
+
     devices = _chain_container(made)
     for child in list(devices):
         devices.remove(child)

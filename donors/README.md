@@ -62,6 +62,24 @@ DR1 place.
 `MidiPitcher` and `Saturator` still come from `racks/`. A file added here
 shadows the spike copy, which is the fix if either moves.
 
+**`MultiSampler` and `FrequencyShifter` came out of
+`donors/BerlinTechno/BerlinTechno.als`**, harvested in one pass.
+`FrequencyShifter` was simply missing. `MultiSampler` REPLACED a fuller
+file, and why is the one case where the parameter-count rule above gets it
+wrong:
+
+A Sampler's LFO, Shaper and AuxEnv are SLOTS, and an empty slot contributes
+no parameters. So two donors for one device can have disjoint vocabularies
+and neither is fuller in any useful sense. The old file had LFO and Shaper
+filled, AuxEnv empty, and **no `SampleRef` at all** - 97 parameters, and
+unable to hold a sample, which for a sampler is not a donor at all. The
+BerlinTechno copy is the mirror image at 95: AuxEnv filled, LFO and Shaper
+empty, two FileRefs to retarget.
+
+Count is a proxy for "more configured" and it fails on exactly the devices
+this project uses most. `TODO.md` item 8 is what to do about the rule; the
+swap here is the fix for the file.
+
 **Live's own installed content keeps its path.** A `FileRef` with
 `RelativePathType 7` is part of the DEVICE, not a file somebody dragged in:
 Hybrid Reverb's impulse response is one. Scrubbing it shipped a donor that
