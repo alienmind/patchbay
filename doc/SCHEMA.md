@@ -2220,3 +2220,22 @@ from a Set carried session ids that a preset must not have. Here, a rack
 written into a Set carries preset zeros that a Set must not have. **The
 same field is required to be zero in one form and non-zero in the other**,
 which is why neither direction can be a straight copy.
+
+## Q32. `ReturnBranch` is the Set-form tag for a rack's return chain - OPEN
+
+**Evidence:** `build/PATCHBAYGROUND.als`, refused by Live 12.4.3 with
+
+    Illegal class of list member (AudioEffectBranch)
+
+after Q31 was fixed, and
+`Core Library/Templates/Quick Start Beat.als`, where a `DrumGroupDevice`
+holds `ReturnBranches` containing four `<ReturnBranch>` elements.
+
+**Preset form calls it `AudioEffectBranchPreset` whatever the parent rack
+is (S9). Set form calls it `ReturnBranch`.** So it is the second tag that
+differs between the forms, after the branch mixer in Q30, and the third
+thing that is not a straight copy after the pointee ids in Q31.
+
+Fixed in `live_set._branch_from_preset`, and the file is rebuilt. **Whether
+Live now loads it is unchecked**: the error moved once already, from
+Invalid Pointee Id to this, so the next attempt may find a fourth.

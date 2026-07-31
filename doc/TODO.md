@@ -33,7 +33,18 @@ facts of provenance metadata on its two return branches. No value moved.
 
 **Open it and report what Live says.** A Set is a construct nothing here
 has written before, so this is a class 3 check: it either loads or it does
-not.
+not, and so far each attempt has found exactly one more thing:
+
+| attempt | Live said | what it was |
+|---|---|---|
+| 1 | `Invalid Pointee Id.` | preset form writes `Id="0"` on every pointee; a Set refuses zero. Q31 |
+| 2 | `Illegal class of list member (AudioEffectBranch)` | a rack's return chain is `ReturnBranch` in Set form. Q32 |
+| 3 | unrun | |
+
+The pattern is worth naming: each failure is one field or tag whose value
+is REQUIRED to differ between the two forms, and neither Q9 nor the factory
+templates announce which. Expect more, and read the message literally - it
+has named the exact element both times.
 
 ## 2. What the file cannot say
 
