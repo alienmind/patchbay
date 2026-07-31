@@ -389,6 +389,31 @@ def _seed_sends(track: Element, count: int, template: Element) -> None:
         sends.append(holder)
 
 
+def _fit_clip_slots(track: Element, scenes: int) -> None:
+    """One clip slot per SCENE, on every clip-slot list this track has.
+
+    Q36, and the reason four attempts crashed rather than being refused.
+    The Set skeleton is the 8-Track Template, which has 8 scenes. The track
+    templates are `Default MIDI Track.als` and `Default Audio Track.als`,
+    which have 1 apiece. Mixing the two gives 8 scenes over tracks holding
+    one slot each, and Live reads slot i of every track without checking.
+
+    A return track has an empty `FreezeSequencer` list and no
+    `MainSequencer` one, which is what Live writes, so a list that starts
+    empty is left empty.
+    """
+    for holder in track.iter("ClipSlotList"):
+        if not len(holder):
+            continue
+        template = copy.deepcopy(holder[0])
+        for child in list(holder):
+            holder.remove(child)
+        for i in range(scenes):
+            slot = copy.deepcopy(template)
+            slot.set("Id", str(i))
+            holder.append(slot)
+
+
 def _placed(element: Element, position: int) -> Element:
     """A track device, from either a rack preset or a bare device node.
 
@@ -414,6 +439,11 @@ def build(tracks: list[Track], returns: list[str] | None = None,
     root = copy.deepcopy(_factory(SET_SKELETON))
     live_set = root.find("LiveSet")
     container = live_set.find("Tracks")
+
+    # Every track needs a clip slot per scene, and the skeleton decides how
+    # many there are. Q36.
+    scene_holder = live_set.find("Scenes")
+    scenes = 0 if scene_holder is None else len(scene_holder)
 
     ret_template = None
     send_template = None
@@ -443,6 +473,7 @@ def build(tracks: list[Track], returns: list[str] | None = None,
         for i, preset in enumerate(spec.presets):
             devices.append(_placed(preset, i))
         _seed_sends(track, count, send_template)
+        _fit_clip_slots(track, scenes)
         container.append(track)
         if spec.name in built:
             raise ValueError(
@@ -477,6 +508,7 @@ def build(tracks: list[Track], returns: list[str] | None = None,
         if not isinstance(name, str) and name[1] is not None:
             devices.append(_placed(name[1], 0))
         _seed_sends(track, count, send_template)
+        _fit_clip_slots(track, scenes)
         container.append(track)
         made += 1
 

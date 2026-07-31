@@ -2002,6 +2002,42 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_every_track_carries_one_clip_slot_per_scene():
+    """Q36. Scene count comes from the skeleton, slot count from the track.
+
+    The Set skeleton is the 8-Track Template, 8 scenes. The track templates
+    are the Creating Tracks defaults, 1 slot each. Live reads slot i of
+    every track without checking, so the mismatch is an access violation
+    rather than a refusal, and four attempts crashed on it.
+
+    A return track has an empty FreezeSequencer list and no MainSequencer
+    one. That is what Live writes and it stays empty.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    root = live_set.build([live_set.Track("T1", "midi"),
+                           live_set.Track("T2", "audio")],
+                          returns=["A", "B"])
+    scenes = len(root.find("LiveSet/Scenes"))
+    assert scenes > 1, "the skeleton has to have scenes for this to bite"
+
+    for track in root.find("LiveSet/Tracks"):
+        name = track.find("Name/EffectiveName").get("Value")
+        for holder in track.iter("ClipSlotList"):
+            if track.tag == "ReturnTrack":
+                assert len(holder) == 0, f"{name}: a return holds no clips"
+                continue
+            assert len(holder) == scenes, (
+                f"{name}: {len(holder)} slots against {scenes} scenes")
+            ids = [s.get("Id") for s in holder]
+            assert len(set(ids)) == len(ids), f"{name}: sibling slot ids collide"
+
+
 def test_a_set_form_branch_carries_nothing_the_template_lacks():
     """Q35. Preset-only children on a Set-form branch CRASH Live.
 

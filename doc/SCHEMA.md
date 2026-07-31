@@ -2365,3 +2365,35 @@ version of the file and the exception, not what was wrong with it.
 
 The rule is now: **the template decides.** A tag the Set-form template
 lacks is never added.
+
+## Q36. A track needs one clip slot per SCENE - ANSWERED
+
+**Evidence:** `build/PATCHBAYGROUND.als` at attempts 4 and 5, both
+`EXCEPTION_ACCESS_VIOLATION` about one second into loading, with nothing
+else in the log. Counted against the Q33 reference Set, which Live saved.
+
+| file | scenes | clip slots per track |
+|---|---|---|
+| reference Set | 8 | 8 main, 8 freeze |
+| what this wrote | 8 | **1 main, 1 freeze** |
+
+**The counts come from two different factory files.** `live_set` takes the
+Set skeleton from `Core Library/Templates/8-Track Template.als`, which has
+8 scenes, and each track from `Core Library/Defaults/Creating Tracks/`,
+which are single-scene files with one slot apiece. Neither is wrong; the
+combination is.
+
+Live reads slot i of every track for scene i and does not check the length,
+so this is a read past the end of a list rather than a schema violation.
+**That is why it crashed instead of being refused**, and why the log named
+nothing: the document had already parsed.
+
+Both lists are filled, `MainSequencer/ClipSlotList` and
+`FreezeSequencer/ClipSlotList`, from the template's own slot, ids 0 upward.
+A return track carries an empty freeze list and no main list at all, which
+is what Live writes, so an empty list stays empty.
+
+**The general shape of this bug:** a count that has to agree between the
+skeleton and something spliced into it. `_seed_sends` was the first one -
+one send per return, on every track. This is the second. Both are silent in
+the file and fatal in Live.
