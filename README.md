@@ -209,9 +209,8 @@ Every item below was gated by loading the output in Live 12.4.3.
   chain's send to a return at once
 - per-track instances of a rack: one declaration, one name per track
 - a whole Live Set: tracks, named returns, a send per return on every
-  track, and every rack placed in order. Track-to-track routing and the
-  sidechain source stay manual, because no Live file here has an example
-  of either
+  track, every rack placed in order, a track routed into another track,
+  and each sidechain fed from a track you name
 - chain and pad cloning
 - the DSL and its compiler: engines, bindings, ranges, zones, labels, start
   positions, variations, nesting to any depth
@@ -252,16 +251,10 @@ proves it here rather than by dragging files into Live.
 
 ## What it does not do
 
-`patchbay` authors racks, and places them in a Set. What it cannot write is
-the two things no Live file here has an example of: **a track routed into
-another track**, and **a compressor's sidechain source**. Live writes
-`AudioOut/Main`, or `AudioOut/GroupTrack` inside a group, and none of its 26
-factory Sets routes one track into another, so the target's shape is
-unknown. A sidechain source is in neither a device preset nor the Object
-Model. Both are dropdowns, and both become writable the moment a Set that
-contains one exists to diff.
+`patchbay` authors racks, and places them in a Set. It does not write
+clips, arrangement, automation envelopes or a groove pool.
 
-Nor does it choose sounds. Which kick is good, whether one knob feels
+It does not choose sounds either. Which kick is good, whether one knob feels
 comparable across two synthesis engines, and where the mix sits are the
 parts worth doing by hand, and the tool exists to leave time for them.
 

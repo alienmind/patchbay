@@ -699,8 +699,12 @@ clips, no automation, no envelopes, and nothing that belongs to a
 performance rather than to an instrument. The DSL proper is still about
 racks - a Session names them and places them.
 
-The two things it deliberately does NOT express are the two nothing can
-write: a track routed into another track, and a sidechain source. Q30.
+The two routings a Set adds are `Track(out=)` and `Track(sidechain=)`, and
+both take a track NAME. Live stores a track ID (Q33), and a name is the
+only thing a spec has: ids are assigned at build time and a spec that
+wrote one would be guessing at the order. So the resolution happens in
+`live_set.build`, after every track has an id, and a name that is not a
+track in the Set raises rather than writing a route to nowhere.
 
 **Donors are the vocabulary.** A device the library has never seen cannot
 be used, and the error says so and lists what is available. That is

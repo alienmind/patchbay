@@ -243,19 +243,28 @@ def _branch_from_preset(branch_preset: Element, position: int,
 # --- the Set itself -------------------------------------------------------
 
 class Track:
-    """One track: a name, a kind, and the racks that sit on it in order."""
+    """One track: a name, a kind, and the racks that sit on it in order.
 
-    __slots__ = ("name", "kind", "presets", "color")
+    `out` names another track to feed instead of the main output, and
+    `sidechain` names the track that feeds every sidechain-capable device on
+    this one. Both are track NAMES here and track IDS in the file, so both
+    are resolved in `build` once every track has an id.
+    """
+
+    __slots__ = ("name", "kind", "presets", "color", "out", "sidechain")
 
     def __init__(self, name: str, kind: str = "midi",
                  presets: list[Element] | None = None,
-                 color: int | None = None) -> None:
+                 color: int | None = None, out: str | None = None,
+                 sidechain: str | None = None) -> None:
         if kind not in ("midi", "audio"):
             raise ValueError(f"a track is midi or audio, not {kind!r}")
         self.name = name
         self.kind = kind
         self.presets = list(presets or [])
         self.color = color
+        self.out = out
+        self.sidechain = sidechain
 
 
 def _name_track(track: Element, text: str) -> None:
@@ -272,6 +281,60 @@ def _track_devices(track: Element) -> Element:
     outer = track.find("DeviceChain")
     inner = outer.find("DeviceChain")
     return inner.find("Devices")
+
+
+def _route(node: Element, target: str, upper: str, lower: str) -> None:
+    """Point one `Routable`-shaped node somewhere. Three fields, no more.
+
+    A routing node is `Target` plus the two strings Live shows in the two
+    halves of the chooser. `MpeSettings` and `MpePitchBendUsesTuning` sit
+    alongside them and are the same whatever the target is, so a template
+    node is edited in place rather than rebuilt.
+    """
+    for tag, value in (("Target", target), ("UpperDisplayString", upper),
+                       ("LowerDisplayString", lower)):
+        el = node.find(tag)
+        if el is None:
+            raise ValueError(f"<{node.tag}> is not a routing node: no {tag}")
+        el.set("Value", value)
+
+
+def _route_output(track: Element, target_id: int, target_name: str) -> None:
+    """Send this track's audio into another TRACK rather than the main out.
+
+    Q33. Live writes `AudioOut/Track.<id>/TrackIn`, where the id is the
+    target track's `Id` attribute, not its position among the tracks. No
+    factory Set carries one, so the shape is from `racks/q32_set.als`, a
+    Set saved by Live with T1 routed into PM1.
+    """
+    node = track.find("DeviceChain/AudioOutputRouting")
+    if node is None:
+        raise ValueError(f"<{track.tag}> has no DeviceChain/AudioOutputRouting")
+    _route(node, f"AudioOut/Track.{target_id}/TrackIn", target_name, "Track In")
+
+
+def _route_sidechains(track: Element, source_id: int,
+                      source_name: str) -> int:
+    """Feed every sidechain on this track from another track's output.
+
+    Q33, the same file. The source is `AudioIn/Track.<id>/PostFxOut`, which
+    is what the chooser calls Post FX, and it goes in the `Routable` a
+    device preset already carries pointing at `AudioIn/None` (Q18): the
+    node ships in the preset, only the target is unsayable there.
+
+    Turning the sidechain ON is a separate field and is left alone. A
+    device that is not listening does not start listening because a source
+    was named.
+    """
+    made = 0
+    for chain in track.iter("SideChain"):
+        node = chain.find("RoutedInput/Routable")
+        if node is None:
+            continue
+        _route(node, f"AudioIn/Track.{source_id}/PostFxOut", source_name,
+               "Post FX")
+        made += 1
+    return made
 
 
 class Session:
@@ -362,6 +425,7 @@ def build(tracks: list[Track], returns: list[str] | None = None,
 
     count = len(returns or [])
     made = 0
+    built: dict[str, Element] = {}
     for spec in tracks:
         source = MIDI_TRACK if spec.kind == "midi" else AUDIO_TRACK
         tag = "MidiTrack" if spec.kind == "midi" else "AudioTrack"
@@ -375,7 +439,26 @@ def build(tracks: list[Track], returns: list[str] | None = None,
             devices.append(_placed(preset, i))
         _seed_sends(track, count, send_template)
         container.append(track)
+        if spec.name in built:
+            raise ValueError(
+                f"two tracks are called {spec.name!r}, so a routing target "
+                f"naming it is ambiguous")
+        built[spec.name] = track
         made += 1
+
+    # Routing is resolved once every track has an id, because a track may
+    # feed one declared after it.
+    for spec in tracks:
+        for named, apply in ((spec.out, _route_output),
+                             (spec.sidechain, _route_sidechains)):
+            if named is None:
+                continue
+            other = built.get(named)
+            if other is None:
+                raise ValueError(
+                    f"track {spec.name!r} routes to {named!r}, which is not "
+                    f"a track in this Set")
+            apply(built[spec.name], int(other.get("Id")), named)
 
     for i, name in enumerate(returns or []):
         if ret_template is None:

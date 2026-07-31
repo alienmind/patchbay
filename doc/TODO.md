@@ -10,8 +10,8 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Open `build/PATCHBAYGROUND.als` in Live | you | 1 double click | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed |
-| 2 | Route the seven MIDI tracks into PM1, pick each EQC's sidechain source | you | 15 dropdowns | Nothing structural. Neither is writable, see below |
+| 1 | Drag `build/PATCHBAYGROUND.als` into Live | you | 1 drag | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed, all routing written |
+| 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33's evidence can live in `racks/` |
 | 3 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
 ## 1. The Set
@@ -28,6 +28,7 @@ facts of provenance metadata on its two return branches. No value moved.
 | tracks | DR1, BS1, PD1, LD1, SR1, VA1, VA2 as MIDI; PM1 as audio |
 | returns | A-Rvb:Short, B-Rvb:Long, C-Dly:Short, D-Dly:Long, E-Spc:Wide, F-Drv:Grit |
 | strip | ARP1, MFX1, instrument, EQC, AFX1, AFXS1, Channel EQ, VOL1, each named for its track |
+| routing | every track but PM1 feeds PM1; every EQC but DR1's sidechains from DR1 |
 | tempo | 120 |
 | SR1 | strip only. Its rack is blocked on samples, so the track says so by being empty |
 
@@ -46,19 +47,19 @@ is REQUIRED to differ between the two forms, and neither Q9 nor the factory
 templates announce which. Expect more, and read the message literally - it
 has named the exact element both times.
 
-## 2. What the file cannot say
+## 2. The Q33 reference Set
 
-**Routing seven tracks into PM1.** Live writes `AudioOut/Main` or, inside
-a group, `AudioOut/GroupTrack`. A track feeding another TRACK appears in
-none of the 26 factory Sets, so the target's shape is unknown and writing
-a guess is rule 1. Seven dropdowns.
+The hand-built Set that answered track-to-track routing and the sidechain
+source is `build/q32_set Project/q32_set.als`, and it **cannot be
+committed**: DR1 sits on T2, so the file enumerates sample filenames.
 
-**The sidechain source on each EQC.** Not in a device preset (Q18), not in
-the LOM, and no factory example. Eight dropdowns.
+Q33 records the two nodes, which is the whole finding, but the tests assert
+against what `live_set` writes rather than against a Live-saved file, which
+is weaker than every other finding here.
 
-Both become writable the moment a Set that contains one exists: save a Set
-with one track routed into another and one compressor sidechained, and the
-diff says what they are.
+To close it: open that Set, delete DR1 from T2, drop any stock device on T2
+in its place so the sidechain still has a source, and save as
+`q33_set.als`. Then it goes in `racks/` and the tests read it.
 
 ## 3. The donor name scan
 
@@ -80,13 +81,9 @@ fails. A check that asks whether something SOUNDS right belongs here.
   is not structure and no test can check one.
 - Whether one knob feels comparable across engines. The ranges that make it
   so are declared and tested; whether the result is musical is ears.
-- Routing the seven MIDI tracks into PM1, and picking each EQC's sidechain
-  source. Fifteen dropdowns. NOT here because the ratio is bad, but because
-  neither is writable: no file in Live's factory content has a track routed
-  into another track, and a sidechain source is in neither the preset (Q18)
-  nor the LOM. Both leave this list the moment a Set carrying one exists to
-  diff. Everything else about the Set - tracks, names, returns, tempo, all
-  52 racks placed - is written by `patchbay session`.
+- Which track a sidechain listens to, and which track feeds which. Both are
+  written by `patchbay session` now (Q33); which ones to pick is a mix
+  decision.
 - Confirming a mapped macro DOES something. Which mappings exist is not
   manual: `patchbay mappings` reads them out of the file and the tests
   assert the matrix, including the switch behind each modulator.

@@ -962,8 +962,8 @@ Ordered by how much they gate the build.
 | **[V]** | Snapshot ceiling. **None at 256**, no truncation. Closed, see Â§11 | S8 tail | nothing |
 | **[?]** | Drum rack pad-to-note (`ReceivingNote`, `SendingNote` seen but uncharacterised), internal returns, per-chain sends. | S9 | Phase 4 |
 | **[V]** | `.als` structure: tracks, returns, and a rack in Set form. **Written by `live_set.py`.** Closed, see Â§3 and Q30 | S11 | nothing |
-| **[?]** | Routing a track into another TRACK. `AudioOut/Main` and `AudioOut/GroupTrack` are the only targets any factory Set here shows. | Q30 | one dropdown per track |
-| **[?]** | The sidechain source, at Set level. Absent from preset form (Q18) and from the LOM. | Q30 | one dropdown per track |
+| **[V]** | Routing a track into another TRACK. **`AudioOut/Track.<id>/TrackIn`**, the id being the target's `Id` attribute. Closed, see Q33 in `SCHEMA.md` | Q33 | nothing |
+| **[V]** | The sidechain source, at Set level. **`AudioIn/Track.<id>/PostFxOut`** in the `Routable` a preset already carries. Closed, see Q33 in `SCHEMA.md` | Q33 | nothing |
 | **[?]** | Does element order within a parameter matter? `KeyMidi` is written between `LomId` and `Manual`. | - | writer safety |
 
 ## 15. Evidence

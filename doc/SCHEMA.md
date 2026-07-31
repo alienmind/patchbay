@@ -2239,3 +2239,52 @@ thing that is not a straight copy after the pointee ids in Q31.
 Fixed in `live_set._branch_from_preset`, and the file is rebuilt. **Whether
 Live now loads it is unchecked**: the error moved once already, from
 Invalid Pointee Id to this, so the next attempt may find a fourth.
+
+## Q33. A track routed into a track, and a sidechain source - ANSWERED
+
+**Evidence:** a Set hand-built in Live 12.4.3 and saved as
+`q32_set.als`: two MIDI tracks T1 and T2, one audio track PM1, two
+returns, three racks from `build/` on T1, DR1 on T2, T1's output set to
+PM1 and the Compressor2 inside T1's EQC sidechained from T2. Compared
+against the same shape written by `patchbay session`.
+
+**The file is not in `racks/`.** DR1 carries a FileRef per pad, so the Set
+enumerates sample filenames, which is content the repo does not publish.
+The two nodes below are the whole finding.
+
+### A track feeding another TRACK
+
+`DeviceChain/AudioOutputRouting` on the source track:
+
+    <Target Value="AudioOut/Track.8/TrackIn" />
+    <UpperDisplayString Value="PM1" />
+    <LowerDisplayString Value="Track In" />
+
+`8` is the target track's `Id` ATTRIBUTE, not its position: PM1 sits third
+in `Tracks` and carries `Id="8"`. The default is `AudioOut/Main` with
+`Master` and an empty lower string, so only the three fields move.
+
+### A sidechain SOURCE
+
+`SideChain/RoutedInput/Routable` inside the device, on T1's Compressor2:
+
+    <Target Value="AudioIn/Track.13/PostFxOut" />
+    <UpperDisplayString Value="T2" />
+    <LowerDisplayString Value="Post FX" />
+
+Same id rule, `AudioIn` rather than `AudioOut`, and `PostFxOut` for what
+the chooser calls Post FX. T2 is `Id="13"`.
+
+**Q18 said the sidechain source is not in a device preset. The NODE is.**
+`build/EQC_PD1.adg` carries the whole `Routable` pointing at
+`AudioIn/None` with `No Output`. What a preset cannot say is which track,
+because a preset has no tracks. So writing it needs no new element, only
+the target filled in at Set-build time, which is where the ids exist.
+
+**`SideChain/OnOff` is separate and is left alone.** EQC ships with it on.
+A device that is not listening does not start listening because a source
+was named.
+
+Written by `live_set._route_output` and `live_set._route_sidechains`,
+surfaced as `Track(out=, sidechain=)`, both taking a track NAME and
+resolving it to an id after every track has one.

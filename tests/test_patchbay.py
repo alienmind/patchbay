@@ -2002,6 +2002,104 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_a_track_routes_into_another_track_by_id():
+    """Q33. `AudioOut/Track.<id>/TrackIn`, and the id is the ATTRIBUTE.
+
+    Read off a Set saved by Live with T1 routed into PM1: PM1 sits third in
+    `Tracks` and carries `Id="8"`, and the target names 8. So resolving a
+    name to a POSITION would be right by accident here and wrong in
+    general.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    root = live_set.build(
+        [live_set.Track("T1", "midi", out="PM1"),
+         live_set.Track("T2", "midi"),
+         live_set.Track("PM1", "audio")],
+        returns=["A"])
+
+    tracks = {t.find("Name/EffectiveName").get("Value"): t
+              for t in root.find("LiveSet/Tracks")}
+    target = tracks["PM1"].get("Id")
+    got = tracks["T1"].find("DeviceChain/AudioOutputRouting")
+    assert got.find("Target").get("Value") == f"AudioOut/Track.{target}/TrackIn"
+    assert got.find("UpperDisplayString").get("Value") == "PM1"
+    assert got.find("LowerDisplayString").get("Value") == "Track In"
+    for name in ("T2", "PM1"):
+        other = tracks[name].find("DeviceChain/AudioOutputRouting/Target")
+        assert other.get("Value") == "AudioOut/Main", f"{name} was rerouted"
+
+
+def test_a_sidechain_source_is_filled_into_the_node_the_preset_carries():
+    """Q33 and Q18 together: the `Routable` ships, the TARGET cannot.
+
+    A preset carries the whole node pointing at `AudioIn/None`, so naming a
+    source adds no element. It also must not switch the sidechain on: which
+    is a different field and a different decision.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    src = Path(__file__).resolve().parent.parent / "build" / "EQC.adg"
+    if not src.exists():
+        return
+    preset = io.load(src).find("GroupDevicePreset")
+    before = [r.find("Target").get("Value")
+              for r in preset.iter("Routable")
+              if r.getparent().tag == "RoutedInput"]
+    assert before == ["AudioIn/None"], "EQC's sidechain node moved"
+
+    root = live_set.build(
+        [live_set.Track("T1", "midi", [preset], sidechain="DR1"),
+         live_set.Track("DR1", "midi")])
+
+    tracks = {t.find("Name/EffectiveName").get("Value"): t
+              for t in root.find("LiveSet/Tracks")}
+    source = tracks["DR1"].get("Id")
+    found = 0
+    for chain in tracks["T1"].iter("SideChain"):
+        node = chain.find("RoutedInput/Routable")
+        if node is None:
+            continue
+        assert node.find("Target").get("Value") == (
+            f"AudioIn/Track.{source}/PostFxOut")
+        assert node.find("UpperDisplayString").get("Value") == "DR1"
+        assert node.find("LowerDisplayString").get("Value") == "Post FX"
+        found += 1
+    assert found == 1, f"EQC holds one sidechain, found {found}"
+    for chain in tracks["DR1"].iter("SideChain"):
+        node = chain.find("RoutedInput/Routable")
+        assert node is None or node.find("Target").get("Value") == "AudioIn/None"
+
+
+def test_a_routing_target_that_is_not_a_track_is_refused():
+    """Fail loudly: a typo would otherwise write a Set routed nowhere."""
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    for kwargs in ({"out": "PM2"}, {"sidechain": "PM2"}):
+        try:
+            live_set.build([live_set.Track("T1", "midi", **kwargs),
+                            live_set.Track("PM1", "audio")])
+        except ValueError as e:
+            assert "PM2" in str(e)
+        else:
+            raise AssertionError(f"{kwargs} named a track that is not there")
+
+
 if __name__ == "__main__":
     passed = failed = 0
     for name, fn in sorted(globals().items()):

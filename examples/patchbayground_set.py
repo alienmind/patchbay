@@ -11,14 +11,12 @@ sit on, which is what `STRIP_INSTANCES` in `patchbayground.py` generates.
 Channel EQ stays stock, per the spec, so it is placed as a bare device
 rather than wrapped in a rack.
 
+Every track but PM1 feeds PM1, and every EQC but DR1's sidechains from DR1,
+which is what the spec asks for and what `Track(out=, sidechain=)` writes.
+DR1 is the sidechain source, and a track cannot duck from itself.
+
 What this file cannot state, because it is not in the format:
 
-- **Output routing into PM1.** Live writes a routing target for a track
-  feeding another track and no factory Set here has one to copy, so the
-  shape is unknown and guessing it would be inventing intent. Seven
-  dropdowns, once.
-- **The sidechain source on each EQC.** Not in a device preset at all
-  (Q18), not in the LOM, so it is manual wherever it comes from.
 - **What the returns SOUND like.** Each carries a stock device at Live's
   defaults. Two reverbs and two delays of contrasting length is what the
   spec asks for, and contrasting is a decision by ear.
@@ -105,7 +103,10 @@ def session() -> Session:
     tracks = []
     for name in pb.TRACKS:
         kind = "audio" if name == "PM1" else "midi"
-        tracks.append(Track(name, kind, _strip(name, INSTRUMENT_ON[name])))
+        feeds = None if name == "PM1" else "PM1"
+        ducks = None if name == "DR1" else "DR1"
+        tracks.append(Track(name, kind, _strip(name, INSTRUMENT_ON[name]),
+                            out=feeds, sidechain=ducks))
     returns = [(name, _stock(tag)) for name, tag in RETURNS]
     return Session(tracks, returns, tempo=120.0)
 
