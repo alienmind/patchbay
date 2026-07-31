@@ -39,8 +39,8 @@ uv sync                         # creates .venv, installs patchbay editable
 shape it arrived in. 
 
 ```
-uv run python examples/reorg_samples.py         # Will show some help
-uv run python examples/reorg_samples.py --apply # Will classify (copy) into the required folders
+uv run python examples/patchbaygrnd_fetch_samples.py         # Will show some help
+uv run python examples/patchbaygrnd_fetch_samples.py --apply # Will classify (copy) into the required folders
 ```
 
 The result is a copy of each file into `samples/<RACK>/<category>/`, renamed and numbered
@@ -72,8 +72,8 @@ Everything below is why any of it works.
 ## Motivation
 
 Instead of spending an afternoon dragging, dropping, patching
-and connecting macros, I've spend two weeks of frantly coding this tool, so you just do an edit and a rebuild from a layout you
-already trust.
+and connecting macros, ~~I've spend two weeks of frantically coding this tool, so~~ you just do an edit and a rebuild from a layout you
+already trust. ~~Yes, that's what sidequesting looks like.~~
 
 That changes what maintenance costs of a large number of racks, which can be useful
 for music producers and developers of audio tools.
@@ -327,7 +327,6 @@ Managed with [uv](https://docs.astral.sh/uv/).
 
 ```
 uv sync                         # creates .venv, installs patchbay editable
-git submodule update --init     # ableton-mcp
 ```
 
 Editable matters, and `uv sync` does it by default: specs and findings are
@@ -381,7 +380,6 @@ racks/       spike evidence. Every verified claim traces to one of these.
 samples/     audio.
 build/       generated output, gitignored.
 tests/       assertions against the recorded findings.
-ableton-mcp/ submodule: the Live-side half.
 ```
 
 ## Documentation
@@ -394,9 +392,7 @@ ableton-mcp/ submodule: the Live-side half.
 | **`doc/SPIKES.md`** | discovery procedure and the spikes that answered it | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
 | **`doc/PATCHBAYGROUND.md`** | the musical target, the layout, and what inspired it | for what any of this is for |
-| `doc/MCP.md` | what Live's API can and cannot do | before touching a running Live |
 | `doc/THE_BASEMENT.md` | ideas that failed, and what killed them | before reviving a good-sounding plan |
-| `doc/KICKOFF.md` | the original plan, and how it changed | for sequencing |
 | `CLAUDE.md` | working method and landmines | first, if you are an agent |
 
 `doc/ARCHITECTURE.md` is the model, `doc/SCHEMA.md` is the evidence. If
@@ -416,24 +412,19 @@ which are written for whoever, or whatever, does the work.
 
 Please check the detailed backlog of what remains to be done on [`doc/TODO.md`](doc/TODO.md).
 
-## On MCP
+## Why not the Live API
 
-**Nothing here drives a running Live.** The `ableton-mcp` submodule is
-vendored and unused: no module under `patchbay/` imports it, no build
-touches it, no test needs it.
+Live's Object Model cannot group devices into a rack, create a macro
+mapping, or set a chain zone. That is not a gap to work around, it is the
+reason this project writes files: `map_parameter`, `add_chain` and `zone`
+are absent from the LOM, read off Live 12.4.3's own
+`_MxDCore/LomTypes.pyc`.
 
-It was going to be the test harness, and the reason that failed is worth
-stating because it looks like it should work. **A device can only be put on
+There was a plan to drive a running Live over a socket for the parts the
+API does expose. It is buried in [`doc/THE_BASEMENT.md`](doc/THE_BASEMENT.md)
+with the capability table and what killed it: **a device can only be put on
 a track by BROWSER URI, and Live's browser index is a snapshot taken at
-startup.** A rack written to the User Library while Live is running is not
-in it, and neither is a file dropped into a folder Live has already indexed
-- checked against a running 12.4.3 by polling for a file that never
-appeared. So the one thing the harness needed, "load the rack we just
-wrote", is the one thing it cannot do without restarting the Live it is
-driving.
+startup**, so the one thing that plan needed - load the rack we just wrote -
+is the one thing it cannot do without restarting the Live it is driving.
 
-What the socket is still good for: reading back what is actually on a
-track, transport control, tempo, clips and notes, and creating tracks. What
-replaced the rest is `patchbay session`, which writes the Set - see
-`doc/MCP.md` for the current division and `Q30` in `doc/SCHEMA.md` for what
-Set form cost.
+Nothing here drives a running Live.

@@ -1,9 +1,8 @@
 # CLAUDE.md - working rules for agents in this repo
 
 This repo is a Python DSL and toolchain for AUTHORING Ableton Live racks
-and Sets in code: racks by writing the `.adg` XML directly, Sets by driving
-the `ableton-mcp` submodule. A spec is an ordinary Python module importing
-from `patchbay.dsl`. Offline authoring, not live coding - nothing here
+and Sets in code, by writing the `.adg` and `.als` XML directly. A spec is
+an ordinary Python module importing from `patchbay.dsl`. Offline authoring, not live coding - nothing here
 makes a sound, it produces the instrument.
 
 `examples/patchbayground.py` is ONE example and the end-to-end test. It is
@@ -32,8 +31,8 @@ around it.
      disproved: `doc/THE_BASEMENT.md`
 3. **Nothing is archived in place.** No completed entries accumulate in
    `TODO.md`, no struck-through text, no "DONE" markers. A task leaves
-   once, in one direction. `KICKOFF.md` is what that looks like when it is
-   not done, and it is not a model to copy.
+   once, in one direction. A file that accumulates struck-through entries
+   stops being readable and gets deleted; that has happened once already.
 
 Bury generously. An approach that failed is worth more written down than
 deleted, because the next reader will otherwise find it attractive again.

@@ -73,21 +73,16 @@ writes an `.adg`, and hands it over as a file to drag into Live.
 Each of these was offered as a reason to switch or not to. All three were
 weaker than they looked.
 
-### There is no coupling to the MCP half
+### There is no half that has to stay Python
 
 The claim was that a port splits the project, because Live's Remote Script
-is embedded Python and the Set half must stay there.
+is embedded Python and the Set half must live there.
 
-`patchbay/*.py` references `ableton-mcp` once, in a docstring.
-`mcp/remote_script_additions.py` imports nothing from PatchBay. The wire
-format is JSON over a socket: `params.get("track_index")` in, `{"index":
-..., "name": ...}` out. What crosses the boundary is a file path and a rack
-name.
-
-`MCP.md` already settled this as architecture: the two have different
-runtime models, they meet at the User Library, and MCP code is not to be
-migrated into `patchbay`. So the Python remote script is a constant in
-every scenario, not a cost of switching. **The argument is void.**
+**That half no longer exists.** The Set is a file, written by
+`live_set.py`, and nothing in this repo talks to a running Live at all.
+`THE_BASEMENT.md` has why. So there is no embedded-Python constant to
+weigh against a port. **The argument is void**, for a stronger reason than
+when it was first answered.
 
 ### Build-time type checking is not TypeScript's alone
 

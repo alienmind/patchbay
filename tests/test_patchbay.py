@@ -1433,7 +1433,7 @@ def test_no_em_dashes():
     session of being written, which is why it is a test.
     """
     root = Path(__file__).resolve().parent.parent
-    skip = {".git", "ableton-mcp", "build", ".venv", "__pycache__",
+    skip = {".git", "build", ".venv", "__pycache__",
             "patchbay.egg-info"}
     offenders = []
     for pattern in ("*.md", "*.py"):
@@ -2123,7 +2123,7 @@ def test_sample_classification_is_ordered_specific_first():
     survey settled.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    from reorg_samples import RULES, classify
+    from patchbaygrnd_fetch_samples import RULES, classify
 
     names = [r.category for r in RULES]
     assert len(names) == len(set(names)), f"a duplicate rule is dead: {names}"
@@ -2181,7 +2181,7 @@ def test_a_loop_is_not_placed_at_all():
     from "no rule matched".
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import reorg_samples as rs
+    import patchbaygrnd_fetch_samples as rs
 
     placed = {r.dest for r in rs.RULES if r.dest is not None}
     assert all(d.split("/")[0] in ("DR1", "SR1") for d in placed), (
@@ -2202,7 +2202,7 @@ def test_a_folder_that_says_loop_outranks_the_filename():
     reason the next test gives.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import reorg_samples as rs
+    import patchbaygrnd_fetch_samples as rs
 
     got = rs.classify(rs.DROP / "loops" / "kick" / "kick_001.wav")
     assert got is not None, "a folder saying loop was ignored"
@@ -2221,7 +2221,7 @@ def test_the_folder_stage_is_a_fallback_and_skips_the_loop_rule():
     so `FolderStage` drops that rule. The name always wins where it speaks.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import reorg_samples as rs
+    import patchbaygrnd_fetch_samples as rs
 
     assert [s.name for s in rs.PIPELINE] == ["folder-form", "name", "folder"]
     folder = next(st for st in rs.PIPELINE if st.name == "folder")

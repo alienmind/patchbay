@@ -1,8 +1,13 @@
-"""Sort a drop folder of samples into the per-rack tree.
+"""Fetch PATCHBAYGROUND's samples out of a drop folder and sort them.
 
-    python examples/reorg_samples.py                 # say what would happen
-    python examples/reorg_samples.py --apply         # do it
-    python examples/reorg_samples.py --explain       # show WHY each file landed
+    python examples/patchbaygrnd_fetch_samples.py            # what would happen
+    python examples/patchbaygrnd_fetch_samples.py --explain  # and why, per file
+    python examples/patchbaygrnd_fetch_samples.py --apply    # do it
+
+Named for the spec it serves. The categories, the pads they feed and the
+folders they live in are all PATCHBAYGROUND's, declared in
+`examples/patchbayground.py`; a different spec would want a different
+dictionary. Nothing here is general.
 
 Drop anything into `samples/all/`, in whatever shape it was packaged in,
 and this puts a copy of each file where a rack will find it. Nothing is

@@ -11,13 +11,14 @@ costs against what it decides.
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
 | 1 | Classify samples by what they SOUND like, not what they are called | me | a dependency and a spike | Whether curation stops being manual |
-| 2 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
-| 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
-| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 2 | Duck from DR1's KICK CHAIN, not the whole track | you, one save | one Set saved by hand | Whether a sidechain can name a chain inside a rack |
+| 3 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
+| 4 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
+| 5 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
 ## 1. Classifying by sound
 
-We currently have a basic classification algorithm for samples based on file names `examples/reorg_samples.py`,
+We currently have a basic classification algorithm for samples based on file names `examples/patchbaygrnd_fetch_samples.py`,
 which sorts a drop folder. But this is not enough to properly cluster the samples as we want them to be:
 
 ### Enhancements
@@ -83,7 +84,35 @@ finding reports and never deletes, and "is it good" stays under Standing
 manual work where it already is. The tool narrows what a person listens to;
 it does not decide.
 
-## 2. Colour inside a rack
+## 2. Ducking from the kick chain
+
+Every EQC but DR1's sidechains from **the whole DR1 track**, which triggers
+on hats and claps as much as on kicks. Musically that is wrong: only the
+low kick should duck a bass.
+
+**Half of this is already solved and shipped.** `EQC` sets
+`SideChainEq_On`, mode 5, at `SIDECHAIN_HZ = 100.0`, so the trigger is a
+low band of DR1 rather than all of DR1. Live's own manual prescribes
+exactly that for this case: "even if you only have a mixed drum track to
+work with... enable the sidechain EQ and select the low-pass filter... you
+should be able to isolate the kick drum from the rest of the drum mix."
+
+**What is NOT known is whether a routing target can name a CHAIN.** The
+manual says the chooser offers "any of Live's internal routing points", and
+a Drum Rack's pads are routing points in the UI. Q33 established the shape
+for a track, `AudioIn/Track.<id>/PostFxOut`, and says nothing about a chain
+inside one. Writing a guess is rule 1.
+
+**One save answers it.** In any Set, put a Compressor on one track, turn its
+sidechain on, and set the source to a single PAD of a Drum Rack on another
+track. Save it as `racks/q41_chain_source.als`. The diff against Q33's
+target is the whole finding, and if a chain can be named then `sidechain=`
+takes a chain as readily as a track.
+
+**Until then the low band stands**, and it is not a placeholder: it is the
+technique the manual recommends and it is already in every EQC.
+
+## 3. Colour inside a rack
 
 **Tracks and returns are done**, Q39: `<Color Value="N" />`, 0 to 69, `-1`
 for none, written by `live_set._color_track` and spread evenly across the
@@ -101,7 +130,7 @@ The open shape question is the DSL surface, not the format. A palette index
 is honest and unreadable; sixty-nine names are readable and are sixty-nine
 names to invent and defend.
 
-## 3. A `.alp` as a second output
+## 4. A `.alp` as a second output
 
 `patchbay session` writes a `.als`, which is one file that refers to
 samples wherever they happen to sit. A **Live Pack** is the packed form of
@@ -129,7 +158,7 @@ Samples used for this experiment cannot be redistributed, but at least we should
 provide a way to build a pack for any user willing to build it from their
 sample collection.
 
-## 4. The donor name scan
+## 5. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames

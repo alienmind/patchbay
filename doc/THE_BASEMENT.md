@@ -23,7 +23,7 @@ to a remote script is smaller work and survives Live updates, which `.als`
 generation would not. The `sets/` folder and its spike were deleted
 unbuilt.
 
-**Replaced by:** `TODO.md` T4, `MCP.md`.
+**Replaced by:** `live_set.py`, and the entry below on the whole MCP half.
 
 **And then partly dug back up.** The reasoning above holds for what the API
 CAN do, and it turned out not to cover the one thing the Set needed most:
@@ -79,8 +79,8 @@ Worse in context. The project describes itself as a Python DSL, so a reader
 meeting `Grammar` reasonably assumes it is the grammar of the language.
 
 **Traced first, then renamed.** The suspicion was that the word came from
-PLAYGRND. It did not: `doc/STRUCTURE.md`, the only document assembled from
-PLAYGRND material, uses "grammar" twice and both times in our own analytic
+PLAYGRND. It did not: the only document assembled from PLAYGRND material,
+since deleted, used "grammar" twice and both times in our own analytic
 voice. What is observable there is slot LABELS in caps, `FILTER & RES.`,
 `SOUND`, `VOLUME`, and no word at all for the system they belong to.
 
@@ -347,12 +347,33 @@ Live's field whole and is what the slot selects, but the eight slot names
 are gated and renaming one reopens `PATCHBAYGROUND.md`, `DSL.md` and
 `README.md` with it.
 
-## Building the Set through `ableton-mcp`, and the submodule itself
+## `ableton-mcp`, the Live API, and the whole MCP half
 
-**Dropped, routed around, and now decommissioned.** Nothing under
-`patchbay/` imports it, and nothing in a build or a test touches it.
-`doc/MCP.md` is kept, because the LOM capability table in it is real
-evidence and it is the reason this project writes files at all. The plan was to
+**Dropped, routed around, and now removed.** The submodule is gone,
+`mcp/remote_script_additions.py` is gone, and `doc/MCP.md` is gone: this
+entry is all that is left, because everything that file established still
+matters and nothing it proposed survived.
+
+### The capability table, which is why this project exists
+
+Read off Live 12.4.3's own bundled scripts at
+`Resources/MIDI Remote Scripts`, in particular `_MxDCore/LomTypes.pyc`,
+which enumerates the Live Object Model. A symbol present in that table
+means the API exposes it; absent means it does not exist, not that we
+failed to find it.
+
+| operation | LOM | consequence |
+|---|---|---|
+| `map_parameter`, `macro_mapping`, `mapped_parameter`, `mappings` | **absent** | macro mappings cannot be created or read via the API |
+| `add_chain`, `delete_chain` | **absent** | chains cannot be created or removed |
+| `zone` | **absent** | chain, key and velocity zones are not reachable |
+| `chains`, `return_chains`, `drum_pads`, `chain_selector` | present | existing structure is READABLE, not constructible |
+| `add_macro`, `remove_macro` | present | changes the macro COUNT only, `NumVisibleMacroControls` |
+| `randomize_macros`, `selected_variation_index`, `store_variation` | present | variations can be stored and selected, but not named |
+
+**That table is the premise of the whole project.** Rack structure, macro
+mappings, chain zones and variations are unreachable from the API, so
+writing the file is not a workaround, it is the only route. The plan was to
 drive a running Live over the remote script's socket: create the tracks,
 name them, load each rack onto the right one, set the tempo.
 
@@ -375,6 +396,17 @@ the thing it is driving.
 what that cost - one tag rename, a send seeded per return on every track -
 and `live_set.py` is the module. Q9 had already mapped Set form to preset
 form for reading, so writing was the same map backwards.
+
+**The verification harness went with it.** The smoke test was: generate a
+rack, have MCP load it onto a track, read the device tree back with
+`get_track_info`. Step two is the browser step, so it never ran. What was
+usable, reading back a Set opened by hand, is not worth a submodule and a
+socket, and it could never confirm a macro mapping anyway because
+`mapped_parameter` is not in the LOM.
+
+**`create_audio_track` and `create_return_track`** were written into
+`mcp/remote_script_additions.py` so MCP could build the Set. The Set is a
+file now, and both are deleted rather than kept warm.
 
 **The part of the original reasoning that did NOT survive:** output
 routing into PM1 and the sidechain source per track were called permanent

@@ -100,8 +100,10 @@ if a spec ever states send levels as knob percentages.
 
 **Sidechain source.** Absent from the Live Object Model AND not yet found
 in the file format. `PATCHBAYGROUND.md` needs it for DR1. It stays manual,
-which `KICKOFF.md` prices at one afternoon. Revisit only if that proves
-annoying in practice.
+priced at one afternoon. Revisit only if that proves annoying in practice.
+
+**Since answered:** Q33. Both the routing target and the sidechain source
+are in the file, and `patchbay session` writes them.
 
 **`OriginalCrc` algorithm.** 16-bit, and zlib plus ten CRC-16 variants
 over four chunk choices all missed. Closed as irrelevant: nothing reads it
@@ -141,7 +143,7 @@ stopped being a gate. Remaining order:
 4. **S9, S12** - fill in the drum rack and donor details.
 5. **S6** - still worth doing before `clone.py` ships, for non-macro
    references.
-6. **S11** - last, and skippable per KICKOFF's fallback.
+6. **S11** - last, and skippable if it proved too costly.
 
 ---
 
@@ -452,8 +454,7 @@ change one track's Audio To; point a compressor's sidechain at another
 track; compare a return track against a regular track.
 
 **Record:** how routing targets are named - by id, by name, by index.
-This decides whether Phase 6 is viable or gets skipped per KICKOFF's
-fallback.
+This decides whether writing the Set is viable or gets skipped.
 
 **Dropped once, then run.** The reason for dropping it was that Live's API
 exposes `create_audio_track`, `create_return_track`, `output_routing_type`

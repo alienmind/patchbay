@@ -587,9 +587,9 @@ for **fidelity**: absent parameters come back as defaults, so a donor is
 how a device arrives with the right values. That is the whole point of
 `donors/` - carrying a *configured* device, not a loadable one.
 
-So the KICKOFF rationale stands, with the reason corrected: donors save us
-from having to know every parameter's default and name, not from producing
-unloadable files.
+So the original rationale for donors stands, with the reason corrected:
+they save us from having to know every parameter's default and name, not
+from producing unloadable files.
 
 Practical upshot for Phase 4: a generator may write **partial** device
 nodes, overriding only the parameters it cares about and letting Live
@@ -845,7 +845,7 @@ writer and Live's agree on order, sentinel and scale. Asserted in
 
 Since `SnapshotName` is free text, Phase 5 can encode a variation's
 parameter values into its name, which is what makes culling informed
-rather than blind - see the workflow note in `KICKOFF.md`.
+rather than blind.
 
 ### A snapshot captures macro state at the click, then drifts
 
@@ -1377,8 +1377,8 @@ and every generated sound was permanently darkened.
 
 ### Where the number came from
 
-Nowhere. `200..8000` first appears in `KICKOFF.md` as an illustrative
-range in a spike, and was then copied into `DSL.md`, this file,
+Nowhere. `200..8000` first appeared as an illustrative range in an early
+planning document, and was then copied into `DSL.md`, this file,
 `PATCHBAYGROUND.md` and `examples/patchbayground.py`. No document argued
 for it. It survived because a specific-looking constant reads as
 deliberate.
@@ -2183,7 +2183,8 @@ example that does not exist.
 
 ### Live's browser is a startup snapshot
 
-Not schema, but it is why this module exists. `AbletonMCP` can load a
+Not schema, but it is why this module exists. Live's remote script API
+can load a
 device onto a track only BY BROWSER URI, and a rack written to the User
 Library after Live started is not in the browser: a file dropped into an
 already-indexed folder is not visible either, so it is the index and not

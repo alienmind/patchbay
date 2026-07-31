@@ -366,16 +366,16 @@ rather than by accident:
 
 ## What was tried and rejected
 
-- **AbletonMCP for the build.** Can create tracks, write notes, set names
-  and tempo. Cannot group devices, map macros, or set chain zones, because
-  the Live API does not expose those. Verified against Live's own Object
-  Model in `MCP.md`, not assumed.
+- **Driving a running Live for the build.** Live's API can create tracks,
+  write notes, set names and tempo. It cannot group devices, map macros, or
+  set chain zones, because the Object Model does not expose those. Verified
+  against Live's own `LomTypes` table, not assumed.
 
   It also cannot load the racks this project generates, which is the part
   that killed it as a build route: a device reaches a track only by browser
   URI, and Live's browser index is a snapshot taken at startup, so a rack
   written while Live is running is not there to load. The Set is written as
-  a file instead, by `patchbay session`. See `MCP.md` and Q30.
+  a file instead, by `patchbay session`. `THE_BASEMENT.md` and Q30.
 - **Building on ableton-inspector.** Read only, `.als` only, and its schema
   coverage stops well short of devices and racks. Useful only as
   confirmation that these files are gzipped XML and that samples live in

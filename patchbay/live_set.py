@@ -1,7 +1,7 @@
 """Write a Live Set: tracks, returns, and racks placed on them.
 
-`MCP.md` once said a Set was the API's job and not this library's. It is
-not: loading a rack onto a track means loading it BY BROWSER URI, and
+A Set was once going to be the API's job rather than this library's. It
+cannot be: loading a rack onto a track means loading it BY BROWSER URI, and
 Live's browser index is a snapshot taken at startup, so a rack written to
 the User Library five minutes ago is not there to load. Restarting Live to
 pick it up defeats the purpose of driving a running Live.

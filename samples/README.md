@@ -82,9 +82,9 @@ Counts change as the collection does. Ask the filesystem, not this file.
 
 ## How the tree is built
 
-    python examples/reorg_samples.py            # say what would happen
-    python examples/reorg_samples.py --explain  # and why, per file
-    python examples/reorg_samples.py --apply    # do it
+    python examples/patchbaygrnd_fetch_samples.py            # say what would happen
+    python examples/patchbaygrnd_fetch_samples.py --explain  # and why, per file
+    python examples/patchbaygrnd_fetch_samples.py --apply    # do it
 
 Drop a pack into `samples/all/` in whatever shape it arrived in. The script
 COPIES each file into the folder its name says it belongs in, renamed
