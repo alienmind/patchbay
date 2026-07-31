@@ -12,7 +12,8 @@ costs against what it decides.
 |---|---|---|---|---|
 | 1 | Drag `build/PATCHBAYGROUND.als` into Live | you | 1 drag | Whether the written Set loads: 8 tracks, 6 returns, 52 racks placed, all routing written |
 | 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33's evidence can live in `racks/` |
-| 3 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
+| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
 ## 1. The Set
 
@@ -61,7 +62,32 @@ To close it: open that Set, delete DR1 from T2, drop any stock device on T2
 in its place so the sidechain still has a source, and save as
 `q33_set.als`. Then it goes in `racks/` and the tests read it.
 
-## 3. The donor name scan
+## 3. A `.alp` as a second output
+
+`patchbay session` writes a `.als`, which is one file that refers to
+samples wherever they happen to sit. A **Live Pack** is the packed form of
+a whole Project: Live builds one with File > Manage Files > Manage Project
+> Packing > Create Pack, and installs one by dragging the `.alp` in or via
+File > Install Pack. So a Pack is what a build should ship as, and a `.als`
+plus a folder is what it ships as now.
+
+Not started, and the cost is unknown, because the container is
+undocumented and nothing in `SCHEMA.md` touches it. The first spike is
+whether it is an ordinary archive: unpack a Pack Live made, look at what
+came out, and see whether the tree is a Project folder verbatim. If it is,
+this is a writer over a known layout. If it is not, it is a format to
+reverse and the answer may be no.
+
+Note what it does NOT fix. Absolute paths were never a problem here:
+routing is by track id (Q33), and sample retargeting needs the two path
+fields on each FileRef (Q10). The paths in a Live-saved file are Live's own
+bookkeeping.
+
+**A Pack of PATCHBAYGROUND would carry the samples**, which is the same
+licence question as `samples/`. A Pack is a distribution format, so this
+task decides how a build is shipped, not just how it is written.
+
+## 4. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames
