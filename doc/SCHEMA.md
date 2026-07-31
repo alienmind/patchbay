@@ -2200,9 +2200,10 @@ Live 12.4.3 with
 
 and `racks/q9_b.als`, a Set Live saved, for what the rule actually is.
 
-**The pointee id space is one numbering shared by three families:**
-`Pointee`, `AutomationTarget`, and every tag ending `ModulationTarget` -
-`TranspositionModulationTarget`, `GrainSizeModulationTarget` and the rest.
+**The pointee id space is one numbering.** Q34 corrects which nodes are in
+it: naming the families was wrong, and the rule is a SHAPE. `Pointee`,
+`AutomationTarget`, every tag ending `ModulationTarget`, and
+`ControllerTargets.N`, which matches no convention at all.
 In `q9_b.als`: 267 of them, **no duplicates, none zero**, and
 `LiveSet/NextPointeeId` exactly one above the highest.
 
@@ -2288,3 +2289,39 @@ was named.
 Written by `live_set._route_output` and `live_set._route_sidechains`,
 surfaced as `Track(out=, sidechain=)`, both taking a track NAME and
 resolving it to an id after every track has one.
+
+## Q34. A pointee is recognised by SHAPE, not by its tag - ANSWERED
+
+**Evidence:** `build/PATCHBAYGROUND.als` at its third attempt, refused by
+Live 12.4.3 with 131 errors of the form
+
+    error: PointeeId 341 is used 8 times.
+
+for ids 328 to 458, and the hand-built reference Set for what the space
+actually contains.
+
+**`MainSequencer/MidiControllers` holds 131 `<ControllerTargets.N>`, and
+each one is a pointee.** They come from Live's own MIDI track template, so
+every track built from it carried the same 131 ids: eight tracks, eight
+uses of each. Q31's rule named three families by tag and this is a fourth
+whose name announces nothing, so it went through untouched.
+
+**`racks/q9_b.als` could not have caught it.** That Set has no
+`ControllerTargets` at all, which is why Q31 read as complete. A rule
+derived from one file was confirmed by that file and by nothing else.
+
+**The shape is exact.** In the reference Set, an `Id` attribute plus a lone
+`LockEnvelope` child selects 14,447 nodes; `Pointee` adds the rest with no
+child at all; the union is 14,637 ids with **no duplicate, no zero, and a
+maximum one below `NextPointeeId`**. So the shape is the definition and the
+tag list was a sample of it.
+
+`live_set._is_pointee` now takes the element rather than its tag.
+
+**The repair is not a fix.** Live offered to repair the document, did so,
+and reported success. Reloading the repaired file crashed it:
+
+    error: Windows Exception: EXCEPTION_ACCESS_VIOLATION
+
+so a repaired Set is not a loadable Set, and a file that needs repairing is
+still a file this writer got wrong.

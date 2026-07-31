@@ -487,12 +487,27 @@ def build(tracks: list[Track], returns: list[str] | None = None,
 
 
 #: The id space Live calls POINTEES: anything a clip envelope or a
-#: modulation source can point at. `Pointee`, `AutomationTarget` and every
-#: `*ModulationTarget` share one numbering, and `LiveSet/NextPointeeId` is
-#: the next free number.
-def _is_pointee(tag: str) -> bool:
-    return (tag in ("Pointee", "AutomationTarget")
-            or tag.endswith("ModulationTarget"))
+#: modulation source can point at. One numbering, and
+#: `LiveSet/NextPointeeId` is the next free number.
+def _is_pointee(el: Element) -> bool:
+    """A pointee by SHAPE, not by a list of tags.
+
+    Naming the families was wrong and Q34 is what it cost: a track carries
+    131 `ControllerTargets.N`, an indexed plural whose name says nothing,
+    and Live refused the Set with `PointeeId 341 is used 8 times`, once per
+    track. `racks/q9_b.als` could not have caught it - it has none.
+
+    The shape is exact in the reference Set: an `Id` plus a lone
+    `LockEnvelope` child covers 14,447 nodes, `Pointee` adds 190 more with
+    no child at all, and the union of 14,637 has no duplicate, no zero, and
+    a maximum one below `NextPointeeId`.
+    """
+    if el.get("Id") is None:
+        return False
+    if el.tag in ("Pointee", "AutomationTarget"):
+        return True
+    kids = [k.tag for k in el if isinstance(k.tag, str)]
+    return kids == ["LockEnvelope"]
 
 
 def _renumber_pointees(root: Element) -> int:
@@ -513,7 +528,7 @@ def _renumber_pointees(root: Element) -> int:
     that was unique before renumbering follows it to the new one.
     """
     nodes = [el for el in root.iter()
-             if isinstance(el.tag, str) and _is_pointee(el.tag)]
+             if isinstance(el.tag, str) and _is_pointee(el)]
 
     seen: dict[str, int] = {}
     for el in nodes:

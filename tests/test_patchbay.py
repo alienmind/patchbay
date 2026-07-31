@@ -1993,13 +1993,43 @@ def test_a_set_hands_out_a_unique_pointee_id():
 
     seen = []
     for el in root.iter():
-        if isinstance(el.tag, str) and live_set._is_pointee(el.tag):
+        if isinstance(el.tag, str) and live_set._is_pointee(el):
             seen.append(el.get("Id"))
     assert seen, "the Set carries no pointees at all"
     assert "0" not in seen, "a zero pointee id is what Live refuses"
     assert len(set(seen)) == len(seen), "pointee ids are unique document-wide"
     nxt = int(root.find("LiveSet/NextPointeeId").get("Value"))
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
+
+
+def test_a_pointee_is_found_by_shape_not_by_a_list_of_tags():
+    """Q34. `ControllerTargets.N` is a pointee and its NAME says nothing.
+
+    Every MIDI track template carries 131 of them, so two tracks share 131
+    ids and Live refuses the Set with `PointeeId 341 is used 8 times`. The
+    tag matches no pointee naming convention, which is why Q31's rule let
+    them through and why the rule is now the shape: an `Id` plus a lone
+    `LockEnvelope` child.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    root = live_set.build([live_set.Track("T1", "midi"),
+                           live_set.Track("T2", "midi")])
+
+    seen = [el.get("Id") for el in root.iter()
+            if isinstance(el.tag, str)
+            and el.tag.startswith("ControllerTargets.")]
+    assert len(seen) >= 262, f"a MIDI track carries 131 of these, got {len(seen)}"
+    assert len(set(seen)) == len(seen), "two tracks share a controller target id"
+    assert all(live_set._is_pointee(el) for el in root.iter()
+               if isinstance(el.tag, str)
+               and el.tag.startswith("ControllerTargets.")), (
+        "the shape rule does not recognise ControllerTargets")
 
 
 def test_a_track_routes_into_another_track_by_id():
