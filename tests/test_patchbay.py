@@ -2117,14 +2117,15 @@ def test_a_track_carries_the_colour_it_was_given():
 def test_sample_classification_is_ordered_specific_first():
     """The reorg dictionary is an ordered list and order is the design.
 
-    Each of these fails under a different ordering, so together they pin
-    the sequence rather than the individual patterns. A word-boundary case
-    is included because `bd` inside `abdomen` is what `\\b` exists for.
+    Each case fails under a different ordering, so together they pin the
+    sequence rather than the individual patterns. The rules were derived
+    from 1332 files in ten commercial packs; these are the decisions that
+    survey settled.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     from reorg_samples import RULES, classify
 
-    names = [r[0] for r in RULES]
+    names = [r.category for r in RULES]
     assert len(names) == len(set(names)), f"a duplicate rule is dead: {names}"
     assert names[0] == "loop", "a loop outranks the instrument in it"
     assert names.index("ohat") < names.index("hat")
@@ -2135,10 +2136,13 @@ def test_sample_classification_is_ordered_specific_first():
     for filename, want in (
             ("kick_loop_120bpm.wav", "loop"),
             ("Amen Break.wav", "loop"),
+            ("Kit 01 Full Mix 126 G#.wav", "loop"),
+            ("EBM_SEQUENCE_126_Am_6.wav", "loop"),
             ("loopy_kick.wav", "kick"),
             ("Open Hat 3.wav", "ohat"),
             ("closed-hat-1.wav", "hat"),
             ("HH_09.wav", "hat"),
+            ("024 SETECHNO - Hihat.wav", "hat"),
             ("snare_clap.wav", "clap"),
             ("SD_001.wav", "snare"),
             ("TR808-Kick_01.wav", "kick"),
@@ -2146,12 +2150,51 @@ def test_sample_classification_is_ordered_specific_first():
             ("sidestick.wav", "rim"),
             ("conga_hi.wav", "tom"),
             ("Clave 2.wav", "misc"),
-            ("vox_chop.wav", "fx")):
-        got = classify(filename)
-        assert got is not None and got[0] == want, f"{filename} -> {got}"
+            ("001 SETECHNO - Glitch.wav", "misc"),
+            ("ISR_EBM_57_Perc.wav", "misc"),
+            ("vox_chop.wav", "fx"),
+            ("ISR_EBM_01_Atmo.wav", "fx"),
+            ("EBM_DRONE_126_Abm_11.wav", "fx")):
+        got = classify(Path(filename))
+        assert got is not None and got.category == want, f"{filename} -> {got}"
+
+    # An unknown hat is a CLOSED hat: `ohat` needs the word spelled out.
+    for filename in ("hat_12.wav", "hihat_3.wav", "HH_1.wav"):
+        assert classify(Path(filename)).category == "hat", filename
+
+    # Bare `oh` is not an open hat. One file in 1332 matched it and it was
+    # a vocal, so the abbreviation was removed.
+    got = classify(Path("ISR_EBM_Vocal_Oh.wav"))
+    assert got is not None and got.category == "fx", got
 
     for filename in ("abdomen.wav", "ambient_pad.wav"):
-        assert classify(filename) is None, f"{filename} classified as something"
+        assert classify(Path(filename)) is None, f"{filename} classified"
+
+
+def test_the_folder_stage_is_a_fallback_and_skips_the_loop_rule():
+    """Q: why not read the folder first? Because a kit folder carries a tempo.
+
+    `Dark Magic - Techno City/Kit 01 G# 126 BPM/` holds ONE-SHOTS. Applied
+    to folder names, the `bpm` pattern would call every one of them a loop,
+    so `FolderStage` drops that rule. The name always wins where it speaks.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    import reorg_samples as rs
+
+    assert [s.name for s in rs.PIPELINE] == ["name", "folder"]
+    assert "loop" not in [r.category for r in rs.PIPELINE[1].rules], (
+        "a tempo in a FOLDER name describes the kit, not the file")
+
+    drop = rs.DROP
+    named = drop / "Kit 01 G# 126 BPM" / "Kick 3.wav"
+    got = rs.classify(named)
+    assert got is not None and got.category == "kick", got
+    assert got.stage == "name", "the filename spoke, so the folder is not read"
+
+    quiet = drop / "EBM_SYN" / "EBM_1.wav"
+    got = rs.classify(quiet)
+    assert got is not None and got.category == "fx" and got.stage == "folder"
+    assert got.evidence == "EBM_SYN", "the verdict says what decided it"
 
 
 def test_sample_discovery_sorts_by_whole_filename():

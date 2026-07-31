@@ -2,6 +2,7 @@
 
     python examples/reorg_samples.py                 # say what would happen
     python examples/reorg_samples.py --apply         # do it
+    python examples/reorg_samples.py --explain       # show WHY each file landed
 
 Drop anything into `samples/all/`, in whatever shape it was packaged in,
 and this puts a copy of each file where a rack will find it. Nothing is
@@ -12,15 +13,38 @@ classification costs a re-run and not a file.
 because it is full of the words `kick` and `snare`, and CLAUDE.md rule 6
 keeps those out of `patchbay/`.
 
-## Classification
+## The pipeline
 
-By FILENAME TOKEN, never by the folder a file arrived in. A pack's own
-directory tree says what the vendor thought; the filename is what survives
-being copied around, and sorting by it makes the result checkable against
-the name rather than trusted.
+Classification is a list of STAGES, tried in order, first verdict wins.
+Each stage answers from a different kind of evidence, and a stage that
+cannot answer returns nothing rather than guessing:
 
-The rules are an ordered list and the FIRST MATCH WINS, so the order is the
-design. Specific before general, always:
+    1. NameStage    a regex over the filename
+    2. FolderStage  the same regexes over the enclosing folder names
+
+A stage records itself on the verdict, so `--explain` says which evidence
+decided each file and every classification is answerable. That is the whole
+reason for the structure: **the third stage is audio analysis** - transient,
+pitch, length, brightness - and it needs somewhere to plug in that does not
+mean rewriting the other two. `doc/TODO.md` has that design.
+
+## Where the rules came from
+
+Not invented. Derived from 1332 files across ten commercial packs sitting
+in `samples/all/`, by token frequency and then by checking what each rule
+actually caught. Two things that survey settled:
+
+**Bare `oh` is not an open hat.** It matched exactly one file in 1332 and
+that file was `..._Vocal_Oh`. An open hat is spelled with `hat` or `ohh`
+in every pack here, so the abbreviation costs more than it earns.
+
+**`tom`, `rim`, `ride`, `crash`, `sub` and `808` matched nothing at all.**
+Their rules stay because the pads exist, not because this drop needed them.
+
+## Ordering
+
+The rules are one ordered list and the FIRST MATCH WINS, so the order is
+the design. Specific before general, always:
 
     loop before everything a `kick_loop` is a loop, not a kick
     ohat before hat        "open_hat" contains "hat"
@@ -28,11 +52,11 @@ design. Specific before general, always:
     crash, ride before cy  the abbreviation is the fallback
 
 Abbreviations are matched at word boundaries only. Bare `bd` inside
-`bdrum_01` is a kick; inside `abdomen` it is nothing, and `\\b` is what
-keeps those apart.
+`bd_01` is a kick; inside `abdomen` it is nothing, and `\\b` is what keeps
+those apart.
 
-The dictionary is adapted from `trackster`, a Circuit Tracks tool of the
-same author's, which classifies for a 2-page 64-pad grid. Its merges do not
+The dictionary began as `trackster`'s, a Circuit Tracks tool of the same
+author's, which classifies for a 2-page 64-pad grid. Its merges did not
 transfer: it folds clap and rim into snare and both hats into one, because
 that is what fits 64 pads. DR1 has eight pads and wants all four separate.
 """
@@ -45,6 +69,7 @@ import hashlib
 import re
 import shutil
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -56,59 +81,157 @@ SAMPLES = ROOT / "samples"
 DROP = SAMPLES / "all"
 MANIFEST = SAMPLES / "manifests" / "reorg_log.csv"
 
-#: Ordered. First match wins, so specific patterns come first. The
-#: destination is a path under `samples/`, which is the per-rack scheme
-#: `samples/README.md` documents: `<RACK>/<category>/` for a rack with
-#: categories, `<RACK>/` for a flat one.
-#:
-#: `crash` and `ride` land in `cymbals/`, which no rack reads today. That is
-#: deliberate: sorting them costs nothing and they are ready the day a pad
-#: wants them.
-RULES: list[tuple[str, str, list[str]]] = [
-    # category      destination        patterns
+
+@dataclass(frozen=True, slots=True)
+class Rule:
+    """One category, where it lands, and what names mean it.
+
+    `dest` is a path under `samples/`, which is the per-rack scheme
+    `samples/README.md` documents: `<RACK>/<category>/` for a rack with
+    categories, `<RACK>/` for a flat one.
+    """
+
+    category: str
+    dest: str
+    patterns: tuple[str, ...]
+
+    def matches(self, text: str) -> bool:
+        return any(re.search(p, text, re.I) for p in self.patterns)
+
+
+#: Ordered. First match wins. Counts in the comments are hits over the 1332
+#: files surveyed in `samples/all/`, so a rule with 0 is carried for a pad
+#: that exists rather than for evidence that arrived.
+RULES: tuple[Rule, ...] = (
     # A LOOP FIRST, whatever instrument is in it. `kick_loop_120bpm` is not
     # a kick a pad can play: it is bar length and tempo locked, and a pad
     # holding one is unplayable. This is the only rule about the FORM of the
     # audio rather than its sound, which is why it outranks all of them.
-    ("loop",  "loops/misc",   [r"\bloop\b", r"\d{2,3}\s?bpm", r"\bbreak\b"]),
-    ("ohat",  "DR1/ohat",     [r"\boh\b", r"open.?hat", r"\bohh?\b"]),
-    ("hat",   "DR1/hat",      [r"closed.?hat", r"\bch\b", r"hi.?hat",
-                               r"\bhh\b", r"hat"]),
-    ("clap",  "DR1/clap",     [r"clap", r"\bclp\b", r"\bcp\b", r"snap"]),
-    ("rim",   "DR1/rim",      [r"rim", r"\brs\b", r"side.?stick"]),
-    ("snare",  "DR1/snare",   [r"snare", r"\bsd\b", r"\bsnr\b"]),
-    ("kick",  "DR1/kick",     [r"kick", r"\bbd\b", r"bass.?drum", r"\b808\b",
-                               r"thump", r"\bbdrum"]),
-    ("tom",   "DR1/tom",      [r"\btom\b", r"\btm\b", r"conga", r"bongo"]),
-    ("crash", "cymbals/crash", [r"crash", r"splash"]),
-    ("ride",  "cymbals/ride", [r"\bride\b", r"\bbell\b"]),
+    #
+    # `mix` is here because `Kit 01 Full Mix 126 G#` is a bar of the whole
+    # kit, and `sequence`/`sq` because a sequence is a loop by another name.
+    Rule("loop", "loops/misc",
+         (r"\bloop\b", r"\d{2,3}\s?bpm", r"\bbreak\b", r"\bfull.?mix\b",
+          r"\bmix\b", r"\bsequence\b", r"\bsq\b")),                    # 239
+
+    # Bare `oh` is deliberately absent: see the module docstring.
+    Rule("ohat", "DR1/ohat", (r"open.?hat", r"\bohh\b", r"\boh.?hat\b")),  # 0
+    Rule("hat", "DR1/hat",
+         (r"closed.?hat", r"\bch\b", r"hi.?hat", r"\bhh\b", r"hat")),  # 147
+    Rule("clap", "DR1/clap", (r"clap", r"\bclp\b", r"\bcp\b", r"snap")),  # 50
+    Rule("rim", "DR1/rim", (r"\brim", r"\brs\b", r"side.?stick")),        # 0
+    Rule("snare", "DR1/snare", (r"snare", r"\bsd\b", r"\bsnr\b")),       # 70
+    Rule("kick", "DR1/kick",
+         (r"kick", r"\bbd\b", r"bass.?drum", r"\b808\b", r"thump",
+          r"\bbdrum")),                                                # 144
+    Rule("tom", "DR1/tom", (r"\btom\b", r"\btm\b", r"conga", r"bongo")),  # 0
+    Rule("crash", "cymbals/crash", (r"crash", r"splash")),                # 0
+    Rule("ride", "cymbals/ride", (r"\bride\b", r"\bbell\b")),             # 0
+
     # The pad is MISC, and `perc` stays in the patterns because that is the
-    # word packs put in filenames. Category name and filename token are two
-    # different things and only the first is ours to choose.
-    ("misc",  "DR1/misc",     [r"perc", r"shaker", r"tamb", r"cowbell",
-                               r"clave", r"wood", r"block", r"click",
-                               r"\bcym", r"\bcy\b", r"\bpc\b"]),
-    ("fx",    "SR1",          [r"\bfx\b", r"vox", r"vocal", r"voice",
-                               r"\bhit\b", r"stab", r"impact", r"riser",
-                               r"sweep", r"noise", r"drop", r"chord",
-                               r"synth"]),
-]
+    # word packs put in filenames. A category name and a filename token are
+    # two different things and only the first is ours to choose.
+    #
+    # `glitch` is here rather than in fx because the pack that ships 72 of
+    # them files them under Drums: they are percussive one-shots, and a pad
+    # is where they are playable.
+    Rule("misc", "DR1/misc",
+         (r"perc", r"glitch", r"shaker", r"tamb", r"cowbell", r"clave",
+          r"wood", r"block", r"click", r"\bcym", r"\bcy\b", r"\bpc\b")),  # 357
 
-COMPILED = [(name, dest, [re.compile(p, re.I) for p in pats])
-            for name, dest, pats in RULES]
+    # Everything with no pad: atmospheres, alarms, drones, speech, stabs.
+    Rule("fx", "SR1",
+         (r"\bfx\b", r"vox", r"vocal", r"voice", r"\bhit\b", r"stab",
+          r"impact", r"riser", r"sweep", r"nois", r"drop", r"chord",
+          r"\bsyn\b", r"\bsy\b", r"synth", r"drone", r"atmo", r"alarm",
+          r"\btalk\b", r"screech", r"siren",
+          # A bass one-shot has no pad, so SR1 is where it goes. Five files
+          # here are `..._BASS_126_Gm_7`: they carry a tempo AND a key and
+          # are probably bars rather than hits. The NAME cannot settle it
+          # and LENGTH would, which is the audio stage's first job.
+          r"\bbass\b")),                                               # 287
+)
 
 
-def classify(filename: str) -> tuple[str, str] | None:
-    """The category and destination for one filename, or None.
+@dataclass(frozen=True, slots=True)
+class Verdict:
+    """What a file was classified as, and what decided it."""
 
-    Matched against the STEM with separators normalised to spaces, so
-    `TR808-Kick_01.wav` and `TR808 kick 01.wav` classify the same and a
-    `\\b` abbreviation is not defeated by a hyphen.
+    category: str
+    dest: str
+    stage: str
+    evidence: str
+
+
+class NameStage:
+    """The filename, which is what survives a pack being copied around.
+
+    A pack's own directory tree says what the vendor thought; the filename
+    travels with the file. Separators are normalised to spaces first, so
+    `TR808-Kick_01` and `TR808 kick 01` read the same and a `\\b`
+    abbreviation is not defeated by a hyphen.
     """
-    text = re.sub(r"[_\-.()\[\]]+", " ", Path(filename).stem).lower()
-    for name, dest, patterns in COMPILED:
-        if any(p.search(text) for p in patterns):
-            return name, dest
+
+    name = "name"
+
+    def __init__(self, rules: tuple[Rule, ...]) -> None:
+        self.rules = rules
+
+    def verdict(self, path: Path) -> Verdict | None:
+        text = _normalise(path.stem)
+        for rule in self.rules:
+            if rule.matches(text):
+                return Verdict(rule.category, rule.dest, self.name, path.stem)
+        return None
+
+
+class FolderStage:
+    """The enclosing folders, nearest first. A fallback, not a peer.
+
+    Some packs number their files and put the sound in the folder:
+    `EBM_SYN/EBM_1.wav`. The folder is weaker evidence, because a file in
+    `Kicks/` may still be a kick LOOP, so this runs only when the name said
+    nothing at all.
+
+    **The loop rule is skipped here**, and that is not an oversight.
+    `Dark Magic - Techno City/Kit 01 G# 126 BPM/` holds one-shots, and a
+    tempo in a FOLDER name describes the kit rather than the file. Applied
+    to folders, the `bpm` pattern would call every one of them a loop.
+    """
+
+    name = "folder"
+
+    def __init__(self, rules: tuple[Rule, ...]) -> None:
+        self.rules = tuple(r for r in rules if r.category != "loop")
+
+    def verdict(self, path: Path) -> Verdict | None:
+        for parent in path.parents:
+            if parent == DROP or DROP not in parent.parents:
+                break
+            text = _normalise(parent.name)
+            for rule in self.rules:
+                if rule.matches(text):
+                    return Verdict(rule.category, rule.dest, self.name,
+                                   parent.name)
+        return None
+
+
+#: Tried in order, first verdict wins. Audio analysis becomes a third entry
+#: here and nothing above it changes. `doc/TODO.md` has the design.
+PIPELINE = (NameStage(RULES), FolderStage(RULES))
+
+
+def _normalise(text: str) -> str:
+    return re.sub(r"[_\-.()\[\]]+", " ", text).lower()
+
+
+def classify(path: Path | str) -> Verdict | None:
+    """Run the pipeline over one file. None when no stage could answer."""
+    path = Path(path)
+    for stage in PIPELINE:
+        got = stage.verdict(path)
+        if got is not None:
+            return got
     return None
 
 
@@ -134,7 +257,16 @@ def _digest(path: Path) -> str:
     return h.hexdigest()
 
 
-def plan() -> tuple[list[tuple[Path, Path]], list[Path], list[Path]]:
+@dataclass(slots=True)
+class Plan:
+    """What a run would do. Nothing here has touched the disk."""
+
+    moves: list[tuple[Path, Path, Verdict]]
+    duplicates: list[Path]
+    unknown: list[Path]
+
+
+def plan() -> Plan:
     """What a run would copy, skip as a duplicate, and fail to classify.
 
     Duplicates are exact CONTENT matches against what is already in the
@@ -143,44 +275,42 @@ def plan() -> tuple[list[tuple[Path, Path]], list[Path], list[Path]]:
     be: that is a listening decision.
     """
     if not DROP.is_dir():
-        return [], [], []
+        return Plan([], [], [])
 
     known: dict[str, set[str]] = {}
-    moves: list[tuple[Path, Path]] = []
-    duplicates: list[Path] = []
-    unknown: list[Path] = []
     counters: dict[str, int] = {}
+    made = Plan([], [], [])
 
     for src in samples.audio(DROP, recursive=True):
-        got = classify(src.name)
+        got = classify(src)
         if got is None:
-            unknown.append(src)
+            made.unknown.append(src)
             continue
-        category, rel = got
-        folder = SAMPLES / rel
+        folder = SAMPLES / got.dest
 
-        if rel not in known:
-            known[rel] = {_digest(p) for p in samples.audio(folder)}
-            counters[rel] = _next_index(folder, category)
+        if got.dest not in known:
+            known[got.dest] = {_digest(p) for p in samples.audio(folder)}
+            counters[got.dest] = _next_index(folder, got.category)
 
         mine = _digest(src)
-        if mine in known[rel]:
-            duplicates.append(src)
+        if mine in known[got.dest]:
+            made.duplicates.append(src)
             continue
-        known[rel].add(mine)
+        known[got.dest].add(mine)
 
-        dst = folder / f"{category}_{counters[rel]:03d}{src.suffix.lower()}"
-        counters[rel] += 1
-        moves.append((src, dst))
-    return moves, duplicates, unknown
+        dst = folder / (f"{got.category}_{counters[got.dest]:03d}"
+                        f"{src.suffix.lower()}")
+        counters[got.dest] += 1
+        made.moves.append((src, dst, got))
+    return made
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--apply", action="store_true",
                     help="copy the files. Without it, nothing is written")
-    ap.add_argument("-v", "--verbose", action="store_true",
-                    help="list every file, not just the counts")
+    ap.add_argument("--explain", action="store_true",
+                    help="per file, which stage decided it and on what")
     args = ap.parse_args()
 
     if not DROP.is_dir():
@@ -188,31 +318,37 @@ def main() -> int:
         print("create it and drop samples in, in any shape.")
         return 0
 
-    moves, duplicates, unknown = plan()
-    if not moves and not duplicates and not unknown:
+    got = plan()
+    if not (got.moves or got.duplicates or got.unknown):
         print(f"{DROP} holds no audio")
         return 0
 
     per_dest: dict[str, int] = {}
-    for _, dst in moves:
+    per_stage: dict[str, int] = {}
+    for _, dst, why in got.moves:
         key = dst.parent.relative_to(SAMPLES).as_posix()
         per_dest[key] = per_dest.get(key, 0) + 1
+        per_stage[why.stage] = per_stage.get(why.stage, 0) + 1
 
-    verb = "copying" if args.apply else "would copy"
-    print(f"{verb} {len(moves)} file(s):")
+    print(f"{'copying' if args.apply else 'would copy'} "
+          f"{len(got.moves)} file(s):")
     for dest in sorted(per_dest):
         print(f"  {dest:<16} {per_dest[dest]:>4}")
-    if duplicates:
-        print(f"  {'already there':<16} {len(duplicates):>4} (same content)")
-    if unknown:
-        print(f"  {'UNCLASSIFIED':<16} {len(unknown):>4} (left where they are)")
+    if got.duplicates:
+        print(f"  {'already there':<16} {len(got.duplicates):>4} (same content)")
+    if got.unknown:
+        print(f"  {'UNCLASSIFIED':<16} {len(got.unknown):>4} "
+              f"(left where they are)")
+    print("decided by: " + ", ".join(f"{k} {v}" for k, v in
+                                     sorted(per_stage.items())))
 
-    if args.verbose:
-        for src, dst in moves:
-            print(f"    {src.name}  ->  "
+    if args.explain:
+        for src, dst, why in got.moves:
+            print(f"    {why.category:<6} {why.stage:<7} "
+                  f"{why.evidence[:44]:<46} -> "
                   f"{dst.relative_to(SAMPLES).as_posix()}")
-        for p in unknown:
-            print(f"    ?  {p.relative_to(DROP).as_posix()}")
+        for p in got.unknown:
+            print(f"    ?      -       {p.relative_to(DROP).as_posix()[:44]}")
 
     if not args.apply:
         print("\nnothing written. Re-run with --apply.")
@@ -221,15 +357,16 @@ def main() -> int:
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.date.today().isoformat()
     with open(MANIFEST, "a", encoding="utf-8", newline="\n") as log:
-        for src, dst in moves:
+        for src, dst, _ in got.moves:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
             log.write(f"{src},{dst},{stamp}\n")
-    print(f"\n{len(moves)} copied, logged to {MANIFEST.relative_to(ROOT)}")
+    print(f"\n{len(got.moves)} copied, logged to "
+          f"{MANIFEST.relative_to(ROOT)}")
     print(f"{DROP.relative_to(ROOT)} is untouched. Delete it when satisfied.")
-    if unknown:
-        print(f"{len(unknown)} file(s) classified as nothing. Rename them so "
-              f"the sound is in the name, or add a pattern to RULES.")
+    if got.unknown:
+        print(f"{len(got.unknown)} file(s) classified as nothing. Rename them "
+              f"so the sound is in the name, or add a pattern to RULES.")
     return 0
 
 

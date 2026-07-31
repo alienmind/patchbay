@@ -80,6 +80,7 @@ Counts change as the collection does. Ask the filesystem, not this file.
 ## How the tree is built
 
     python examples/reorg_samples.py            # say what would happen
+    python examples/reorg_samples.py --explain  # and why, per file
     python examples/reorg_samples.py --apply    # do it
 
 Drop a pack into `samples/all/` in whatever shape it arrived in. The script
@@ -88,23 +89,41 @@ COPIES each file into the folder its name says it belongs in, renamed
 nothing is deleted, so `all/` is still intact afterwards and a wrong
 classification costs a re-run. Delete `all/` yourself when satisfied.
 
-Sorting is by FILENAME TOKEN rather than by the folder a file arrived in,
-so the classification is checkable rather than trusted. The rules are an
-ordered list in the script and the first match wins:
+Classification is a pipeline of STAGES, tried in order, first verdict
+wins. `--explain` prints which stage decided each file and on what, so
+every placement is answerable:
+
+1. **the filename**, which is what survives a pack being copied around.
+2. **the enclosing folders**, as a fallback for packs that number their
+   files and put the sound in the folder.
+
+The folder is weaker evidence and deliberately skips the loop rule: a kit
+folder called `Kit 01 G# 126 BPM` holds one-shots, so a tempo in a FOLDER
+name describes the kit and not the file.
+
+Within a stage the rules are one ordered list and the first match wins:
 
 - **a loop outranks everything**, so `kick_loop_120bpm` is a loop and not a
   kick. It is bar length and tempo locked, and a pad holding one is
   unplayable.
 - **specific before general**: `ohat` before `hat`, `clap` and `rim` before
   `snare`, `crash` and `ride` before the `cy` abbreviation.
+- **an unknown hat is a CLOSED hat.** `ohat` needs `open hat`, `oh hat` or
+  `ohh` spelled out. Bare `oh` is not a rule: it matched one file in 1332
+  and that file was a vocal.
 - **abbreviations match at word boundaries only**, so `bd` is a kick in
   `bd_04` and nothing in `abdomen`.
 
-A file whose name says nothing is left in `all/` and counted as
-UNCLASSIFIED. Rename it so the sound is in the name, or add a pattern.
+The rules were derived from 1332 files across ten commercial packs, by
+token frequency and then by checking what each rule caught. They place
+1331 of them.
+
+A file whose name and folder both say nothing is left in `all/` and counted
+as UNCLASSIFIED. Rename it so the sound is in the name, or add a pattern.
 Exact duplicates of audio already in the destination are skipped by content
 hash; two takes that merely sound alike are not, and that is a listening
-decision rather than a script's.
+decision rather than a script's. `doc/TODO.md` has the design for a third
+stage that would hear the difference.
 
 `manifests/` holds the move log as `from,to,date`. It is the only record of
 the original names, it makes a reorganisation reversible, and it stays on

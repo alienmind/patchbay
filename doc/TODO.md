@@ -10,11 +10,84 @@ costs against what it decides.
 
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
-| 1 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
-| 2 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
-| 3 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 1 | Classify samples by what they SOUND like, not what they are called | me | a dependency and a spike | Whether curation stops being manual |
+| 2 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
+| 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
+| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
-## 1. Colour inside a rack
+## 1. Classifying by sound
+
+`examples/reorg_samples.py` sorts a drop folder by reading FILENAMES. Over
+the 1332 files currently in `samples/all/`, ten commercial packs, that
+places 1331 and leaves 1. The names carried more than expected, and the
+ceiling is not accuracy: it is that a filename says what a sample IS and
+never says whether it is any good.
+
+### What the name cannot say
+
+Three cases, all present in the current drop:
+
+| case | example in the drop | what would settle it |
+|---|---|---|
+| one-shot or bar | `EBM_KIT_5_BASS_126_Gm_7`, a tempo and a key and no `loop` | LENGTH against the tempo |
+| near duplicates | five packs each ship a 909 clap | spectral distance, not a content hash |
+| is it usable | anything | nothing automatic. Ears |
+
+The content hash in place today catches a pack copied in twice. It does not
+catch the same 909 clap sampled by two vendors, which is the duplicate that
+actually fills a pad with eight versions of one sound.
+
+### The shape it plugs into
+
+The classifier is already a PIPELINE of stages, tried in order, first
+verdict wins. Two exist, `NameStage` and `FolderStage`, and each returns a
+`Verdict` carrying which stage decided and on what evidence. **A third
+stage is an append to `PIPELINE` and changes nothing above it.** That is
+why the refactor happened before the feature.
+
+    PIPELINE = (NameStage(RULES), FolderStage(RULES), AudioStage(...))
+
+`AudioStage` runs last on purpose. It is the only stage that must open the
+file, so it costs a decode per sample where the others cost a regex, and it
+should only ever see what the cheap stages could not answer.
+
+### The features worth having, cheapest first
+
+| feature | says | rough cost |
+|---|---|---|
+| duration | one-shot or bar. Against a tempo in the name, how many bars | header only, no decode |
+| peak and RMS | how hard it hits, and gain staging across a pad | one pass |
+| attack time | transient. Separates a kick from a sub, a rim from a snare | one pass |
+| spectral centroid | dark or bright. Orders a pad's chains by tone | FFT |
+| fundamental pitch | tuned or not. A kick's note, a tom's | FFT plus autocorrelation |
+| MFCC distance | near duplicates, and clustering a pack into families | FFT plus a library |
+
+**Duration alone settles the biggest open case** and needs no decode: a
+`.wav` header carries sample rate and frame count. Do that one first and
+alone, because it turns `BASS_126_Gm` from a guess into an answer, and
+because it can ship with no new dependency.
+
+### The dependency question, which is the real decision
+
+Everything past duration wants FFT. `numpy` alone does the first four.
+`librosa` does all of them and drags in `scipy`, `numba` and a compile
+step. `trackster` uses `meyda` in the browser for MFCCs, and the same
+clustering idea ported here would want the heavy end.
+
+This project currently depends on `lxml` and nothing else, which is why a
+clone builds in seconds. **Adding `numpy` for duration and attack is a
+different decision from adding `librosa` for MFCCs**, and they should not
+be made together. Ship duration on the standard library, then decide.
+
+### What it must not become
+
+Sorting into folders is reversible and the log makes it so. **Anything that
+DISCARDS a sample on a machine's judgement is not.** So a near-duplicate
+finding reports and never deletes, and "is it good" stays under Standing
+manual work where it already is. The tool narrows what a person listens to;
+it does not decide.
+
+## 2. Colour inside a rack
 
 **Tracks and returns are done**, Q39: `<Color Value="N" />`, 0 to 69, `-1`
 for none, written by `live_set._color_track` and spread evenly across the
@@ -32,7 +105,7 @@ The open shape question is the DSL surface, not the format. A palette index
 is honest and unreadable; sixty-nine names are readable and are sixty-nine
 names to invent and defend.
 
-## 2. A `.alp` as a second output
+## 3. A `.alp` as a second output
 
 `patchbay session` writes a `.als`, which is one file that refers to
 samples wherever they happen to sit. A **Live Pack** is the packed form of
@@ -57,7 +130,7 @@ bookkeeping.
 licence question as `samples/`. A Pack is a distribution format, so this
 task decides how a build is shipped, not just how it is written.
 
-## 3. The donor name scan
+## 4. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames
