@@ -986,6 +986,7 @@ Every **[V]** claim above traces to these files, all in `racks/`.
 | file | what it is | establishes |
 |---|---|---|
 | `s1_source.adg` | AlienMind Drum Rack, 560 KB, 18,148 facts, 3 nesting levels, 3 mappings | round trip, DR1 nesting, macro-to-macro, ChainSelector mapping |
+| `q32_set.als` | a Set Live saved: 2 MIDI tracks, 1 audio, 2 returns, 3 of our racks placed, one track routed into another, one sidechain wired | Q33, Q35, Q36, Q37, Q38, Q39 - every Set-form finding the log could not name |
 | `s2_a.adg` / `s2_b.adg` | same rack saved twice, no edits | noise floor, id stability, `RoundRobinRandomSeed`, `PresetRef` |
 | `s3_a.adg` / `s3_b.adg` | Audio Effect Rack + Saturator, before/after mapping Drive to Macro 1 | the entire `KeyMidi` mechanism |
 | `s3b.adg` | same rack, Output additionally mapped to Macro 2, both macros moved | `NoteOrController` = macro index; the transfer function; `MacroDefaults` sentinel |

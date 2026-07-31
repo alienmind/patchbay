@@ -2002,6 +2002,81 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_the_set_findings_hold_in_a_set_live_saved():
+    """Q33, Q35, Q36, Q37, Q38 and Q39 read off the donor, not off our own output.
+
+    `racks/q32_set.als` is a Set built by hand in Live 12.4.3: two MIDI
+    tracks, one audio track, two returns, three of our racks on T1 and a
+    stock 909 kit on T2, T1 routed into PM1 and T1's compressor sidechained
+    from T2.
+
+    Every other test here asserts what `live_set` WRITES, which cannot
+    catch the two of us being wrong together. This one asserts what LIVE
+    wrote, so the six findings have a witness the repo holds.
+    """
+    src = Path(__file__).resolve().parent.parent / "racks" / "q32_set.als"
+    if not src.exists():
+        return
+    root = io.load(src)
+    live = root.find("LiveSet")
+    tracks = list(live.find("Tracks"))
+    returns = [t for t in tracks if t.tag == "ReturnTrack"]
+    scenes = len(live.find("Scenes"))
+    named = {t.find("Name/EffectiveName").get("Value"): t for t in tracks}
+
+    # Q33: a track into a track, and a sidechain source. Both name a track
+    # by its Id ATTRIBUTE, which is not its position.
+    out = named["T1"].find("DeviceChain/AudioOutputRouting")
+    assert out.find("Target").get("Value") == (
+        f"AudioOut/Track.{named['PM1'].get('Id')}/TrackIn")
+    assert out.find("LowerDisplayString").get("Value") == "Track In"
+    assert tracks.index(named["PM1"]) != int(named["PM1"].get("Id")), (
+        "PM1's position and Id coincide, so this file cannot show the "
+        "difference between them any more")
+    chains = [c for c in named["T1"].iter("SideChain")
+              if c.find("RoutedInput/Routable") is not None]
+    assert len(chains) == 1
+    node = chains[0].find("RoutedInput/Routable")
+    assert node.find("Target").get("Value") == (
+        f"AudioIn/Track.{named['T2'].get('Id')}/PostFxOut")
+    assert node.find("LowerDisplayString").get("Value") == "Post FX"
+
+    # Q35: preset-only children never appear on a Set-form branch.
+    branches = [el for el in root.iter()
+                if isinstance(el.tag, str) and el.tag.endswith("Branch")
+                and el.find("DeviceChain") is not None]
+    assert branches, "the donor holds no Set-form branches"
+    for branch in branches:
+        kids = {k.tag for k in branch if isinstance(k.tag, str)}
+        assert "DocumentColorIndex" not in kids, branch.tag
+        if branch.tag == "DrumBranch":
+            assert "ZoneSettings" not in kids
+            assert "BranchInfo" in kids
+
+    # Q36 and Q37: the counts and the flag, per track kind.
+    for track in tracks:
+        name = track.find("Name/EffectiveName").get("Value")
+        sends = track.find("DeviceChain/Mixer/Sends")
+        assert len(sends) == len(returns), f"{name}: one send per return"
+        want = "false" if track.tag == "ReturnTrack" else "true"
+        for holder in sends:
+            assert holder.find("EnabledByUser").get("Value") == want, name
+        for holder in track.iter("ClipSlotList"):
+            assert len(holder) in (0, scenes), (
+                f"{name}: {len(holder)} slots against {scenes} scenes")
+
+    # Q38: one send-pre flag per return, at Set level.
+    assert len(live.find("SendsPre")) == len(returns)
+
+    # Q39: colour is one integer inside Live's palette, or -1 for none.
+    from patchbay import live_set
+    for el in root.iter("Color"):
+        v = int(el.get("Value"))
+        assert live_set.NO_COLOR <= v < live_set.PALETTE, (
+            f"{el.getparent().tag} carries colour {v}")
+    assert live.find("PreHearTrack/Color").get("Value") == str(live_set.NO_COLOR)
+
+
 def test_a_track_carries_the_colour_it_was_given():
     """One integer under the track, and the palette bound is enforced.
 

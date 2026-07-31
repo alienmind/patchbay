@@ -11,9 +11,8 @@ costs against what it decides.
 | # | What | Who | Cost | Decides |
 |---|---|---|---|---|
 | 1 | Colour a rack's CHAINS and a clip | me | small, one diff first | Whether colour reaches inside a rack, not just the track list |
-| 2 | Re-save the Q33 reference Set with no sampled rack in it | you | 2 minutes | Whether Q33 and Q37's evidence can live in `racks/` |
-| 3 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
-| 4 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
+| 2 | Write a `.alp` as well as a `.als` | me | unknown, format undocumented | Whether a build ships as one installable file instead of a folder |
+| 3 | Re-run the donor name scan after a Live update | me | minutes | Nothing today. It is the check that catches a rename before a spec does |
 
 ## 1. Colour inside a rack
 
@@ -33,22 +32,7 @@ The open shape question is the DSL surface, not the format. A palette index
 is honest and unreadable; sixty-nine names are readable and are sixty-nine
 names to invent and defend.
 
-## 2. The Q33 reference Set
-
-The hand-built Set that answered track-to-track routing and the sidechain
-source is `build/q32_set Project/q32_set.als`, and it **cannot be
-committed**: DR1 sits on T2, so the file enumerates sample filenames.
-
-That one file also settled Q35, Q37 and Q38, which is four findings resting
-on a donor the repo does not hold. The tests assert against what `live_set`
-writes rather than against a Live-saved file, which is weaker than every
-other finding here.
-
-To close it: open that Set, delete DR1 from T2, drop any stock device on T2
-in its place so the sidechain still has a source, and save as
-`q33_set.als`. Then it goes in `racks/` and the tests read it.
-
-## 3. A `.alp` as a second output
+## 2. A `.alp` as a second output
 
 `patchbay session` writes a `.als`, which is one file that refers to
 samples wherever they happen to sit. A **Live Pack** is the packed form of
@@ -73,7 +57,7 @@ bookkeeping.
 licence question as `samples/`. A Pack is a distribution format, so this
 task decides how a build is shipped, not just how it is written.
 
-## 4. The donor name scan
+## 3. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames

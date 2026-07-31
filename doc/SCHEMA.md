@@ -2243,15 +2243,16 @@ eighth attempt, with 221 branches in it.
 
 ## Q33. A track routed into a track, and a sidechain source - ANSWERED
 
-**Evidence:** a Set hand-built in Live 12.4.3 and saved as
-`q32_set.als`: two MIDI tracks T1 and T2, one audio track PM1, two
-returns, three racks from `build/` on T1, DR1 on T2, T1's output set to
-PM1 and the Compressor2 inside T1's EQC sidechained from T2. Compared
-against the same shape written by `patchbay session`.
+**Evidence:** `racks/q32_set.als`, a Set hand-built in Live 12.4.3: two
+MIDI tracks T1 and T2, one audio track PM1, two returns, three racks from
+`build/` on T1, a stock 909 Core Kit on T2, T1's output set to PM1 and the
+Compressor2 inside T1's EQC sidechained from T2. Compared against the same
+shape written by `patchbay session`.
 
-**The file is not in `racks/`.** DR1 carries a FileRef per pad, so the Set
-enumerates sample filenames, which is content the repo does not publish.
-The two nodes below are the whole finding.
+The first cut of this donor had DR1 on T2, which put a FileRef per pad in
+it and made the file a list of sample filenames the repo does not publish.
+Rebuilt with a factory kit, its 76 non-repo paths are all Ableton's own
+content, and it ships.
 
 ### A track feeding another TRACK
 
@@ -2328,8 +2329,9 @@ still a file this writer got wrong.
 
 ## Q35. A preset-only child on a Set-form branch CRASHES Live - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als` at its fourth attempt. No corrupt
-dialog and no validation error this time - the document parsed, and then
+**Evidence:** `build/PATCHBAYGROUND.als` at its fourth attempt, against
+`racks/q32_set.als`. No corrupt dialog and no validation error this time -
+the document parsed, and then
 
     2026-07-31T06:59:17.689112: info: Loaded document was created by Ableton Live 12.4d1
     2026-07-31T06:59:17.866762: error: Windows Exception: EXCEPTION_ACCESS_VIOLATION
@@ -2370,7 +2372,7 @@ lacks is never added.
 
 **Evidence:** `build/PATCHBAYGROUND.als` at attempts 4 and 5, both
 `EXCEPTION_ACCESS_VIOLATION` about one second into loading, with nothing
-else in the log. Counted against the Q33 reference Set, which Live saved.
+else in the log. Counted against `racks/q32_set.als`, which Live saved.
 
 | file | scenes | clip slots per track |
 |---|---|---|
@@ -2401,7 +2403,7 @@ the file and fatal in Live.
 ## Q37. A send on a RETURN track is disabled - ANSWERED
 
 **Evidence:** a bisect of `EXCEPTION_ACCESS_VIOLATION` down to nine probe
-files, and the Q33 reference Set for the value.
+files, and `racks/q32_set.als` for the value.
 
 | probe | loads |
 |---|---|
@@ -2438,8 +2440,9 @@ than being refused.
 ## Q38. `SendsPre` is one flag per RETURN, at Set level - ANSWERED
 
 **Evidence:** `build/probe_10_six_returns.als`, one MIDI track and six
-returns and nothing else, `EXCEPTION_ACCESS_VIOLATION`. Q37 was found in
-the same file and was not the whole of it.
+returns and nothing else, `EXCEPTION_ACCESS_VIOLATION`, against
+`racks/q32_set.als`. Q37 was found in the same file and was not the whole
+of it.
 
     <SendsPre>
       <SendPreBool Id="0" Value="false" />
@@ -2510,7 +2513,7 @@ so the sweep is worth re-running against any other skeleton.
 
 ## Q39. Colour is one integer, everywhere it appears - ANSWERED
 
-**Evidence:** `q32_set.als`, the 26 factory Sets, and the templates
+**Evidence:** `racks/q32_set.als`, the 26 factory Sets, and the templates
 `live_set` already reads.
 
     <Color Value="19" />
