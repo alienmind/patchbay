@@ -20,6 +20,7 @@ negotiate over a folder, and a folder no rack is named for is never read.
 
 ```
 samples/
+  all/        DROP ANYTHING HERE. Never read by a build
   DR1/        one subfolder per pad category
     kick/     rim/      snare/    clap/
     perc/     hat/      tom/      ohat/
@@ -78,10 +79,32 @@ Counts change as the collection does. Ask the filesystem, not this file.
 
 ## How the tree is built
 
-Sources arrive in whatever shape they were packaged in, which is not
-addressable from a spec. Sorting is by FILENAME TOKEN rather than by the
-folder a file arrived in, so the classification is checkable rather than
-trusted.
+    python examples/reorg_samples.py            # say what would happen
+    python examples/reorg_samples.py --apply    # do it
+
+Drop a pack into `samples/all/` in whatever shape it arrived in. The script
+COPIES each file into the folder its name says it belongs in, renamed
+`<category>_NNN` continuing from the first free index. Nothing is moved and
+nothing is deleted, so `all/` is still intact afterwards and a wrong
+classification costs a re-run. Delete `all/` yourself when satisfied.
+
+Sorting is by FILENAME TOKEN rather than by the folder a file arrived in,
+so the classification is checkable rather than trusted. The rules are an
+ordered list in the script and the first match wins:
+
+- **a loop outranks everything**, so `kick_loop_120bpm` is a loop and not a
+  kick. It is bar length and tempo locked, and a pad holding one is
+  unplayable.
+- **specific before general**: `ohat` before `hat`, `clap` and `rim` before
+  `snare`, `crash` and `ride` before the `cy` abbreviation.
+- **abbreviations match at word boundaries only**, so `bd` is a kick in
+  `bd_04` and nothing in `abdomen`.
+
+A file whose name says nothing is left in `all/` and counted as
+UNCLASSIFIED. Rename it so the sound is in the name, or add a pattern.
+Exact duplicates of audio already in the destination are skipped by content
+hash; two takes that merely sound alike are not, and that is a listening
+decision rather than a script's.
 
 `manifests/` holds the move log as `from,to,date`. It is the only record of
 the original names, it makes a reorganisation reversible, and it stays on

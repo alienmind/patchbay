@@ -2039,6 +2039,45 @@ def test_a_track_carries_the_colour_it_was_given():
             raise AssertionError(f"colour {bad} is outside the palette")
 
 
+def test_sample_classification_is_ordered_specific_first():
+    """The reorg dictionary is an ordered list and order is the design.
+
+    Each of these fails under a different ordering, so together they pin
+    the sequence rather than the individual patterns. A word-boundary case
+    is included because `bd` inside `abdomen` is what `\\b` exists for.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    from reorg_samples import RULES, classify
+
+    names = [r[0] for r in RULES]
+    assert len(names) == len(set(names)), f"a duplicate rule is dead: {names}"
+    assert names[0] == "loop", "a loop outranks the instrument in it"
+    assert names.index("ohat") < names.index("hat")
+    assert names.index("clap") < names.index("snare")
+    assert names.index("rim") < names.index("snare")
+    assert names.index("crash") < names.index("perc")
+
+    for filename, want in (
+            ("kick_loop_120bpm.wav", "loop"),
+            ("Amen Break.wav", "loop"),
+            ("loopy_kick.wav", "kick"),
+            ("Open Hat 3.wav", "ohat"),
+            ("closed-hat-1.wav", "hat"),
+            ("HH_09.wav", "hat"),
+            ("snare_clap.wav", "clap"),
+            ("SD_001.wav", "snare"),
+            ("TR808-Kick_01.wav", "kick"),
+            ("BD 4.wav", "kick"),
+            ("sidestick.wav", "rim"),
+            ("conga_hi.wav", "tom"),
+            ("vox_chop.wav", "fx")):
+        got = classify(filename)
+        assert got is not None and got[0] == want, f"{filename} -> {got}"
+
+    for filename in ("abdomen.wav", "ambient_pad.wav"):
+        assert classify(filename) is None, f"{filename} classified as something"
+
+
 def test_sample_discovery_sorts_by_whole_filename():
     """Both numbering conventions have to order the way they read.
 
