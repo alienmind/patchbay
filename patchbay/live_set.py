@@ -1,13 +1,13 @@
 """Write a Live Set: tracks, returns, and racks placed on them.
 
-`MCP.md` says a Set is the API's job and not this library's, and that was
-right while the API could do it. It cannot do this one: loading a rack onto
-a track means loading it BY BROWSER URI, and Live's browser index is a
-snapshot taken at startup, so a rack written to the User Library five
-minutes ago is not there to load. Restarting Live to pick it up defeats the
-purpose of driving a running Live.
+`MCP.md` once said a Set was the API's job and not this library's. It is
+not: loading a rack onto a track means loading it BY BROWSER URI, and
+Live's browser index is a snapshot taken at startup, so a rack written to
+the User Library five minutes ago is not there to load. Restarting Live to
+pick it up defeats the purpose of driving a running Live.
 
-So the same trick as everywhere else here: write the file.
+So the same trick as everywhere else here: write the file. Nothing in this
+toolchain drives a running Live; `THE_BASEMENT.md` has what that cost.
 
 Set form is Q9 in `SCHEMA.md`, and `extract.preset_from_set` is this module
 run backwards. What it costs is a set of TEMPLATES for the Set-form shapes,

@@ -18,8 +18,8 @@ Any module-level `Rack` is picked up if neither is present, so the
 smallest useful spec is a few `Rack(...)` assignments.
 
 Targets today are `.adg` rack presets. Sets are not compiled to `.als` -
-Live's API can build those, so they go through `ableton-mcp` instead. See
-`MCP.md`.
+Live's API cannot build those either. `MCP.md` has the capability table
+that established it.
 """
 
 from __future__ import annotations

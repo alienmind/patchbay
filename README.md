@@ -365,22 +365,21 @@ which are written for whoever, or whatever, does the work.
 
 Please check the detailed backlog of what remains to be done on [`doc/TODO.md`](doc/TODO.md).
 
-## On MCP and potential way forward
+## On MCP
 
-`ableton-mcp` is vendored within this project for testing purposes as well
-and a potential future scope (maybe a more complete MCP server?)
+**Nothing here drives a running Live.** The `ableton-mcp` submodule is
+vendored and unused: no module under `patchbay/` imports it, no build
+touches it, no test needs it.
 
-While being one working example of driving the LOM, it inherits every
-limit the LOM has. This project aims to complement where Live's API falls short.
-
-That test-harness plan does not work, and the reason is worth stating
-because it looks like it should. **A device can only be put on a track by
-BROWSER URI, and Live's browser index is a snapshot taken at startup.** A
-rack written to the User Library while Live is running is not in it, and
-neither is a file dropped into a folder Live has already indexed - checked
-against a running 12.4.3 by polling for a file that never appeared. So the
-one thing the harness needed, "load the rack we just wrote", is the one
-thing it cannot do without restarting the Live it is driving.
+It was going to be the test harness, and the reason that failed is worth
+stating because it looks like it should work. **A device can only be put on
+a track by BROWSER URI, and Live's browser index is a snapshot taken at
+startup.** A rack written to the User Library while Live is running is not
+in it, and neither is a file dropped into a folder Live has already indexed
+- checked against a running 12.4.3 by polling for a file that never
+appeared. So the one thing the harness needed, "load the rack we just
+wrote", is the one thing it cannot do without restarting the Live it is
+driving.
 
 What the socket is still good for: reading back what is actually on a
 track, transport control, tempo, clips and notes, and creating tracks. What

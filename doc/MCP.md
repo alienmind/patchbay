@@ -1,9 +1,13 @@
-# The Live API boundary, and what AbletonMCP is for
+# The Live API boundary
 
-`ableton-mcp` is a submodule: a Live remote script plus an MCP server that
-drives Live over a socket. This document records what Live's API can and
-cannot do, so the two layers stay in their lanes and we do not rebuild
-something that already works.
+**Nothing in this toolchain drives a running Live.** No module under
+`patchbay/` imports the `ableton-mcp` submodule, no build touches it, and
+no test needs it. The plan that did is buried in `THE_BASEMENT.md`.
+
+This file stays because the capability table below is EVIDENCE, and it is
+the reason the project writes files at all: it is what established that
+racks, macro mappings and chain zones are unreachable from the API. Read it
+as a boundary, not as a division of labour.
 
 Evidence is Live 12.4.3's own bundled scripts at
 `Resources/MIDI Remote Scripts`, in particular `_MxDCore/LomTypes.pyc`,

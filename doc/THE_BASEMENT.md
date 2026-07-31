@@ -347,9 +347,12 @@ Live's field whole and is what the slot selects, but the eight slot names
 are gated and renaming one reopens `PATCHBAYGROUND.md`, `DSL.md` and
 `README.md` with it.
 
-## Building the Set through `ableton-mcp`
+## Building the Set through `ableton-mcp`, and the submodule itself
 
-**Dropped, and then routed around rather than revived.** The plan was to
+**Dropped, routed around, and now decommissioned.** Nothing under
+`patchbay/` imports it, and nothing in a build or a test touches it.
+`doc/MCP.md` is kept, because the LOM capability table in it is real
+evidence and it is the reason this project writes files at all. The plan was to
 drive a running Live over the remote script's socket: create the tracks,
 name them, load each rack onto the right one, set the tempo.
 
@@ -373,11 +376,17 @@ what that cost - one tag rename, a send seeded per return on every track -
 and `live_set.py` is the module. Q9 had already mapped Set form to preset
 form for reading, so writing was the same map backwards.
 
-**What is still not automated, and this part of the original reasoning
-stands:** output routing into PM1 and the sidechain source per track. Both
-are absent from the LOM and neither appears in any factory Set, so both
-are dropdowns. That is minutes, not the half hour, and the racks - the
-178,960 facts nobody would enter by hand - arrive placed.
+**The part of the original reasoning that did NOT survive:** output
+routing into PM1 and the sidechain source per track were called permanent
+dropdowns here, on the grounds that both are absent from the LOM and from
+every factory Set. The second half was true and the conclusion was not. One
+Set saved by hand with a track routed into another and a compressor
+sidechained said what both are, and `patchbay session` writes them: Q33.
+
+**So the whole entry now reads as one lesson.** Twice this concluded that
+something was not writable, and twice the evidence was one file away.
+Absence from the LOM says nothing about the FILE, and absence from Ableton's
+own content says only that Ableton never shipped an example.
 
 
 ## The per-engine loudness trim, `PEAK_DB`
