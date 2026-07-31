@@ -281,6 +281,30 @@ def _name_track(track: Element, text: str) -> None:
             el.set("Value", value)
 
 
+#: Live's palette, read off the 26 factory Sets: track colours run 0 to 69
+#: with 39 distinct values in use, and 70 is the size of the swatch grid.
+#: `-1` is no colour, which is what `Scene` and `PreHearTrack` carry.
+PALETTE = 70
+NO_COLOR = -1
+
+
+def _color_track(track: Element, index: int) -> None:
+    """One integer, one element, the same on every kind of track.
+
+    `<Color Value="19" />` sits directly under the track. A clip and a
+    Set-form chain carry the same element with the same meaning, so this
+    generalises when they are wired.
+    """
+    if not (NO_COLOR <= index < PALETTE):
+        raise ValueError(
+            f"colour {index} is outside Live's palette: 0 to {PALETTE - 1}, "
+            f"or {NO_COLOR} for none")
+    el = track.find("Color")
+    if el is None:
+        raise ValueError(f"<{track.tag}> template has no Color")
+    el.set("Value", str(index))
+
+
 def _track_devices(track: Element) -> Element:
     """A track's own `Devices`, under `DeviceChain/DeviceChain`."""
     outer = track.find("DeviceChain")
@@ -340,6 +364,22 @@ def _route_sidechains(track: Element, source_id: int,
                "Post FX")
         made += 1
     return made
+
+
+def _as_return(spec) -> Track:
+    """A return, however it was declared.
+
+    Three forms have accumulated and all three stay: a bare name, a
+    `(name, device)` pair, and a `Track`. The last is what a return
+    actually is - a named track carrying devices and a colour - and it is
+    the only one that can say anything new.
+    """
+    if isinstance(spec, Track):
+        return spec
+    if isinstance(spec, str):
+        return Track(spec, "audio")
+    name, preset = spec
+    return Track(name, "audio", [] if preset is None else [preset])
 
 
 class Session:
@@ -502,6 +542,8 @@ def build(tracks: list[Track], returns: list[str] | None = None,
         track = _template(source, tag)
         track.set("Id", str(made))
         _name_track(track, spec.name)
+        if spec.color is not None:
+            _color_track(track, spec.color)
         devices = _track_devices(track)
         for child in list(devices):
             devices.remove(child)
@@ -531,17 +573,20 @@ def build(tracks: list[Track], returns: list[str] | None = None,
                     f"a track in this Set")
             apply(built[spec.name], int(other.get("Id")), named)
 
-    for i, name in enumerate(returns or []):
+    for spec in returns or []:
         if ret_template is None:
             raise ValueError(f"{SET_SKELETON} carries no ReturnTrack to model on")
+        spec = _as_return(spec)
         track = copy.deepcopy(ret_template)
         track.set("Id", str(made))
-        _name_track(track, name if isinstance(name, str) else name[0])
+        _name_track(track, spec.name)
+        if spec.color is not None:
+            _color_track(track, spec.color)
         devices = _track_devices(track)
         for child in list(devices):
             devices.remove(child)
-        if not isinstance(name, str) and name[1] is not None:
-            devices.append(_placed(name[1], 0))
+        for i, preset in enumerate(spec.presets):
+            devices.append(_placed(preset, i))
         _seed_sends(track, count, send_template)
         _fit_clip_slots(track, scenes)
         container.append(track)
@@ -660,6 +705,8 @@ def report(spec_path, out: Path | str) -> Path:
     for track in got.tracks:
         print(f"    {track.name:<6} {track.kind:<5} "
               f"{len(track.presets)} device(s)")
-    for name in got.returns:
-        print(f"    {name if isinstance(name, str) else name[0]}")
+    for spec in got.returns:
+        ret = _as_return(spec)
+        print(f"    {ret.name:<6} return "
+              f"{len(ret.presets)} device(s)")
     return made

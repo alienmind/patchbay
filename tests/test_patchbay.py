@@ -2002,6 +2002,43 @@ def test_a_set_hands_out_a_unique_pointee_id():
     assert nxt > max(int(v) for v in seen), "NextPointeeId is the next FREE id"
 
 
+def test_a_track_carries_the_colour_it_was_given():
+    """One integer under the track, and the palette bound is enforced.
+
+    Live's palette is 0 to 69, established across the 26 factory Sets.
+    Writing 70 would be a value Live has never written, so it raises rather
+    than producing a Set whose colours are silently wrong.
+    """
+    from patchbay import live_set
+
+    try:
+        live_set.live_resources()
+    except FileNotFoundError:
+        return
+
+    root = live_set.build(
+        [live_set.Track("T1", "midi", color=0),
+         live_set.Track("PM1", "audio", color=live_set.PALETTE - 1)],
+        returns=[live_set.Track("A", "audio", color=33),
+                 live_set.Track("B", "audio")])
+
+    got = {t.find("Name/EffectiveName").get("Value"):
+           t.find("Color").get("Value")
+           for t in root.find("LiveSet/Tracks")}
+    assert got["T1"] == "0"
+    assert got["PM1"] == str(live_set.PALETTE - 1)
+    assert got["A"] == "33", "a return takes a colour like any other track"
+    assert "B" in got, "a return with no colour still builds"
+
+    for bad in (live_set.PALETTE, -2):
+        try:
+            live_set.build([live_set.Track("T1", "midi", color=bad)])
+        except ValueError as e:
+            assert str(bad) in str(e)
+        else:
+            raise AssertionError(f"colour {bad} is outside the palette")
+
+
 def test_sample_discovery_sorts_by_whole_filename():
     """Both numbering conventions have to order the way they read.
 

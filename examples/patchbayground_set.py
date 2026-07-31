@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from patchbay import clone, io                     # noqa: E402
 from patchbay.library import Library               # noqa: E402
+from patchbay import live_set                      # noqa: E402
 from patchbay.live_set import Session, Track       # noqa: E402
 
 import patchbayground as pb                        # noqa: E402
@@ -86,6 +87,24 @@ def _stock(tag: str):
     return device
 
 
+def _spread(count: int) -> list[int]:
+    """`count` colours spaced evenly across Live's palette.
+
+    The palette is 70 swatches, 0 to 69 (see `live_set.PALETTE`). Stepping
+    by `70 / count` from a half step in puts one colour in each equal band
+    and leaves the same gap at both ends, so no two tracks land next to
+    each other and none of them lands on an edge.
+
+    Tracks and returns are spread SEPARATELY rather than as one list of
+    fourteen. Live keeps two auto-colour counters for exactly that split,
+    `AutoColorPickerForPlayerAndGroupTracks` and
+    `...ForReturnAndMainTracks`, so the two groups each walking the whole
+    palette is what Live itself does.
+    """
+    step = live_set.PALETTE / count
+    return [int((i + 0.5) * step) for i in range(count)]
+
+
 def _strip(track: str, instrument: str | None):
     """The channel strip in spec order, with the instrument third."""
     made = []
@@ -101,13 +120,14 @@ def _strip(track: str, instrument: str | None):
 
 def session() -> Session:
     tracks = []
-    for name in pb.TRACKS:
+    for name, color in zip(pb.TRACKS, _spread(len(pb.TRACKS))):
         kind = "audio" if name == "PM1" else "midi"
         feeds = None if name == "PM1" else "PM1"
         ducks = None if name == "DR1" else "DR1"
         tracks.append(Track(name, kind, _strip(name, INSTRUMENT_ON[name]),
-                            out=feeds, sidechain=ducks))
-    returns = [(name, _stock(tag)) for name, tag in RETURNS]
+                            out=feeds, sidechain=ducks, color=color))
+    returns = [Track(name, "audio", [_stock(tag)], color=color)
+               for (name, tag), color in zip(RETURNS, _spread(len(RETURNS)))]
     return Session(tracks, returns, tempo=120.0)
 
 
