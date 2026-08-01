@@ -1,12 +1,12 @@
-"""Fetch PATCHBAYGROUND's samples out of a drop folder and sort them.
+"""Fetch EXAMPLE_PLAYGRND's samples out of a drop folder and sort them.
 
     python examples/patchbaygrnd_fetch_samples.py            # what would happen
     python examples/patchbaygrnd_fetch_samples.py --explain  # and why, per file
     python examples/patchbaygrnd_fetch_samples.py --apply    # do it
 
 Named for the spec it serves. The categories, the pads they feed and the
-folders they live in are all PATCHBAYGROUND's, declared in
-`examples/patchbayground.py`; a different spec would want a different
+folders they live in are all EXAMPLE_PLAYGRND's, declared in
+`examples/playgrnd.py`; a different spec would want a different
 dictionary. Nothing here is general.
 
 Drop anything into `samples/all/`, in whatever shape it was packaged in,
@@ -84,9 +84,10 @@ from patchbay import samples                        # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 SAMPLES = ROOT / "samples"
+# These are set dynamically in main() based on the target folder
 DROP = SAMPLES / "all"
 MANIFEST = SAMPLES / "manifests" / "reorg_log.csv"
-
+TARGET = SAMPLES
 
 @dataclass(frozen=True, slots=True)
 class Rule:
@@ -336,7 +337,7 @@ def plan() -> Plan:
         if got.dest is None:
             made.unplaced.append((src, got))
             continue
-        folder = SAMPLES / got.dest
+        folder = TARGET / got.dest
 
         if got.dest not in known:
             known[got.dest] = {_digest(p) for p in samples.audio(folder)}
@@ -357,11 +358,26 @@ def plan() -> Plan:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("target", nargs="?", default="",
+                    help="Target folder name under samples/ (e.g., techno)")
     ap.add_argument("--apply", action="store_true",
                     help="copy the files. Without it, nothing is written")
     ap.add_argument("--explain", action="store_true",
                     help="per file, which stage decided it and on what")
     args = ap.parse_args()
+
+    global DROP, MANIFEST, TARGET
+    if args.target:
+        # If they passed 'samples/techno' instead of just 'techno', handle it
+        target_name = args.target.replace("\\", "/").split("/")[-1]
+        if not target_name:
+            target_name = args.target.replace("\\", "/").split("/")[-2]
+        TARGET = SAMPLES / target_name
+    else:
+        TARGET = SAMPLES
+
+    DROP = TARGET / "all"
+    MANIFEST = TARGET / "manifests" / "reorg_log.csv"
 
     if not DROP.is_dir():
         print(f"nothing to do: {DROP} does not exist")
@@ -376,7 +392,7 @@ def main() -> int:
     per_dest: dict[str, int] = {}
     per_stage: dict[str, int] = {}
     for _, dst, why in got.moves:
-        key = dst.parent.relative_to(SAMPLES).as_posix()
+        key = dst.parent.relative_to(TARGET).as_posix()
         per_dest[key] = per_dest.get(key, 0) + 1
         per_stage[why.stage] = per_stage.get(why.stage, 0) + 1
 
@@ -400,7 +416,7 @@ def main() -> int:
         for src, dst, why in got.moves:
             print(f"    {why.category:<6} {why.stage:<7} "
                   f"{why.evidence[:44]:<46} -> "
-                  f"{dst.relative_to(SAMPLES).as_posix()}")
+                  f"{dst.relative_to(TARGET).as_posix()}")
         for src, why in got.unplaced:
             print(f"    {why.category:<6} {why.stage:<7} "
                   f"{why.evidence[:44]:<46} -> not placed")

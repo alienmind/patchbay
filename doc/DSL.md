@@ -364,7 +364,7 @@ provenance ref for no gain, and it showed up as a difference the moment
 
 The default is an even share of 0..127 among the chains that are not pads,
 which is what a generated rack wants and what every rack in
-`examples/patchbayground.py` uses. This is for the rack that was not
+`examples/playgrnd.py` uses. This is for the rack that was not
 generated: a hand built one whose chains overlap, or divide unevenly, or
 leave a dead band. It is also what makes such a rack survive `patchbay
 extract`.
@@ -506,7 +506,7 @@ STRIP_INSTANCES = [rack.named(f"{rack.name}_{track}")
 ```
 
 `named` returns the same rack under another name and moves nothing else.
-`PATCHBAYGROUND.md` names each strip instance for the track it sits on,
+`EXAMPLE_PLAYGRND.md` names each strip instance for the track it sits on,
 `EQC_BS1` on BS1, so that eight tracks do not end up staring at `EQC_LD1`
 on a pad track. 46 files out of six declarations, and they are built but
 not golden-gated: what a digest proves about EQC it proves about EQC_BS1.
@@ -530,12 +530,12 @@ in each, and index alignment across engines is structural rather than a
 rule someone has to remember. Nothing in the variation code knows how many
 engines there are.
 
-A variation is NOT how PATCHBAYGROUND addresses a sound. Nothing maps a
+A variation is NOT how EXAMPLE_PLAYGRND addresses a sound. Nothing maps a
 knob to a variation, so a variation cannot be dialled in while a clip
 plays; a sound is `(instrument, sound)`, two macros driving two chain
 selectors. What a variation carries that a selector position cannot is the
 WHOLE vector at once, which makes it the right mechanism for a preset
-across the entire layout. See `PATCHBAYGROUND.md`.
+across the entire layout. See `EXAMPLE_PLAYGRND.md`.
 
 Instrument choice is itself a slot, because the layout's selector slot
 drives the chain selector and a selector is an ordinary parameter:
@@ -579,7 +579,7 @@ Each capability traces to a spike, not an assumption:
 
 ## Verified, not merely designed
 
-`build/PD1.adg`, compiled from `examples/patchbayground.py`, loads on a
+`build/PD1.adg`, compiled from `examples/playgrnd.py`, loads on a
 MIDI track in Live 12.4.3. Macro 1 sweeps engines across the distributed
 zones. Macro 3 drives Operator's `Filter/Frequency` and Simpler's
 `Filter/Slot/Value/SimplerFilter/Freq`, both scoped to the declared
@@ -640,7 +640,7 @@ macro labels, variations, and nesting to any depth with the macro-to-macro
 chaining intact.
 
 For a rack PatchBay built, extracting and rebuilding is EXACT. Every
-canonical rack in `examples/patchbayground.py`, including DR1 at three
+canonical rack in `examples/playgrnd.py`, including DR1 at three
 levels with 64 sample chains, diffs clean against the original, and a test
 holds them there. That gate is what found the gaps: ranges were not being emitted at
 all, variations came out as a comment, and unnamed chains were given
@@ -674,7 +674,7 @@ every chain is in the file; that its author called the slot `Filter` is not,
 and guessing it is inventing intent.
 
 ```
-patchbay extract build/BS1.adg --layout examples/patchbayground.py
+patchbay extract build/BS1.adg --layout examples/playgrnd.py
 ```
 
 `--layout` reads a spec's own bindings and reuses ITS name wherever an
@@ -688,7 +688,7 @@ none. The rebuild is fact for fact identical either way.
 ## Deliberate limits
 
 **Not a general graph DSL.** Every shape here was pulled out by building
-`examples/patchbayground.py`, which is one big example and the end-to-end
+`examples/playgrnd.py`, which is one big example and the end-to-end
 test rather than the point of the library. Generality comes from real
 second cases, not from anticipating them.
 

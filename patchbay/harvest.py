@@ -27,7 +27,7 @@ NOT_A_DONOR = NOT_A_DEVICE | {
     "LiveSet", "MidiTrack", "AudioTrack", "MainTrack", "MasterTrack",
     "ReturnTrack", "PreHearTrack", "GroupTrack", "Mixer", "MixerDevice",
     "AudioEffectBranch", "InstrumentBranch", "DrumBranch", "ReturnBranch",
-    "MxDeviceAudioEffect", "MxDeviceInstrument", "MxDeviceMidiEffect",
+    "MxDeviceInstrument",
     "PluginDevice", "AuPluginDevice",
 }
 
@@ -75,8 +75,20 @@ def scan(*paths) -> dict[str, tuple[int, object, Path]]:
             n = len(find.all_params(el))
             if n < 2:
                 continue
-            if el.tag not in best or n > best[el.tag][0]:
-                best[el.tag] = (n, el, f)
+            
+            # Use max device name for Max devices
+            tag = el.tag
+            if tag in ("MxDeviceMidiEffect", "MxDeviceAudioEffect"):
+                ref = el.find(".//MxPatchRef/FileRef/RelativePath")
+                if ref is not None and ref.get("Value"):
+                    tag = ref.get("Value").split("/")[-1].replace(".amxd", "")
+                else:
+                    ref = el.find(".//MxPatchRef/FileRef/Path")
+                    if ref is not None and ref.get("Value"):
+                        tag = ref.get("Value").split("/")[-1].replace(".amxd", "")
+
+            if tag not in best or n > best[tag][0]:
+                best[tag] = (n, el, f)
     return best
 
 

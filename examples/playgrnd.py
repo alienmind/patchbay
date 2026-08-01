@@ -1,6 +1,6 @@
-"""PATCHBAYGROUND - the template this project exists to build.
+"""EXAMPLE_PLAYGRND - the template this project exists to build.
 
-`doc/PATCHBAYGROUND.md` describes the musical target. This file is the
+`doc/EXAMPLE_PLAYGRND.md` describes the musical target. This file is the
 machine-readable half: the same intent, in a form the compiler can realise.
 
 Inspired by PLAYGRND, an Ableton Live Set by Andri Sören:
@@ -11,8 +11,8 @@ engines as chains, a sound addressed by two knobs. Rebuilt here to our own
 taste, from a declaration, because doing it by hand is thousands of macro
 mappings entered by mouse.
 
-    patchbay build examples/patchbayground.py -o build/patchbayground/
-    patchbay session examples/patchbayground.py -o build/patchbayground.als
+    patchbay build examples/playgrnd.py -o build/playgrnd/
+    patchbay session examples/playgrnd.py -o build/playgrnd.als
 
 One file, both halves. The racks are declared first and the Set that places
 them is at the bottom, built from the SAME objects rather than from the
@@ -393,7 +393,7 @@ PD1W = (Rack.instrument("PD1W", PB)
 # is the rule working, not a hole: the alternative is binding three different
 # ideas to one knob and calling it consistency.
 #
-# `PATCHBAYGROUND.md` asks for saturation as the bass wildcard, and it is not
+# `EXAMPLE_PLAYGRND.md` asks for saturation as the bass wildcard, and it is not
 # available. Of the engines in this file only Operator has a shaper, and
 # Operator is not in this rack.
 BS1 = (Rack.instrument("BS1", PB)
@@ -492,7 +492,16 @@ KIT = Layout(
 # rather than Instrument. Same eight slots as PB, carrying the same starts,
 # so the kit can chain slot to slot by identity; only which slot drives the
 # selector moves, and the `>` mark moves with it.
-PAD = PB.deriving(selects=PB.sound)
+PAD = Layout(
+    Slot("Sound", selects=True),
+    Slot("Pitch"),
+    Slot("Filter", start=127, label=PAIRED),
+    Slot("Send A"),
+    Slot("Send B"),
+    Slot("Character"),
+    Slot("Release", start=30),
+    Slot("Volume", start=127),
+)
 
 # Pad layout, and the folder each pad draws from. The names are the ones
 # samples/README.md documents, not a vendor's.
@@ -546,14 +555,14 @@ PAD_LABELS = {
 # A pad's Simpler is the SAMPLER profile without Movement: inside a pad that
 # slot is spent on the sample list, not on an LFO.
 PAD_VOICE = (Engine("OriginalSimpler")
-             .drives(PB.filter, "Filter/Slot/Value/SimplerFilter/Freq",
+             .drives(PAD.filter, "Filter/Slot/Value/SimplerFilter/Freq",
                      over=CUTOFF)
-             .drives(PB.filter, "Filter/Slot/Value/SimplerFilter/Res",
+             .drives(PAD.filter, "Filter/Slot/Value/SimplerFilter/Res",
                      over=RESONANCE)
-             .drives(PB.drive, "Filter/Slot/Value/SimplerFilter/Drive")
-             .drives(PB.release, "VolumeAndPan/Envelope/ReleaseTime",
+             .drives(PAD.character, "Filter/Slot/Value/SimplerFilter/Drive")
+             .drives(PAD.release, "VolumeAndPan/Envelope/ReleaseTime",
                      over=RELEASE_MS)
-             .drives(PB.volume, "VolumeAndPan/Volume", over=Range(-36.0, 0.0, "dB"))
+             .drives(PAD.volume, "VolumeAndPan/Volume", over=Range(-36.0, 0.0, "dB"))
              .offers("attack", "VolumeAndPan/Envelope/AttackTime"))
 
 
@@ -616,7 +625,7 @@ def pad_rack(name: str, sound: str) -> Rack | None:
             .spends(PB.character, "attack")
             .label(PB.filter, PAIRED))
     if name in PAD_LABELS:
-        rack = rack.label(PB.drive, PAD_LABELS[name])
+        rack = rack.label(PAD.character, PAD_LABELS[name])
     for i, wav in enumerate(files):
         rack = rack.chain(f"S{i + 1}", PAD_VOICE.sample(wav))
     return rack
@@ -681,7 +690,7 @@ def dr1() -> Rack | None:
            .ret("A-Dly:Long", LONG_FX.unchained())
            .sending(KIT.send_a, "A-Rvb:Short")
            .sending(KIT.send_b, "A-Dly:Long"))
-    chained = (KIT.sound, KIT.filter, KIT.drive, KIT.volume)
+    chained = (KIT.sound, KIT.filter, KIT.drive.to(PAD.character), KIT.volume)
 
     built = 0
     for name, note, sound in PADS:
@@ -741,7 +750,7 @@ ARP = Layout(
 # to the metronome by hand. It is a boolean with two states and the other
 # one is synced, so this is a switch behind a binding, exactly like
 # Operator's `Lfo/LfoOn`. Q24.
-ARP1 = Rack.midi_effect("ARP1", ARP).chain(
+ARP_RACK = Rack.midi_effect("ARP", ARP).chain(
     "strip",
     Engine("MidiArpeggiator")
     .sets("SyncState", True)
@@ -785,7 +794,7 @@ MFX = Layout(
 # incoming notes by semitones, so two knobs for one idea, and S2a found them
 # confusing on the hardware exactly as declaring them predicted. Pitch keeps
 # the slot because it is the wider control and needs no scale to work.
-MFX1 = Rack.midi_effect("MFX1", MFX).chain(
+MFX_RACK = Rack.midi_effect("MFX", MFX).chain(
     "strip",
     Engine("MidiVelocity")
     .drives(MFX.vel_range, "Range")
@@ -810,7 +819,7 @@ EQ = Layout(
 )
 
 #: The sidechain band. 100 Hz tracks a kick and misses a hat, which is what
-#: PATCHBAYGROUND.md asks the EQC compressor to hear. Q is the donor's own.
+#: EXAMPLE_PLAYGRND.md asks the EQC compressor to hear. Q is the donor's own.
 SIDECHAIN_HZ = 100.0
 
 #: How hard the kick ducks this track. WRITTEN BACKWARDS ON PURPOSE: the
@@ -837,7 +846,7 @@ DUCK_THRESHOLD = Range(1.0, 0.0003162277571, "amplitude")
 # a `SideChainEq` element. Live renamed them between 12.2 and 12.4.3 and the
 # donor this rack used predated the rename, so three settings were written
 # at paths 12.4.3 does not have. Q19.
-EQC = Rack.audio_effect("EQC", EQ).chain(
+EQC_RACK = Rack.audio_effect("EQC", EQ).chain(
     "strip",
     Engine("ChannelEq")
     .drives(EQ.lo, "LowShelfGain")
@@ -849,7 +858,7 @@ EQC = Rack.audio_effect("EQC", EQ).chain(
           .sets("SideChain/OnOff", True)
           .sets("SideChainEq_On", True)
           # Q19: 5 is low-pass, 4 band-pass, 3 high-pass. Low-pass is the
-          # band PATCHBAYGROUND.md asks for, and it is also the donor's
+          # band EXAMPLE_PLAYGRND.md asks for, and it is also the donor's
           # value, so this line changes nothing today and says so.
           .sets("SideChainEq_Mode", 5)
           .sets("SideChainEq_Freq", SIDECHAIN_HZ))
@@ -873,9 +882,9 @@ AFX = Layout(
 # of knobs is playable before you know which effect you landed on.
 #
 # Which device serves which role is a taste call. This is a first pass over
-# the spread PATCHBAYGROUND.md asks for - degradation, time and space rather
+# the spread EXAMPLE_PLAYGRND.md asks for - degradation, time and space rather
 # than eight flavours of one idea - and swapping one is a one-line edit.
-AFX1 = (Rack.audio_effect("AFX1", AFX)
+AFX_RACK = (Rack.audio_effect("AFX", AFX)
         .chain("glitch", Engine("BeatRepeat")
                .drives(AFX.amount, "Chance")
                .drives(AFX.tone, "MidFreq")
@@ -915,10 +924,10 @@ AFX1 = (Rack.audio_effect("AFX1", AFX)
 
 # The second effect slot. Same layout as AFX1, so the two knobs mean the
 # same thing in both, and a deliberately different spread: AFX1 is
-# degradation, this is movement and space. `PATCHBAYGROUND.md` calls AFXS1
+# degradation, this is movement and space. `EXAMPLE_PLAYGRND.md` calls AFXS1
 # "freely editable", which is a rack to REPLACE chains in rather than a rack
 # to leave alone, and a shared layout is what makes replacing one cheap.
-AFXS1 = (Rack.audio_effect("AFXS1", AFX)
+AFXS_RACK = (Rack.audio_effect("AFXS", AFX)
          .chain("swirl", Engine("Chorus2")
                 .drives(AFX.amount, "DryWet")
                 .drives(AFX.tone, "Warmth")
@@ -961,7 +970,7 @@ VOL = Layout(
 # and Ceiling says where the output stops.
 SUB_CUT_HZ = Range(20.0, 300.0, "Hz")
 
-VOL1 = Rack.audio_effect("VOL1", VOL).chain(
+VOL_RACK = Rack.audio_effect("VOL", VOL).chain(
     "strip",
     Engine("Eq8")
     .sets("Bands.0/ParameterA/IsOn", True)
@@ -976,29 +985,31 @@ VOL1 = Rack.audio_effect("VOL1", VOL).chain(
           .sets("AutoRelease", False)))
 
 
-STRIP: list[Rack] = [ARP1, MFX1, EQC, AFX1, AFXS1, VOL1]
+TRACKS: tuple[str, ...] = ("DR", "BS", "PD", "LD", "SR", "VA1", "VA2", "PM")
 
-#: The eight tracks of PATCHBAYGROUND.md, in order. PM1 is the audio pre
-#: master, so it takes the audio half of the strip and neither MIDI rack.
-TRACKS: tuple[str, ...] = ("DR1", "BS1", "PD1", "LD1", "SR1", "VA1", "VA2",
-                           "PM1")
-
-#: One instance per track, named for it: `EQC_BS1` sits on BS1. The naming
-#: rule is in PATCHBAYGROUND.md and it exists because a strip copied between
-#: tracks without renaming leaves `EQC_LD1` on a pad track meaning nothing.
 STRIP_INSTANCES: list[Rack] = [
-    rack.named(f"{rack.name}_{track}")
-    for track in TRACKS
-    for rack in STRIP
-    if not (track == "PM1" and rack.kind is RackKind.MIDI_EFFECT)
+    # DR strip (no ARP)
+    MFX_RACK.named("MFX_DR"), EQC_RACK.named("EQC_DR"), AFX_RACK.named("AFX_DR"), AFXS_RACK.named("AFXS_DR"), VOL_RACK.named("VOL_DR"),
+    # BS strip
+    ARP_RACK.named("ARP_BS"), MFX_RACK.named("MFX_BS"), EQC_RACK.named("EQC_BS"), AFX_RACK.named("AFX_BS"), AFXS_RACK.named("AFXS_BS"), VOL_RACK.named("VOL_BS"),
+    # PD strip
+    ARP_RACK.named("ARP_PD"), MFX_RACK.named("MFX_PD"), EQC_RACK.named("EQC_PD"), AFX_RACK.named("AFX_PD"), AFXS_RACK.named("AFXS_PD"), VOL_RACK.named("VOL_PD"),
+    # LD strip
+    ARP_RACK.named("ARP_LD"), MFX_RACK.named("MFX_LD"), EQC_RACK.named("EQC_LD"), AFX_RACK.named("AFX_LD"), AFXS_RACK.named("AFXS_LD"), VOL_RACK.named("VOL_LD"),
+    # SR strip
+    ARP_RACK.named("ARP_SR"), MFX_RACK.named("MFX_SR"), EQC_RACK.named("EQC_SR"), AFX_RACK.named("AFX_SR"), AFXS_RACK.named("AFXS_SR"), VOL_RACK.named("VOL_SR"),
+    # VA1 strip
+    ARP_RACK.named("ARP_VA1"), MFX_RACK.named("MFX_VA1"), EQC_RACK.named("EQC_VA1"), AFX_RACK.named("AFX_VA1"), AFXS_RACK.named("AFXS_VA1"), VOL_RACK.named("VOL_VA1"),
+    # VA2 strip
+    ARP_RACK.named("ARP_VA2"), MFX_RACK.named("MFX_VA2"), EQC_RACK.named("EQC_VA2"), AFX_RACK.named("AFX_VA2"), AFXS_RACK.named("AFXS_VA2"), VOL_RACK.named("VOL_VA2"),
+    # PM strip (audio only)
+    EQC_RACK.named("EQC_PM"), AFX_RACK.named("AFX_PM"), AFXS_RACK.named("AFXS_PM"), VOL_RACK.named("VOL_PM")
 ]
 
-# The canonical twelve, plus one instance of each strip rack per track. The
-# instances are the same six racks under 46 names, so they are built and
-# NOT golden-gated: what a golden proves about EQC it proves about EQC_BS1.
+# The canonical twelve, plus one instance of each strip rack per track.
 RACKS: list[Rack] = (
     [r for r in (PD1, PD1W, BS1, LD1, DR1, VA1) if r is not None]
-    + STRIP + STRIP_INSTANCES)
+    + [ARP_RACK, MFX_RACK, EQC_RACK, AFX_RACK, AFXS_RACK, VOL_RACK] + STRIP_INSTANCES)
 
 #: Every rack in this file by name, which is how the Set below places them.
 BY_NAME: dict[str, Rack] = {r.name: r for r in RACKS}
@@ -1038,7 +1049,7 @@ BY_NAME: dict[str, Rack] = {r.name: r for r in RACKS}
 # ---------------------------------------------------------------------------
 # DR1's deeper pad. Blocked on: donors for MidiPitcher and Saturator in a
 # pad, and Q6 for the return selectors. The pad shape below is what
-# PATCHBAYGROUND.md asks for and what DR1 is a two-device slice of.
+# EXAMPLE_PLAYGRND.md asks for and what DR1 is a two-device slice of.
 # ---------------------------------------------------------------------------
 #
 #     Drum Rack                    kit macros only
@@ -1086,7 +1097,7 @@ BY_NAME: dict[str, Rack] = {r.name: r for r in RACKS}
 # The Set
 # ===========================================================================
 #
-#     patchbay session examples/patchbayground.py -o build/patchbayground.als
+#     patchbay session examples/playgrnd.py -o build/playgrnd.als
 #
 # Which rack sits on which track, in what order, what the returns are
 # called, and how it is all coloured and routed. The racks above are the
@@ -1111,7 +1122,7 @@ INSTRUMENT_ON = {
     "PM1": None,
 }
 
-#: Named for character, not for device, per PATCHBAYGROUND.md. The first
+#: Named for character, not for device, per EXAMPLE_PLAYGRND.md. The first
 #: four are the spread it asks for; the last two are the pair it leaves to
 #: us. The device on each is stock, because what a return SOUNDS like is a
 #: decision by ear and not one this file can make.
@@ -1168,38 +1179,55 @@ def _spread(count: int) -> list[int]:
     return [int((i + 0.5) * step) for i in range(count)]
 
 
-def _strip(track: str, instrument: str | None):
-    """The channel strip in spec order, with the instrument third.
-
-    Channel EQ stays stock per the spec, so it is placed as a bare device
-    rather than wrapped in a rack.
-    """
-    made = []
-    if track != "PM1":
-        made += [_preset(f"ARP1_{track}"), _preset(f"MFX1_{track}")]
-    if instrument:
-        made.append(_preset(instrument))
-    made += [_preset(f"EQC_{track}"), _preset(f"AFX1_{track}"),
-             _preset(f"AFXS1_{track}"), _stock("ChannelEq"),
-             _preset(f"VOL1_{track}")]
-    return made
-
-
 def SESSION() -> Session:
-    """PATCHBAYGROUND as a Live Set: eight tracks, six returns, every rack.
+    """EXAMPLE_PLAYGRND as a Live Set: eight tracks, six returns, every rack.
 
-    Every track but PM1 feeds PM1, and every EQC but DR1's sidechains from
-    DR1, which is what the spec asks for. DR1 is the sidechain source, and a
+    Every track but PM feeds PM, and every EQC but DR's sidechains from
+    DR, which is what the spec asks for. DR is the sidechain source, and a
     track cannot duck from itself.
     """
     tracks = []
-    for name, color in zip(TRACKS, _spread(len(TRACKS))):
-        tracks.append(Track(
-            name, "audio" if name == "PM1" else "midi",
-            _strip(name, INSTRUMENT_ON[name]),
-            out=None if name == "PM1" else "PM1",
-            sidechain=None if name == "DR1" else "DR1",
-            color=color))
+    colors = _spread(len(TRACKS))
+    
+    tracks.append(Track("DR", "midi", [
+        _preset("MFX_DR"), _preset("DR1"), _preset("EQC_DR"), _preset("AFX_DR"),
+        _preset("AFXS_DR"), _stock("ChannelEq"), _preset("VOL_DR")
+    ], out="PM", sidechain=None, color=colors[0]))
+
+    tracks.append(Track("BS", "midi", [
+        _preset("ARP_BS"), _preset("MFX_BS"), _preset("BS1"), _preset("EQC_BS"),
+        _preset("AFX_BS"), _preset("AFXS_BS"), _stock("ChannelEq"), _preset("VOL_BS")
+    ], out="PM", sidechain="DR", color=colors[1]))
+
+    tracks.append(Track("PD", "midi", [
+        _preset("ARP_PD"), _preset("MFX_PD"), _preset("PD1W"), _preset("EQC_PD"),
+        _preset("AFX_PD"), _preset("AFXS_PD"), _stock("ChannelEq"), _preset("VOL_PD")
+    ], out="PM", sidechain="DR", color=colors[2]))
+
+    tracks.append(Track("LD", "midi", [
+        _preset("ARP_LD"), _preset("MFX_LD"), _preset("LD1"), _preset("EQC_LD"),
+        _preset("AFX_LD"), _preset("AFXS_LD"), _stock("ChannelEq"), _preset("VOL_LD")
+    ], out="PM", sidechain="DR", color=colors[3]))
+
+    tracks.append(Track("SR", "midi", [
+        _preset("ARP_SR"), _preset("MFX_SR"), _preset("EQC_SR"),
+        _preset("AFX_SR"), _preset("AFXS_SR"), _stock("ChannelEq"), _preset("VOL_SR")
+    ], out="PM", sidechain="DR", color=colors[4]))
+
+    tracks.append(Track("VA1", "midi", [
+        _preset("ARP_VA1"), _preset("MFX_VA1"), _preset("VA1"), _preset("EQC_VA1"),
+        _preset("AFX_VA1"), _preset("AFXS_VA1"), _stock("ChannelEq"), _preset("VOL_VA1")
+    ], out="PM", sidechain="DR", color=colors[5]))
+
+    tracks.append(Track("VA2", "midi", [
+        _preset("ARP_VA2"), _preset("MFX_VA2"), _preset("VA1"), _preset("EQC_VA2"),
+        _preset("AFX_VA2"), _preset("AFXS_VA2"), _stock("ChannelEq"), _preset("VOL_VA2")
+    ], out="PM", sidechain="DR", color=colors[6]))
+
+    tracks.append(Track("PM", "audio", [
+        _preset("EQC_PM"), _preset("AFX_PM"), _preset("AFXS_PM"), _stock("ChannelEq"), _preset("VOL_PM")
+    ], out=None, sidechain=None, color=colors[7]))
+
     returns = [Track(name, "audio", [_stock(tag)], color=color)
                for (name, tag), color in zip(RETURNS, _spread(len(RETURNS)))]
     return Session(tracks, returns, tempo=120.0)

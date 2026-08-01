@@ -1,6 +1,6 @@
 """A declarative way to say what a rack is.
 
-The design follows one line of PATCHBAYGROUND.md: "This consistency is the
+The design follows one line of EXAMPLE_PLAYGRND.md: "This consistency is the
 actual product, more than any individual rack." The macro layout is
 identical across every instrument rack, so the thing worth expressing is
 not "build a rack" but "bind this engine's parameters to the standard
@@ -53,7 +53,7 @@ engine profile or a sub-rack can sit in two racks without one build
 reaching the other.
 
 What this is not: a general graph DSL. It expresses the racks in
-PATCHBAYGROUND.md and stops there.
+EXAMPLE_PLAYGRND.md and stops there.
 """
 
 from __future__ import annotations

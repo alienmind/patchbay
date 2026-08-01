@@ -1,27 +1,16 @@
 # PatchBay
 
-Author Ableton Live racks in code instead of by clicking.
-
 ## What this is
 
-A Python DSL and a toolchain for writing Live racks as source. You declare
-what a rack is - engines, macro layout, bindings, ranges, zones,
+Author Ableton Live racks in code instead of by clicking!
+
+patchbay is a Python DSL and a toolchain for writing Live racks as source.
+You declare what a rack is - engines, macro layout, bindings, ranges, zones,
 variations, nesting - and `patchbay build` produces the `.adg` Live opens.
 It also runs backwards: `patchbay extract` reads a saved rack and prints
 the declaration that rebuilds it.
 
-A spec is an ordinary Python module. It imports from `patchbay.dsl`, and
-the racks it declares are values, so anything Python does - a loop, a
-function, a list comprehension - is available for describing them. That is
-the point of a DSL embedded in a language rather than a config format: 96
-variations are a `product()` over a few lists, not 96 stanzas.
-
-As an example, we provide a full (opinionated) live set that is constructed
-as a composition of many racks, ideal for live performance on the Push (PATCHBAYGROUND.als)
-See [PATCHBAYGRND, the end-to-end test](#patchbaygrnd---the-ultimate-end-to-end-test) for details.
-
-But based on that example, you could automate whatever!
-
+Several examples are provided under the examples/ folder.
 Inspired in ideas from [strudel.cc](https://strudel.cc) and TidalCycles,
 but PatchBay is about **offline authoring** and not live coding of music.
 Nothing here makes a sound. It produces the assets you will load in your DAW.
@@ -33,68 +22,67 @@ Live 12 (the Set writer reads Live's own factory templates).
 
 ```
 uv sync                         # creates .venv, installs patchbay editable
+uv run poe build-examples       # Will build all the example racks and sessions
 ```
-
-**Sort a pile of samples.** Drop your packs into `samples/all/` in whatever
-shape it arrived in. 
-
-```
-uv run poe fetch         # Will show some help
-uv run poe fetch --apply # Will classify (copy) into the required folders
-```
-
-The result is a copy of each file into `samples/<RACK>/<category>/`, renamed and numbered
-from the first free index. Nothing is moved or deleted, so a wrong
-classification can be fixed with a re-run. See `samples/README.md` for details.
-
-**Building PATCHBAYGRND: the exemplary racks and Set**, both from the one example spec:
-
-```
-uv run poe build-examples
-```
-
-The first writes 52 `.adg` files. The second writes one `.als` holding all
-52 of them, placed on 8 tracks with 6 returns, coloured, routed and
-sidechained. Build first only if you want the individual racks: the Set is
-compiled from the same spec and does not read `build/`.
-
-Then drag `build/PATCHBAYGROUND.als` into Live. **Do not double-click an
-`.adg`** - that starts a second Live instance and loads nothing.
-
-```
-uv run poe test         # 120 tests, ~2 min
-```
-
-Everything below is why any of it works.
 
 
 ## Motivation
 
 Instead of spending an afternoon dragging, dropping, patching
 and connecting macros, ~~I've spend two weeks of frantically coding this tool, so~~ you just do an edit and a rebuild from a layout you
-already trust. ~~Yes, that's what sidequesting looks like.~~
+already trust.
 
-That changes what maintenance costs of a large number of racks, which can be useful
-for music producers and developers of audio tools.
+~~(Yes, that's what sidequesting looks like.)~~
+
+This is useful for music producers and developers of audio tools that want to automate their workflow at least partially.
 
 A rack kept current by hand is hands on work: every mapping clicked, every variation dialled,
 every fix repeated in each copy that inherited it, held together by the author's discipline.
-Nothing records what changed or why, and nothing carries a correction
-forward.
 
 Declared as code, a rack gets the tools ordinary software already has. It
 lives in version control, it diffs, it reviews, it rebuilds. A new Live
 version, a renamed parameter, or a change of taste is an edit to a spec and
 one `patchbay build`.
 
-## Why files rather than the API
+## Other use cases
 
-Live already exposes a programming interface. The Live Object Model drives
+> [!WARNING]
+> **Sample Redistribution:** This repository does NOT redistribute audio samples. It is up to you, the developer cloning this repo, to provide your own samples. Drop your packs into `samples/<example>/all/` to have the script classify them.
+
+**Sort a pile of samples.** Drop your packs into `samples/<example>/all/` (e.g., `samples/techno/all/`) in whatever shape they arrived in. 
+
+```
+uv run poe fetch         # Will show some help
+uv run poe fetch --apply # Will classify (copy) into the required folders
+```
+
+The result is a copy of each file into `samples/<example>/<RACK>/<category>/`, renamed and numbered
+from the first free index. Nothing is moved or deleted, so a wrong
+classification can be fixed with a re-run. See `samples/README.md` for details.
+
+**Reverse engineering your hand-crafted racks.** Drop your `.adg` files into `donors/` and run:
+
+```
+uv run patchbay harvest donors/
+```
+
+This will index any new devices inside your racks so they can be used in the DSL. 
+To generate the Python DSL code that recreates an existing rack, run:
+
+```
+uv run patchbay extract path/to/your/rack.adg
+```
+
+The output is valid Python code that you can copy into your scripts. This is the fastest way to learn the DSL or to migrate existing hand-crafted racks into your code.
+
+## Why producing files rather than using the LOM API
+
+Live already exposes a programming interface. The Live Object Model (LOM) drives
 a session that is **open and running**: create a track, name it, set its
 routing, fire a clip, move a parameter. Anything you can script against a
 live Set, script through the LOM.
 
-The LOM stops short in two ways. Parts of it are undocumented, and parts of
+The LOM falls short in two ways. Parts of it are undocumented, and parts of
 what a Set contains have no API at all. Grouping devices into a rack,
 creating a macro mapping, setting a chain zone: none of these are in the
 Object Model.
@@ -223,23 +211,6 @@ and they are what the DSL is learned from: a device's parameter list, the path t
 the native range each one spans. A binding is written against a donor and
 checked. `patchbay harvest` adds more from any file you already own.
 
-## PATCHBAYGRND - The ultimate end-to-end test
-
-Some inspiration of this project came while trying to recreate the amazing **PLAYGRND**, an Ableton Live Set
-by **Andri Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw (please support the author and buy his product!).
-
-Based on the information publicly made available from him, what that Set demonstrates
-is worth taking: one macro layout repeated across every rack, engines as chains,
-using knobs to quickly switch between instruments, a semi fixed channel strip on every track,
-and racks nested inside racks so one instrument reaches all the others.
-
-[`examples/patchbayground.py`](examples/patchbayground.py) is this
-project's attempt at rebuilding something like that.
-It serves as **one big example, and the end-to-end test**. Twelve racks, six instruments and a six
-rack channel strip, three levels of nesting, 96 variations, eight drum pads
-- if a change breaks something real, it breaks there first. All twelve have
-been loaded into Live 12.4.3 and played. Check [`doc/PATCHBAYGROUND.md`](doc/PATCHBAYGROUND.md) for more details.
-
 ## What works today
 
 Every item below was gated by loading the output in Live 12.4.3.
@@ -254,7 +225,7 @@ Every item below was gated by loading the output in Live 12.4.3.
 - per-track instances of a rack: one declaration, one name per track
 - a whole Live Set: tracks, named returns, track colours, a send per return
   on every track, every rack placed in order, a track routed into another
-  track, and each sidechain fed from a track you name. PATCHBAYGROUND is 8
+  track, and each sidechain fed from a track you name. EXAMPLE_PLAYGRND is 8
   tracks, 6 returns and 52 racks, written by one command and opened in
   Live 12.4.3
 - ONE spec for both: the same file declares the racks and the Set that
@@ -320,7 +291,7 @@ parts worth doing by hand, and the tool exists to leave time for them.
 This is where the valuable expertise of a music producer comes in! your taste I cannot replace nor
 automate.
 
-## Install
+## Building and running
 
 Managed with [uv](https://docs.astral.sh/uv/).
 
@@ -372,7 +343,7 @@ gives each copy its own macro block rather than ganging them together.
 ```
 patchbay/    the library. Knows XML, ids, macros, chains, FileRefs.
              Knows nothing about kick drums. Keep it that way.
-examples/    specs. patchbayground.py is the big one, and the end-to-end test.
+examples/    specs. playgrnd.py is the big one, and the end-to-end test.
 doc/         how the format works, and how we found out.
 donors/      real device instances harvested from Live, to copy from.
 racks/       spike evidence. Every verified claim traces to one of these.
@@ -390,7 +361,7 @@ tests/       assertions against the recorded findings.
 | **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
 | **`doc/SPIKES.md`** | discovery procedure and the spikes that answered it | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
-| **`doc/PATCHBAYGROUND.md`** | the musical target, the layout, and what inspired it | for what any of this is for |
+| **`doc/EXAMPLE_*.md`** | particular examples (the musical ideas) to build this tool |
 | `doc/THE_BASEMENT.md` | ideas that failed, and what killed them | before reviving a good-sounding plan |
 | `CLAUDE.md` | working method and landmines | first, if you are an agent |
 
@@ -410,20 +381,3 @@ which are written for whoever, or whatever, does the work.
 ## TODO
 
 Please check the detailed backlog of what remains to be done on [`doc/TODO.md`](doc/TODO.md).
-
-## Why not the Live API
-
-Live's Object Model cannot group devices into a rack, create a macro
-mapping, or set a chain zone. That is not a gap to work around, it is the
-reason this project writes files: `map_parameter`, `add_chain` and `zone`
-are absent from the LOM, read off Live 12.4.3's own
-`_MxDCore/LomTypes.pyc`.
-
-There was a plan to drive a running Live over a socket for the parts the
-API does expose. It is buried in [`doc/THE_BASEMENT.md`](doc/THE_BASEMENT.md)
-with the capability table and what killed it: **a device can only be put on
-a track by BROWSER URI, and Live's browser index is a snapshot taken at
-startup**, so the one thing that plan needed - load the rack we just wrote -
-is the one thing it cannot do without restarting the Live it is driving.
-
-Nothing here drives a running Live.

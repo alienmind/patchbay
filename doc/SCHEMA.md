@@ -127,7 +127,7 @@ Verified: `patchbay diff racks/s2_a.adg racks/s2_b.adg` prints `identical`.
 `s1_source` / `s2_*` is a Drum Rack nested
 `DrumBranchPreset -> GroupDevicePreset -> InstrumentBranchPreset ->
 GroupDevicePreset -> InstrumentBranchPreset`, i.e. already the DR1
-three-level pattern from `PATCHBAYGROUND.md`. Good subject for S4 and S6.
+three-level pattern from `EXAMPLE_PLAYGRND.md`. Good subject for S4 and S6.
 
 ## S3. Macro mapping - ANSWERED
 
@@ -181,7 +181,7 @@ Verified across four files:
 | `s1_source.adg` / `s2_a.adg` | 3 | two `MacroControls.0`, one `ChainSelector` |
 
 `ChainSelector` is mappable by exactly the same mechanism, which matters
-for `PATCHBAYGROUND.md`'s chain-select layout.
+for `EXAMPLE_PLAYGRND.md`'s chain-select layout.
 
 ### Implications
 
@@ -362,7 +362,7 @@ mapping**. Which rack owns a macro is resolved structurally - see
 `ARCHITECTURE.md` §3 for the walk, which is not the obvious one.
 
 `ChainSelector` is an ordinary parameter and mappable identically. This is
-the DR1 three-level pattern from `PATCHBAYGROUND.md`, confirmed working in
+the DR1 three-level pattern from `EXAMPLE_PLAYGRND.md`, confirmed working in
 a real file rather than assumed.
 
 ## S5. Chain select zone - PARTIAL
@@ -890,7 +890,7 @@ load. Save the probe back out of Live and diff `MacroHasValue.5`.
 ### Phase 5 gate: PASSED
 
 `build/PD1.adg`, 96 variations over engine, cutoff, decay and resonance,
-compiled from `examples/patchbayground.py`. All 96 appear, named. Recalling one
+compiled from `examples/playgrnd.py`. All 96 appear, named. Recalling one
 moves the four bound macros and leaves macros 5-13 alone. Recalling entry
 `000` selects FM and `095` selects Sample, so a variation drives the chain
 selector like any other parameter.
@@ -900,7 +900,7 @@ then turn Engine full left, and the same musical idea arrives through FM with
 no knob re-set. That is the constraint holding structurally, since the
 variation names slots and each engine binds its own parameters to them.
 
-The sound-family constraint from `PATCHBAYGROUND.md` - variation index N
+The sound-family constraint from `EXAMPLE_PLAYGRND.md` - variation index N
 means the same musical idea across every engine - is satisfiable because
 snapshots are positional and per rack: emit the same index across each
 rack's list, with values chosen per engine.
@@ -1100,7 +1100,7 @@ carries the note
     mappings
 
 So Live declines to show a macro in a parameter's units at all once the
-macro reaches more than one target, which every slot in `PATCHBAYGROUND.md`
+macro reaches more than one target, which every slot in `EXAMPLE_PLAYGRND.md`
 does by design. A knob's meaning lives in its NAME here, not in a unit
 Live will not print. The S10 tail is closed.
 
@@ -1117,7 +1117,7 @@ This is the useful direction: mapping ranges are **writable from XML with
 no UI involved**, which matters because Live 12.4.3 exposes no range
 editor at all. A generator has a capability the GUI does not.
 
-For the macro layout in `PATCHBAYGROUND.md` this means a macro can be
+For the macro layout in `EXAMPLE_PLAYGRND.md` this means a macro can be
 scoped per mapping, per engine. What that scoping is FOR is settled by
 Q15: not to concentrate a knob's travel, which the parameter's own taper
 already handles, but to make one knob position mean the same thing on
@@ -1304,7 +1304,7 @@ reaches +36 dB. That is the clipping.
 
 ### Why the layout did not catch it
 
-The sound family constraint in `PATCHBAYGROUND.md` says one knob should
+The sound family constraint in `EXAMPLE_PLAYGRND.md` says one knob should
 move the same musical idea through different synthesis. Both engines bound
 slot 8 to their own volume, so the binding was correct by that rule and
 still wrong in the room.
@@ -1379,7 +1379,7 @@ and every generated sound was permanently darkened.
 
 Nowhere. `200..8000` first appeared as an illustrative range in an early
 planning document, and was then copied into `DSL.md`, this file,
-`PATCHBAYGROUND.md` and `examples/patchbayground.py`. No document argued
+`EXAMPLE_PLAYGRND.md` and `examples/playgrnd.py`. No document argued
 for it. It survived because a specific-looking constant reads as
 deliberate.
 
@@ -1390,7 +1390,7 @@ constant nobody ever measured.
 
 ### Replaced by
 
-`CUTOFF = (30.0, 18500.0)` in `examples/patchbayground.py`, the
+`CUTOFF = (30.0, 18500.0)` in `examples/playgrnd.py`, the
 INTERSECTION of what the four engines offer. The intersection rather than
 each engine's own maximum, because one knob position should mean one
 frequency on every engine, which is the sound family constraint. Nothing
@@ -1943,7 +1943,7 @@ lists, and reading one off the other would have put EQC's sidechain on the
 wrong band.
 
 5 is also the value the old donor carried, so EQC's band was already the
-one `PATCHBAYGROUND.md` asks for. It is written explicitly now.
+one `EXAMPLE_PLAYGRND.md` asks for. It is written explicitly now.
 
 ### The parameters are FLAT in 12.4.3, and were NESTED in 12.2
 
@@ -2143,7 +2143,7 @@ slider position is not its stored value, and neither is a macro's 0..127.
 
 ## Q30. Writing a Set: what preset form costs to reverse - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als`, written by `patchbay session`,
+**Evidence:** `build/EXAMPLE_PLAYGRND.als`, written by `patchbay session`,
 with all 52 placed racks lifted back out by `extract.preset_from_set` and
 compared to the `.adg` each came from. **51 of 52 differ in nothing at all**
 and DR1 differs in 18 facts of `SourceContext` provenance on its two return
@@ -2193,10 +2193,10 @@ toolchain just built, and writing the Set is the way round it.
 
 ## Q31. A zero pointee id is valid in a preset and refused in a Set
 
-**Evidence:** `build/PATCHBAYGROUND.als` at its first attempt, refused by
+**Evidence:** `build/EXAMPLE_PLAYGRND.als` at its first attempt, refused by
 Live 12.4.3 with
 
-    The document "PATCHBAYGROUND.als" is corrupt and cannot be loaded.
+    The document "EXAMPLE_PLAYGRND.als" is corrupt and cannot be loaded.
     (Invalid Pointee Id.)
 
 and `racks/q9_b.als`, a Set Live saved, for what the rule actually is.
@@ -2208,7 +2208,7 @@ it: naming the families was wrong, and the rule is a SHAPE. `Pointee`,
 In `q9_b.als`: 267 of them, **no duplicates, none zero**, and
 `LiveSet/NextPointeeId` exactly one above the highest.
 
-A PRESET writes `Id="0"` on all of them. PATCHBAYGROUND has 28,608, of
+A PRESET writes `Id="0"` on all of them. EXAMPLE_PLAYGRND has 28,608, of
 which 28,214 read zero, because that is what every `.adg` this repo builds
 carries and what Q9 said a preset should carry.
 
@@ -2225,7 +2225,7 @@ which is why neither direction can be a straight copy.
 
 ## Q32. `ReturnBranch` is the Set-form tag for a rack's return chain - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als`, refused by Live 12.4.3 with
+**Evidence:** `build/EXAMPLE_PLAYGRND.als`, refused by Live 12.4.3 with
 
     Illegal class of list member (AudioEffectBranch)
 
@@ -2239,7 +2239,7 @@ differs between the forms, after the branch mixer in Q30, and the third
 thing that is not a straight copy after the pointee ids in Q31.
 
 Fixed in `live_set._branch_from_preset`. The error moved on to Q34 and then
-to four crashes; `build/PATCHBAYGROUND.als` loads in Live 12.4.3 at the
+to four crashes; `build/EXAMPLE_PLAYGRND.als` loads in Live 12.4.3 at the
 eighth attempt, with 221 branches in it.
 
 ## Q33. A track routed into a track, and a sidechain source - ANSWERED
@@ -2294,7 +2294,7 @@ resolving it to an id after every track has one.
 
 ## Q34. A pointee is recognised by SHAPE, not by its tag - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als` at its third attempt, refused by
+**Evidence:** `build/EXAMPLE_PLAYGRND.als` at its third attempt, refused by
 Live 12.4.3 with 131 errors of the form
 
     error: PointeeId 341 is used 8 times.
@@ -2330,7 +2330,7 @@ still a file this writer got wrong.
 
 ## Q35. A preset-only child on a Set-form branch CRASHES Live - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als` at its fourth attempt, against
+**Evidence:** `build/EXAMPLE_PLAYGRND.als` at its fourth attempt, against
 `racks/q32_set.als`. No corrupt dialog and no validation error this time -
 the document parsed, and then
 
@@ -2357,7 +2357,7 @@ branch this wrote.
 `_branch_from_preset` copied a list of tags from the preset, replacing the
 template's node where there was one and APPENDING where there was not. The
 append was the bug: the template comes from a Set Live saved, so a tag it
-lacks is a tag Set form does not have. 221 branches in PATCHBAYGROUND, each
+lacks is a tag Set form does not have. 221 branches in EXAMPLE_PLAYGRND, each
 with one or two children Live's schema does not expect.
 
 **The failure mode is the point.** Q31 and Q32 were refusals naming the
@@ -2371,7 +2371,7 @@ lacks is never added.
 
 ## Q36. A track needs one clip slot per SCENE - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als` at attempts 4 and 5, both
+**Evidence:** `build/EXAMPLE_PLAYGRND.als` at attempts 4 and 5, both
 `EXCEPTION_ACCESS_VIOLATION` about one second into loading, with nothing
 else in the log. Counted against `racks/q32_set.als`, which Live saved.
 
@@ -2479,7 +2479,7 @@ those are `SendsPre`, `Mixer/Sends` on each track, and both `ClipSlotList`s.
 
 ## The Set loads
 
-`build/PATCHBAYGROUND.als` opens in Live 12.4.3: 8 tracks, 6 returns, 52
+`build/EXAMPLE_PLAYGRND.als` opens in Live 12.4.3: 8 tracks, 6 returns, 52
 racks placed, 221 branches, every track routed into PM1 and every EQC but
 DR1's sidechained from it. Eight attempts, and each one found exactly one
 thing, in two kinds.
@@ -2535,7 +2535,7 @@ Two counters sit at Set level and drive Live's own auto-colouring:
 `AutoColorPickerForPlayerAndGroupTracks/NextColorIndex` and
 `AutoColorPickerForReturnAndMainTracks/NextColorIndex`. A Set that colours
 every track explicitly does not need them. That split is why
-`examples/patchbayground.py` spreads tracks and returns over the palette
+`examples/playgrnd.py` spreads tracks and returns over the palette
 SEPARATELY rather than as one list of fourteen: Live keeps two counters
 because it treats them as two groups.
 
@@ -2584,7 +2584,7 @@ rack with no pads, so a drum-only field was outside what it compared.
 
 ## Q41. A chain per sample is a RAM budget - ANSWERED
 
-**Evidence:** `build/PATCHBAYGROUND.als` with `samples/DR1/` holding 1058
+**Evidence:** `build/EXAMPLE_PLAYGRND.als` with `samples/DR1/` holding 1058
 files. Live 12.4.3 reached roughly 10 GB resident and Push 3 stopped
 responding.
 
@@ -2689,7 +2689,7 @@ mapping in Live's browser and save again. The diff is the whole finding.
 writes a valid `KeyMidi` into the switch and leaves the thresholds to
 whatever the donor device carried, which is not a decision anybody made.
 
-`examples/patchbayground.py` sidesteps this entirely: every switch it
+`examples/playgrnd.py` sidesteps this entirely: every switch it
 touches is a `sets(..., True)`, set once and never driven. That is why the
 gap went unnoticed - it is invisible until a spec wants a knob to carry a
 bypass.

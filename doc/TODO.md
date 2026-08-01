@@ -20,7 +20,7 @@ costs against what it decides.
 | 8 | Donor tie-break is wrong for a device with optional slots | me | small | Which donor wins, on every Sampler-shaped device |
 | 9 | A track fed by other tracks needs Monitor = In | me | small, one value | Whether a written Set makes a sound without being touched |
 
-Items 6 to 8 all came out of `examples/berlintechno.py`. `doc/BERLINTECHNO.md`
+Items 6 to 8 all came out of `examples/techno.py`. `doc/EXAMPLE_TECHNO.md`
 has the comparison they sit in.
 
 ## 6. A chain that holds a rack AND devices
@@ -32,7 +32,7 @@ Every drum pad in `donors/BerlinTechno/BerlinTechno.als` is
 and that cannot be declared. `Engine.then` chains ENGINES into a `Series`;
 `Rack.chaining`/`unchained` wraps ONE rack in a `Nested`. A chain is either
 a series of devices or a single nested rack, never a rack followed by
-devices, so `examples/berlintechno.py` builds the Select racks and the FX
+devices, so `examples/techno.py` builds the Select racks and the FX
 racks as separate presets and concatenating them is by hand.
 
 This is not an exotic shape. It is what you get whenever somebody groups
@@ -63,12 +63,12 @@ a BOOLEAN's is a different element, and `.drives(slot, "On")` writes a
 It matters because of what the technique buys. BerlinTechno drives a
 device's `DryWet` and its `On` from ONE macro, so ten effects in series are
 bypassed until their knob is turned. Every `sets(..., True)` in
-`examples/patchbayground.py` is the static version of the same idea.
+`examples/playgrnd.py` is the static version of the same idea.
 
 **What `Min=1 Max=0` means is not known.** The donor writes that pair on
 every switch, the natural reading is inverted, and guessing is rule 1. One
 load answers it, and the check table is at the bottom of
-`doc/BERLINTECHNO.md`. Until then `build/bt/*.adg` carry switch mappings
+`doc/EXAMPLE_TECHNO.md`. Until then `build/bt/*.adg` carry switch mappings
 whose behaviour is unverified.
 
 ## 8. Donor tie-break, for a device with optional slots
@@ -188,7 +188,7 @@ technique the manual recommends and it is already in every EQC.
 
 **Tracks and returns are done**, Q39: `<Color Value="N" />`, 0 to 69, `-1`
 for none, written by `live_set._color_track` and spread evenly across the
-palette by `examples/patchbayground.py`.
+palette by `examples/playgrnd.py`.
 
 What is left is the same element one level in. A Set-form `*Branch` carries
 `Color`, so a rack's chains can be coloured, and so can a clip. **One diff
@@ -223,7 +223,7 @@ routing is by track id (Q33), and sample retargeting needs the two path
 fields on each FileRef (Q10). The paths in a Live-saved file are Live's own
 bookkeeping.
 
-**A Pack of PATCHBAYGROUND would carry the samples**, which is the same
+**A Pack of EXAMPLE_PLAYGRND would carry the samples**, which is the same
 licence question as `samples/`. A Pack is a distribution format, so this
 task decides how a build is shipped, not just how it is written.
 Samples used for this experiment cannot be redistributed, but at least we should

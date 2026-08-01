@@ -1,17 +1,17 @@
-"""BERLINTECHNO - a donor Set read back into a spec.
+"""EXAMPLE_TECHNO - a donor Set read back into a spec.
 
 Reverse engineered from `donors/BerlinTechno/BerlinTechno.als`, a Live
 11.0.11 Set at 135 BPM, with `patchbay extract` and one-question scripts
 over the parsed tree. Every binding, range, note and macro position below
 was read out of that file. Nothing here was written from memory.
 
-    patchbay build examples/berlintechno.py -o build/berlintechno/
-    patchbay session examples/berlintechno.py -o build/berlintechno.als
+    patchbay build examples/techno.py -o build/techno/
+    patchbay session examples/techno.py -o build/techno.als
 
-`examples/patchbayground.py` is this project's own target and is designed
+`examples/playgrnd.py` is this project's own target and is designed
 from the layout outward. This file is the opposite exercise: somebody
 else's Set, read back. What it is for is the comparison, and
-`doc/BERLINTECHNO.md` is where that is written down.
+`doc/EXAMPLE_TECHNO.md` is where that is written down.
 
 ## What this file covers, and what it leaves
 
@@ -62,8 +62,9 @@ from patchbay.live_set import Session, Track
 #: sorted match wins, which is what keeps a vendor's filenames out of a
 #: tracked file. `samples/README.md` is the standing rule and it applies to
 #: a donor Project folder exactly as it applies to `samples/`.
-SAMPLE_ROOT = (Path(__file__).resolve().parent.parent
-               / "samples" / "all" / "berlintechno")
+SAMPLE_ROOT = (
+    Path(__file__).resolve().parent.parent / "samples" / "all" / "techno"
+)
 
 
 def find_sample(category: str) -> Path | None:
@@ -102,16 +103,16 @@ def find_sample(category: str) -> Path | None:
 #
 # The starts here are the ones every pad shares; a pad overrides its own
 # below. PAN at 63.5 is centre over -1..1 and PITCH at 63.5 is 0 semitones
-# over -48..48, because they are bipolar parameters. HPF at 0 and LPF at 
+# over -48..48, because they are bipolar parameters. HPF at 0 and LPF at
 # 127 park both filters wide open, which makes the pair neutral on a fresh drop.
 SELECT = Layout(
-    Slot("SAMPLE SELECTR"),          # 1  multisample zone, not a chain
-    Slot("PITCH", start=63.5),       # 2  0 st, bipolar
-    Slot("DECAY", start=85),         # 3  amp decay AND release together
-    Slot("SAMPLE START"),            # 4  an aux envelope, see below
-    Slot("HPF"),                     # 5  Eq8 band 1, high-pass
-    Slot("LPF", start=127),          # 6  Eq8 band 8, low-pass
-    Slot("PAN", start=63.5),         # 7  centre
+    Slot("SAMPLE SELECTR"),  # 1  multisample zone, not a chain
+    Slot("PITCH", start=63.5),  # 2  0 st, bipolar
+    Slot("DECAY", start=85),  # 3  amp decay AND release together
+    Slot("SAMPLE START"),  # 4  an aux envelope, see below
+    Slot("HPF"),  # 5  Eq8 band 1, high-pass
+    Slot("LPF", start=127),  # 6  Eq8 band 8, low-pass
+    Slot("PAN", start=63.5),  # 7  centre
     Slot("VOLUME", start=75.9140625),
 )
 
@@ -156,7 +157,7 @@ START_DEPTH = Range(0.0, 0.3000000119, "")
 #
 # Both bands are ON and both are inaudible until a knob moves, so the pad
 # gets a playable filter pair without a filter device and without a switch
-# in front of it. `patchbayground.py` reaches for the same trick once, in
+# in front of it. `playgrnd.py` reaches for the same trick once, in
 # `VOL1`, where Sub Cut drives band 1 of an Eq8 after `sets` puts it in mode
 # 1. Q21 established that mode number and this donor uses it eight times.
 #
@@ -184,41 +185,49 @@ START_DEPTH = Range(0.0, 0.3000000119, "")
 # belongs to an Engine and `then` returns a Series: once the Eq8 is
 # attached there is no Sampler left to point at a file. So a pad composes
 # `SAMPLER.sample(path).then(PAD_EQ)` and the order is forced.
-SAMPLER = (Engine("MultiSampler")
-           .drives(SELECT.sample_selectr, "Player/SampleSelector",
-                   over=Range(0.0, 127.0))
-           .drives(SELECT.pitch, "Pitch/TransposeKey", over=PITCH_ST)
-           .drives(SELECT.decay, "VolumeAndPan/Envelope/DecayTime",
-                   "VolumeAndPan/Envelope/ReleaseTime", over=DECAY_MS)
-           # Not a start offset. It is an aux envelope's decay LEVEL, which
-           # on a one-shot bites the front off the sound. The knob is named
-           # for what it does rather than for what it drives, which is the
-           # label-versus-slot split `doc/DSL.md` argues for.
-           #
-           # **This binding is why `donors/MultiSampler.adg` was replaced
-           # out of this very Set.** A Sampler's LFO, Shaper and AuxEnv are
-           # SLOTS, and an empty slot contributes no parameters, so a
-           # donor's vocabulary depends on which slots were filled when it
-           # was saved. The old donor had LFO and Shaper filled, AuxEnv
-           # empty, and no `SampleRef` at ALL - 97 parameters, and unable to
-           # hold a sample. So parameter count is the wrong tie-break for
-           # this device, and the 95-parameter copy is the better donor.
-           .drives(SELECT.sample_start,
-                   "AuxEnv/Slot/Value/SimplerAuxEnvelope/DecayLevel",
-                   over=START_DEPTH)
-           .drives(SELECT.pan, "VolumeAndPan/Panorama", over=Range(-1.0, 1.0))
-           .drives(SELECT.volume, "VolumeAndPan/Volume", over=VOLUME_DB)
-           .drives(SELECT.volume, "VolumeAndPan/Envelope/DecayLevel",
-                   over=LEVEL))
+SAMPLER = (
+    Engine("MultiSampler")
+    .drives(SELECT.sample_selectr, "Player/SampleSelector", over=Range(0.0, 127.0))
+    .drives(SELECT.pitch, "Pitch/TransposeKey", over=PITCH_ST)
+    .drives(
+        SELECT.decay,
+        "VolumeAndPan/Envelope/DecayTime",
+        "VolumeAndPan/Envelope/ReleaseTime",
+        over=DECAY_MS,
+    )
+    # Not a start offset. It is an aux envelope's decay LEVEL, which
+    # on a one-shot bites the front off the sound. The knob is named
+    # for what it does rather than for what it drives, which is the
+    # label-versus-slot split `doc/DSL.md` argues for.
+    #
+    # **This binding is why `donors/MultiSampler.adg` was replaced
+    # out of this very Set.** A Sampler's LFO, Shaper and AuxEnv are
+    # SLOTS, and an empty slot contributes no parameters, so a
+    # donor's vocabulary depends on which slots were filled when it
+    # was saved. The old donor had LFO and Shaper filled, AuxEnv
+    # empty, and no `SampleRef` at ALL - 97 parameters, and unable to
+    # hold a sample. So parameter count is the wrong tie-break for
+    # this device, and the 95-parameter copy is the better donor.
+    .drives(
+        SELECT.sample_start,
+        "AuxEnv/Slot/Value/SimplerAuxEnvelope/DecayLevel",
+        over=START_DEPTH,
+    )
+    .drives(SELECT.pan, "VolumeAndPan/Panorama", over=Range(-1.0, 1.0))
+    .drives(SELECT.volume, "VolumeAndPan/Volume", over=VOLUME_DB)
+    .drives(SELECT.volume, "VolumeAndPan/Envelope/DecayLevel", over=LEVEL)
+)
 
-PAD_EQ = (Engine("Eq8")
-          .sets("Bands.0/ParameterA/IsOn", True)
-          .sets("Bands.0/ParameterA/Mode", 1)     # high-pass, Q21
-          .sets("Bands.0/ParameterA/Freq", 10.0)
-          .sets("Bands.7/ParameterA/IsOn", True)  # mode 6 is the default
-          .sets("Bands.7/ParameterA/Freq", 22000.0)
-          .drives(SELECT.hpf, "Bands.0/ParameterA/Freq", over=BAND_HZ)
-          .drives(SELECT.lpf, "Bands.7/ParameterA/Freq", over=BAND_HZ))
+PAD_EQ = (
+    Engine("Eq8")
+    .sets("Bands.0/ParameterA/IsOn", True)
+    .sets("Bands.0/ParameterA/Mode", 1)  # high-pass, Q21
+    .sets("Bands.0/ParameterA/Freq", 10.0)
+    .sets("Bands.7/ParameterA/IsOn", True)  # mode 6 is the default
+    .sets("Bands.7/ParameterA/Freq", 22000.0)
+    .drives(SELECT.hpf, "Bands.0/ParameterA/Freq", over=BAND_HZ)
+    .drives(SELECT.lpf, "Bands.7/ParameterA/Freq", over=BAND_HZ)
+)
 
 
 # ===========================================================================
@@ -233,7 +242,7 @@ PAD_EQ = (Engine("Eq8")
 # the grid, and Live neither refuses nor warns - it opens with eight named
 # chains and an empty pad layout.
 #
-# Decoded, this kit sits on 36..43: the SAME two rows `patchbayground.py`
+# Decoded, this kit sits on 36..43: the SAME two rows `playgrnd.py`
 # lays DR1 out on, reached independently. What differs is the assignment
 # inside them. Four to a row from the bottom left:
 #
@@ -251,14 +260,14 @@ PAD_EQ = (Engine("Eq8")
 # and is a knob somebody left where they last turned it.
 PADS = (
     # name   note category  pitch        decay        lpf          volume      select
-    ("KICK",  36, "kick",   63.5,       100.875,     127.0,       71.4492188,   0.0),
-    ("CHH",   37, "chh",    63.9960938,  64.6601562, 127.0,       75.9140625,   0.0),
-    ("OHH",   38, "ohh",    59.53125,    76.0703125, 127.0,       75.9140625,   0.0),
-    ("CLAP",  39, None,     63.5,        85.0,       127.0,       75.9140625,   0.0),
-    ("SNARE", 40, None,     63.5,        85.0,       127.0,       75.9140625,   0.0),
-    ("RIDE",  41, "ride",   65.484375,  123.695312,  127.0,       58.0546875,   0.0),
-    ("TOM",   42, "tom",    63.5,        85.0,        36.2148438, 69.9609375,   0.0),
-    ("PERC",  43, "perc",   62.5078125,  91.9453125, 127.0,       50.6132812, 104.675781),
+    ("KICK", 36, "kick", 63.5, 100.875, 127.0, 71.4492188, 0.0),
+    ("CHH", 37, "chh", 63.9960938, 64.6601562, 127.0, 75.9140625, 0.0),
+    ("OHH", 38, "ohh", 59.53125, 76.0703125, 127.0, 75.9140625, 0.0),
+    ("CLAP", 39, None, 63.5, 85.0, 127.0, 75.9140625, 0.0),
+    ("SNARE", 40, None, 63.5, 85.0, 127.0, 75.9140625, 0.0),
+    ("RIDE", 41, "ride", 65.484375, 123.695312, 127.0, 58.0546875, 0.0),
+    ("TOM", 42, "tom", 63.5, 85.0, 36.2148438, 69.9609375, 0.0),
+    ("PERC", 43, "perc", 62.5078125, 91.9453125, 127.0, 50.6132812, 104.675781),
 )
 
 
@@ -275,13 +284,15 @@ def select_rack(name, category, pitch, decay, lpf, volume, select) -> Rack:
         found = find_sample(category)
         if found is not None:
             sampler = sampler.sample(found)
-    return (Rack.instrument(f"{name} Select", SELECT)
-            .chain(name, sampler.then(PAD_EQ))
-            .start(SELECT.pitch, pitch)
-            .start(SELECT.decay, decay)
-            .start(SELECT.lpf, lpf)
-            .start(SELECT.volume, volume)
-            .start(SELECT.sample_selectr, select))
+    return (
+        Rack.instrument(f"{name} Select", SELECT)
+        .chain(name, sampler.then(PAD_EQ))
+        .start(SELECT.pitch, pitch)
+        .start(SELECT.decay, decay)
+        .start(SELECT.lpf, lpf)
+        .start(SELECT.volume, volume)
+        .start(SELECT.sample_selectr, select)
+    )
 
 
 SELECT_RACKS = [select_rack(*row[:1], *row[2:]) for row in PADS]
@@ -309,7 +320,7 @@ SELECT_RACKS = [select_rack(*row[:1], *row[2:]) for row in PADS]
 # the `On` bindings below write a `KeyMidi` into the switch and leave the
 # thresholds to whatever the donor device carries. Whether that behaves is
 # the one thing in this file a person has to check; see the check table in
-# `doc/BERLINTECHNO.md`.
+# `doc/EXAMPLE_TECHNO.md`.
 #
 # The ranges are the donor's own and several are narrow on purpose:
 # Overdrive at 0..50 of a 0..100 DryWet, Amp at 0..0.3, Reverb at 0..0.5.
@@ -337,26 +348,28 @@ HAT_FX = Layout(
 HAT_STRIP = Rack.audio_effect("HAT FX", HAT_FX).chain(
     "Chain",
     Engine("Eq8")
-    .then(Engine("Saturator")
-          .drives(HAT_FX.warm, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("Overdrive")
-          .drives(HAT_FX.enhancer, "DryWet", over=Range(0.0, 50.0)))
-    .then(Engine("Amp")
-          .drives(HAT_FX.amp, "DryWet", over=Range(0.0, 0.3000000119)))
-    .then(Engine("Redux")
-          .drives(HAT_FX.crush, "SampleResSoft", over=Range(1.0, 5.0)))
-    .then(Engine("Eq8")
-          .drives(HAT_FX.bright, "Bands.3/ParameterA/Gain",
-                  over=Range(0.0, 4.0))
-          .drives(HAT_FX.bright, "GlobalGain", over=Range(0.0, -4.0)))
-    .then(Engine("Erosion")
-          .drives(HAT_FX.wide_noise, "On")
-          .drives(HAT_FX.wide_noise, "Amplitude", over=Range(0.0, 200.0)))
-    .then(Engine("Reverb")
-          .drives(HAT_FX.reverb, "MixDirect", over=Range(0.0, 0.5)))
+    .then(Engine("Saturator").drives(HAT_FX.warm, "DryWet", over=Range(0.0, 1.0)))
+    .then(Engine("Overdrive").drives(HAT_FX.enhancer, "DryWet", over=Range(0.0, 50.0)))
+    .then(Engine("Amp").drives(HAT_FX.amp, "DryWet", over=Range(0.0, 0.3000000119)))
+    .then(Engine("Redux").drives(HAT_FX.crush, "SampleResSoft", over=Range(1.0, 5.0)))
+    .then(
+        Engine("Eq8")
+        .drives(HAT_FX.bright, "Bands.3/ParameterA/Gain", over=Range(0.0, 4.0))
+        .drives(HAT_FX.bright, "GlobalGain", over=Range(0.0, -4.0))
+    )
+    .then(
+        Engine("Erosion")
+        .drives(HAT_FX.wide_noise, "On")
+        .drives(HAT_FX.wide_noise, "Amplitude", over=Range(0.0, 200.0))
+    )
+    .then(Engine("Reverb").drives(HAT_FX.reverb, "MixDirect", over=Range(0.0, 0.5)))
     .then(Engine("Eq8"))
-    .then(Engine("Compressor2")
-          .drives(HAT_FX.punch, "DryWet", over=Range(0.0, 0.6999999881))))
+    .then(
+        Engine("Compressor2").drives(
+            HAT_FX.punch, "DryWet", over=Range(0.0, 0.6999999881)
+        )
+    ),
+)
 
 
 CLAP_FX = Layout(
@@ -382,29 +395,44 @@ CLAP_STRIP = Rack.audio_effect("CLAP FX", CLAP_FX).chain(
     # without shifting it. Coarse is what PERC uses for the opposite effect.
     Engine("FrequencyShifter")
     .drives(CLAP_FX.tune, "Fine", over=Range(-499.999969, 499.999969))
-    .then(Engine("Erosion")
-          .drives(CLAP_FX.analog, "On")
-          .drives(CLAP_FX.analog, "Amplitude", over=Range(0.0, 200.0)))
-    .then(Engine("GlueCompressor")
-          .drives(CLAP_FX.punch, "On")
-          .drives(CLAP_FX.punch, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("Overdrive")
-          .drives(CLAP_FX.disto, "On")
-          .drives(CLAP_FX.disto, "DryWet", over=Range(0.0, 30.0)))
-    .then(Engine("Tube")
-          .drives(CLAP_FX.color_1, "On")
-          .drives(CLAP_FX.color_1, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("Corpus")
-          .drives(CLAP_FX.bright, "On")
-          .drives(CLAP_FX.bright, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("MultibandDynamics")
-          .drives(CLAP_FX.color_2, "On")
-          .drives(CLAP_FX.color_2, "GlobalAmount", over=Range(0.0, 1.0)))
-    .then(Engine("Reverb")
-          .drives(CLAP_FX.reverb, "On")
-          .drives(CLAP_FX.reverb, "MixDirect", over=Range(0.0, 0.400000006)))
+    .then(
+        Engine("Erosion")
+        .drives(CLAP_FX.analog, "On")
+        .drives(CLAP_FX.analog, "Amplitude", over=Range(0.0, 200.0))
+    )
+    .then(
+        Engine("GlueCompressor")
+        .drives(CLAP_FX.punch, "On")
+        .drives(CLAP_FX.punch, "DryWet", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("Overdrive")
+        .drives(CLAP_FX.disto, "On")
+        .drives(CLAP_FX.disto, "DryWet", over=Range(0.0, 30.0))
+    )
+    .then(
+        Engine("Tube")
+        .drives(CLAP_FX.color_1, "On")
+        .drives(CLAP_FX.color_1, "DryWet", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("Corpus")
+        .drives(CLAP_FX.bright, "On")
+        .drives(CLAP_FX.bright, "DryWet", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("MultibandDynamics")
+        .drives(CLAP_FX.color_2, "On")
+        .drives(CLAP_FX.color_2, "GlobalAmount", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("Reverb")
+        .drives(CLAP_FX.reverb, "On")
+        .drives(CLAP_FX.reverb, "MixDirect", over=Range(0.0, 0.400000006))
+    )
     .then(Engine("Limiter"))
-    .then(Engine("StereoGain")))
+    .then(Engine("StereoGain")),
+)
 
 
 PERC_FX = Layout(
@@ -431,27 +459,42 @@ PERC_STRIP = Rack.audio_effect("PERC FX", PERC_FX).chain(
     Engine("FrequencyShifter")
     .drives(PERC_FX.pitch, "On")
     .drives(PERC_FX.pitch, "Coarse", over=Range(-10000.0, 10000.0))
-    .then(Engine("FrequencyShifter")
-          .drives(PERC_FX.ring, "On")
-          .drives(PERC_FX.ring, "RingModCoarse", over=Range(1.0, 10000.0)))
-    .then(Engine("Redux")
-          .drives(PERC_FX.redux, "On")
-          .drives(PERC_FX.redux, "SampleResSoft", over=Range(1.0, 20.0)))
-    .then(Engine("Vocoder")
-          .drives(PERC_FX.noise, "On")
-          .drives(PERC_FX.noise, "DryWet", over=Range(0.0, 0.1000000015)))
-    .then(Engine("Saturator")
-          .drives(PERC_FX.saturation, "On")
-          .drives(PERC_FX.saturation, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("Pedal")
-          .drives(PERC_FX.fuzz, "On")
-          .drives(PERC_FX.fuzz, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("Echo")
-          .drives(PERC_FX.delay, "On")
-          .drives(PERC_FX.delay, "DryWet", over=Range(0.0, 1.0)))
-    .then(Engine("Reverb")
-          .drives(PERC_FX.reverb, "On")
-          .drives(PERC_FX.reverb, "MixDirect", over=Range(0.0, 1.0))))
+    .then(
+        Engine("FrequencyShifter")
+        .drives(PERC_FX.ring, "On")
+        .drives(PERC_FX.ring, "RingModCoarse", over=Range(1.0, 10000.0))
+    )
+    .then(
+        Engine("Redux")
+        .drives(PERC_FX.redux, "On")
+        .drives(PERC_FX.redux, "SampleResSoft", over=Range(1.0, 20.0))
+    )
+    .then(
+        Engine("Vocoder")
+        .drives(PERC_FX.noise, "On")
+        .drives(PERC_FX.noise, "DryWet", over=Range(0.0, 0.1000000015))
+    )
+    .then(
+        Engine("Saturator")
+        .drives(PERC_FX.saturation, "On")
+        .drives(PERC_FX.saturation, "DryWet", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("Pedal")
+        .drives(PERC_FX.fuzz, "On")
+        .drives(PERC_FX.fuzz, "DryWet", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("Echo")
+        .drives(PERC_FX.delay, "On")
+        .drives(PERC_FX.delay, "DryWet", over=Range(0.0, 1.0))
+    )
+    .then(
+        Engine("Reverb")
+        .drives(PERC_FX.reverb, "On")
+        .drives(PERC_FX.reverb, "MixDirect", over=Range(0.0, 1.0))
+    ),
+)
 
 
 HAT_DELAY_FX = Layout(
@@ -470,14 +513,12 @@ HAT_DELAY_FX = Layout(
 # do this at all, because a selector picks one.
 HAT_DELAYS = Rack.audio_effect("HAT DELAYS", HAT_DELAY_FX).chain(
     "Chain",
-    Engine("Delay").drives(HAT_DELAY_FX.delay_1, "DryWet",
-                           over=Range(0.0, 0.5))
-    .then(Engine("Delay").drives(HAT_DELAY_FX.delay_2, "DryWet",
-                                 over=Range(0.0, 0.5)))
-    .then(Engine("Delay").drives(HAT_DELAY_FX.delay_3, "DryWet",
-                                 over=Range(0.0, 0.5)))
-    .then(Engine("Delay").drives(HAT_DELAY_FX.delay_4, "DryWet",
-                                 over=Range(0.0, 0.5))))
+    Engine("Delay")
+    .drives(HAT_DELAY_FX.delay_1, "DryWet", over=Range(0.0, 0.5))
+    .then(Engine("Delay").drives(HAT_DELAY_FX.delay_2, "DryWet", over=Range(0.0, 0.5)))
+    .then(Engine("Delay").drives(HAT_DELAY_FX.delay_3, "DryWet", over=Range(0.0, 0.5)))
+    .then(Engine("Delay").drives(HAT_DELAY_FX.delay_4, "DryWet", over=Range(0.0, 0.5))),
+)
 
 
 RIDE_DELAY_FX = Layout(
@@ -497,32 +538,41 @@ RIDE_DELAY_FX = Layout(
 # **The donor runs this as two PARALLEL chains, 'Wet' and 'Dry', both at
 # zone 0/0/0/0 so both sound at once.** The Dry chain holds NO DEVICES, and
 # a chain with no devices has no syntax here, so this builds the Wet half
-# only and the dry path is the Delay's own DryWet. That changes the sound
-# and is written down rather than hidden.
+# only and the dry path is the Delay's own DryWet.
 #
 # Zones at 0/0/0/0 across every chain is worth noting on its own: this Set
-# uses a rack as a parallel MIXER rather than a selector. Same construct,
-# opposite reading.
+# uses a rack as a parallel MIXER rather than a selector.
 RIDE_DELAY = Rack.audio_effect("RIDE DELAY", RIDE_DELAY_FX).chain(
     "Wet",
     Engine("Delay")
-    .drives(RIDE_DELAY_FX.time, "DelayLine_SimpleDelayTimeL",
-            over=Range(1.0, 145.828125))
+    .drives(
+        RIDE_DELAY_FX.time, "DelayLine_SimpleDelayTimeL", over=Range(1.0, 145.828125)
+    )
     .drives(RIDE_DELAY_FX["DRY/WET"], "DryWet", over=Range(0.0, 1.0))
-    .then(Engine("Eq8")
-          .drives(RIDE_DELAY_FX.low_shelf, "Bands.3/ParameterA/Gain",
-                  over=Range(-15.0, 15.0))
-          .drives(RIDE_DELAY_FX.hi_shelf, "Bands.4/ParameterA/Gain",
-                  over=Range(-15.0, 15.0))
-          .drives(RIDE_DELAY_FX.eq_1_freq, "Bands.0/ParameterA/Freq",
-                  over=BAND_HZ)
-          .drives(RIDE_DELAY_FX.eq_1_gain, "Bands.0/ParameterA/Gain",
-                  over=Range(-15.0, 15.0))
-          # One knob, two bands. Same pairing idea as BRIGHT above.
-          .drives(RIDE_DELAY_FX.eq_2_freq, "Bands.1/ParameterA/Freq",
-                  "Bands.2/ParameterA/Freq", over=BAND_HZ)
-          .drives(RIDE_DELAY_FX.eq_2_gain, "Bands.1/ParameterA/Gain",
-                  over=Range(-15.0, 15.0))))
+    .then(
+        Engine("Eq8")
+        .drives(
+            RIDE_DELAY_FX.low_shelf, "Bands.3/ParameterA/Gain", over=Range(-15.0, 15.0)
+        )
+        .drives(
+            RIDE_DELAY_FX.hi_shelf, "Bands.4/ParameterA/Gain", over=Range(-15.0, 15.0)
+        )
+        .drives(RIDE_DELAY_FX.eq_1_freq, "Bands.0/ParameterA/Freq", over=BAND_HZ)
+        .drives(
+            RIDE_DELAY_FX.eq_1_gain, "Bands.0/ParameterA/Gain", over=Range(-15.0, 15.0)
+        )
+        # One knob, two bands. Same pairing idea as BRIGHT above.
+        .drives(
+            RIDE_DELAY_FX.eq_2_freq,
+            "Bands.1/ParameterA/Freq",
+            "Bands.2/ParameterA/Freq",
+            over=BAND_HZ,
+        )
+        .drives(
+            RIDE_DELAY_FX.eq_2_gain, "Bands.1/ParameterA/Gain", over=Range(-15.0, 15.0)
+        )
+    ),
+)
 
 
 FX_RACKS = [HAT_STRIP, CLAP_STRIP, PERC_STRIP, HAT_DELAYS, RIDE_DELAY]
@@ -557,10 +607,12 @@ REVERB_RETURN = Rack.audio_effect("a Reverb", Layout()).chain(
     Engine("Reverb")
     .then(Engine("Eq8"))
     .then(Engine("Saturator"))
-    .then(Engine("Compressor2")))
+    .then(Engine("Compressor2")),
+)
 
 DRUMS_FX_RETURN = Rack.audio_effect("d Drums Fx 1", Layout()).chain(
-    "Chain", Engine("Delay").then(Engine("Reverb")))
+    "Chain", Engine("Delay").then(Engine("Reverb"))
+)
 
 
 def kit() -> Rack:
@@ -579,11 +631,12 @@ def kit() -> Rack:
     for rack, (name, note, *_) in zip(SELECT_RACKS, PADS):
         sends = {"d Drums Fx 1": 1.0} if name == "TOM" else None
         made = made.pad(name, note, rack.unchained(), sends=sends)
-    return (made
-            .ret("a Reverb", REVERB_RETURN.unchained())
-            .ret("b Delay C/S", Engine("Delay"))
-            .ret("c Delay Hats", Engine("Delay").then(Engine("Eq8")))
-            .ret("d Drums Fx 1", DRUMS_FX_RETURN.unchained()))
+    return (
+        made.ret("a Reverb", REVERB_RETURN.unchained())
+        .ret("b Delay C/S", Engine("Delay"))
+        .ret("c Delay Hats", Engine("Delay").then(Engine("Eq8")))
+        .ret("d Drums Fx 1", DRUMS_FX_RETURN.unchained())
+    )
 
 
 KIT_RACK = kit()
@@ -595,7 +648,7 @@ RACKS: list[Rack] = [KIT_RACK] + SELECT_RACKS + FX_RACKS
 # The Set
 # ===========================================================================
 #
-#     patchbay session examples/berlintechno.py -o build/berlintechno.als
+#     patchbay session examples/techno.py -o build/techno.als
 #
 # One track. The donor has eight, and the other seven carry loose devices
 # with no rack on them - a Wavetable and five effects, an Operator and five
@@ -610,9 +663,16 @@ DRUMS_COLOR = 15
 
 
 def SESSION() -> Session:
-    """BERLINTECHNO as a Live Set: one MIDI track carrying the kit."""
+    """EXAMPLE_TECHNO as a Live Set: one MIDI track carrying the kit."""
     return Session(
-        [Track("Drums", "midi", [KIT_RACK.build().find("GroupDevicePreset")],
-               color=DRUMS_COLOR)],
+        [
+            Track(
+                "Drums",
+                "midi",
+                [KIT_RACK.build().find("GroupDevicePreset")],
+                color=DRUMS_COLOR,
+            )
+        ],
         returns=[],
-        tempo=135.0)
+        tempo=135.0,
+    )

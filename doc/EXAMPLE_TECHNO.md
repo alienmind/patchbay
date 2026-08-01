@@ -1,25 +1,25 @@
-# BERLINTECHNO
+# EXAMPLE_TECHNO
 
-A donor Set read back into a spec, and what it says about PATCHBAYGROUND.
+A donor Set read back into a spec, and what it says about EXAMPLE_PLAYGRND.
 
 `donors/BerlinTechno/BerlinTechno.als` is a Live 11.0.11 Set at 135 BPM: a
-drum rack on one track and seven synth tracks. `examples/berlintechno.py`
+drum rack on one track and seven synth tracks. `examples/techno.py`
 is the drum rack rebuilt as a declaration.
 
-Read this alongside `doc/PATCHBAYGROUND.md`, which is the same kind of
+Read this alongside `doc/EXAMPLE_PLAYGRND.md`, which is the same kind of
 document for our own target. This one is comparison, not a target: nothing
 here is a plan to build anything.
 
 ## Why bother
 
-PATCHBAYGROUND was designed from the layout outward, and its arguments are
+EXAMPLE_PLAYGRND was designed from the layout outward, and its arguments are
 recorded next to the decisions they justify. That makes them hard to test.
 A second Set, built by somebody else, by hand, for a different genre, is
 the nearest thing to a control: where it AGREES the idea is probably
 structural, and where it DIVERGES the argument was taste.
 
 It is also much simpler, which is the point. One rack with real
-architecture in it, against PATCHBAYGROUND's fifty-two.
+architecture in it, against EXAMPLE_PLAYGRND's fifty-two.
 
 ## What was rebuilt
 
@@ -48,7 +48,7 @@ code in it - which is the strongest evidence available that the shape is
 not an artefact of having a compiler.
 
 **The kit sits on notes 36..43.** Both. Push's bottom two rows, four to a
-row. PATCHBAYGROUND argues for this from what a hand plays; this Set just
+row. EXAMPLE_PLAYGRND argues for this from what a hand plays; this Set just
 does it.
 
 **A start position is part of the design.** Every pad parks PAN at 63.5
@@ -63,11 +63,11 @@ DryWet, Amp at 0..0.3, Reverb at 0..0.5, Erosion at 0..200. Live 12.4.3 has
 no UI for `MidiControllerRange` at all, so every one of these was set
 through the mapping browser deliberately. A knob that reaches a third of
 its target is a knob you cannot ruin the sound with - the same argument
-PATCHBAYGROUND's capped volume ranges make, applied to effects.
+EXAMPLE_PLAYGRND's capped volume ranges make, applied to effects.
 
 **One knob, two parameters, one idea.** DECAY drives decay AND release.
 BRIGHT lifts a band 0..4 dB while dropping global gain 0..-4, so it tilts
-at constant loudness. EQ 2 FREQ moves two bands together. PATCHBAYGROUND
+at constant loudness. EQ 2 FREQ moves two bands together. EXAMPLE_PLAYGRND
 pairs cutoff with resonance and argues the case at length; this Set does it
 four times without comment.
 
@@ -87,7 +87,7 @@ difference is what the Set is FOR.
 
 The sharpest one.
 
-PATCHBAYGROUND's `AFX1` is eight effects behind one selector: eight
+EXAMPLE_PLAYGRND's `AFX1` is eight effects behind one selector: eight
 alternatives, one in circuit, a macro swaps which. Its comment gives the
 reason - "parallel audio chains are expensive; a selector is not".
 
@@ -96,7 +96,7 @@ in circuit, one macro each. The signal goes through all ten. A knob is not
 "which effect" but "how much of this one", so the eight knobs are a mixing
 desk over a fixed chain.
 
-| | PATCHBAYGROUND `AFX1` | BERLINTECHNO `PERC FX` |
+| | EXAMPLE_PLAYGRND `AFX1` | EXAMPLE_TECHNO `PERC FX` |
 |---|---|---|
 | chains | 8 | 1 |
 | devices in circuit | 1 | 8 |
@@ -114,7 +114,7 @@ device is bypassed, not merely dry. So ten effects in series cost nothing
 until a knob is turned, and the rack is a menu that charges for what you
 use. `PERC FX` does it on all eight devices, `CLAP FX` on seven.
 
-PATCHBAYGROUND sets `On` STATICALLY in six places - `Lfo/LfoOn`,
+EXAMPLE_PLAYGRND sets `On` STATICALLY in six places - `Lfo/LfoOn`,
 `Filter_On`, `FilterOn`, `SideChain/OnOff` - always as a `sets`, never as a
 binding. Those exist to stop Q16, a knob bound behind a switch that is off.
 This Set puts the switch ON THE SAME KNOB, which solves the same problem
@@ -146,14 +146,14 @@ This Set has **no return tracks at all**. Four returns live INSIDE the drum
 rack, so the whole kit's effects travel with the preset and a Set built
 around it needs nothing.
 
-PATCHBAYGROUND puts six returns on the Set and two inside DR1.
+EXAMPLE_PLAYGRND puts six returns on the Set and two inside DR1.
 
 A rack carrying its own returns is a self-contained instrument, which is
 the argument for doing it this way; returns on the Set are shared across
 tracks, which is the argument for the other. Both Sets do both, in
 different proportions.
 
-Naming diverges with it. PATCHBAYGROUND names a return for its CHARACTER,
+Naming diverges with it. EXAMPLE_PLAYGRND names a return for its CHARACTER,
 `A-Rvb:Short`. This Set names two of four for WHAT FEEDS THEM: `b Delay
 C/S` and `c Delay Hats` are the same device tuned for clap/snare and for
 hats. Character naming survives re-use; source naming documents intent.
@@ -174,7 +174,7 @@ chosen by its note and a drum rack has no chain selector.
 
 ### A layout names a signal path, not an idea
 
-| PATCHBAYGROUND `PB` | BERLINTECHNO `SELECT` |
+| EXAMPLE_PLAYGRND `PB` | EXAMPLE_TECHNO `SELECT` |
 |---|---|
 | Instrument, Sound, Filter, Drive, Movement, Character, Release, Volume | SAMPLE SELECTR, PITCH, DECAY, SAMPLE START, HPF, LPF, PAN, VOLUME |
 
@@ -190,7 +190,7 @@ slot called Character.
 `RIDE DELAY` has two chains, `Wet` and `Dry`, both at zone `0/0/0/0`, so
 both sound at once. The Dry chain holds no devices - it is a bypass path.
 
-PATCHBAYGROUND uses a rack as a SELECTOR everywhere and distributes zones
+EXAMPLE_PLAYGRND uses a rack as a SELECTOR everywhere and distributes zones
 evenly across 0..127. Same construct, opposite reading, and the tell is
 that every zone is `0/0/0/0` rather than a share.
 
@@ -201,7 +201,7 @@ range: band 1 in mode 1 (high-pass, Q21) at 10 Hz, band 8 in mode 6
 (low-pass) at 22 kHz. Both on, both inaudible until a knob moves.
 
 So the pad gets a playable filter pair with no filter device and no switch
-in front of it. PATCHBAYGROUND reaches for the same trick exactly once, in
+in front of it. EXAMPLE_PLAYGRND reaches for the same trick exactly once, in
 `VOL1`'s Sub Cut, and this Set uses it eight times. It is the cheaper
 answer to "a filter on every pad" than the Simpler filter DR1 binds.
 
@@ -238,7 +238,7 @@ matters, because it is the shape of this whole Set. Every pad chain is
     [Select rack] -> [FX rack] -> Eq8 -> StereoGain
 
 and the DSL's `then` chains Engines while `Nested` wraps one rack, with no
-way to write the concatenation. So `examples/berlintechno.py` builds the
+way to write the concatenation. So `examples/techno.py` builds the
 Select racks and the FX racks as SEPARATE presets and putting one after the
 other is by hand.
 

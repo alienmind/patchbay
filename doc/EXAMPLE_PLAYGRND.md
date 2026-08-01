@@ -1,45 +1,49 @@
-# PATCHBAYGROUND
+# PLAYGRND
 
-The musical target that `patchbay` exists to serve, and the spec
-`examples/patchbayground.py` compiles. Read this alongside `CLAUDE.md`,
-which covers the tooling.
+Some inspiration of this project came while trying to recreate the amazing **PLAYGRND**, an Ableton Live Set
+by **Andri Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw (please support the author and buy his product!).
 
-## Inspired by PLAYGRND
+Based on the information publicly made available from him, what that Set demonstrates
+is worth taking: one macro layout repeated across every rack, engines as chains,
+using knobs to quickly switch between instruments, a semi fixed channel strip on every track,
+and racks nested inside racks so one instrument reaches all the others.
 
-The idea came from **PLAYGRND**, an Ableton Live Set for Push by **Andri
-Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw
+[`examples/playgrnd.py`](examples/playgrnd.py) is this
+project's attempt at rebuilding something with that complexity with the obvious non intention
+of copying the author intelectual property.
 
-What that Set demonstrates is an ARCHITECTURE, and the architecture is the
-part worth taking: one macro layout repeated across every rack, engines as
-chains, sounds as selector positions, a fixed channel strip on every track,
-and racks nested inside racks so one instrument can reach all the others.
-
-PATCHBAYGROUND is our own build of that idea, to our own taste, for our own
-music. The tracks, the slot names, the engine choices and the sound design
-are ours. What we borrowed is the shape.
-
-Assembling a template of this kind by hand is thousands of macro mappings
-and tens of thousands of parameter values, entered one at a time by mouse.
-**That tedium is what `patchbay` exists to remove.**
+It primarily serves as **one big example, and the end-to-end test** that puts this idea into stress:
+Twelve racks, six instruments and a six rack channel strip, three levels of nesting, 96 variations, eight drum pads
+- if a change breaks something real, it breaks there first. All twelve have been loaded into Live 12.4.3 and played.
 
 ## Goal
 
-A hyper-mapped Live template for Push 3. The design goal is that the
-mouse is never needed during a jam: every meaningful control sits on a
+What that Set demonstrates is an ARCHITECTURE: A hyper-mapped Live template for Push 3.
+The design goal is that the mouse is never needed during a jam: every meaningful control sits on a
 macro, reachable from a Push encoder.
+
+PLAYGRND has one macro layout repeated across every rack, engines as
+chains, sounds as selector positions, a fixed channel strip on every track,
+and racks nested inside racks so one instrument can reach all the others.
+
+Assembling a template of this kind by hand is thousands of macro mappings
+and tens of thousands of parameter values, entered one at a time by mouse.
+
+Our own build of that idea helps automate the tedious parts: the tracks, the slot names,
+the engine choices and the sound design are yours.
 
 ## The eight tracks
 
 | Track | Type | Role |
 |---|---|---|
-| DR1 | MIDI | Drum rack, RYTM inspired, per pad sends and FM |
-| BS1 | MIDI | Multi engine bass |
-| PD1 | MIDI | Polyphonic pads, Wavetable based |
-| LD1 | MIDI | Leads, FM based, mono with glide |
-| SR1 | MIDI | Sampler, built in sounds plus a hot swap slot |
+| DR | MIDI | Drum rack, RYTM inspired, per pad sends and FM |
+| BS | MIDI | Multi engine bass |
+| PD | MIDI | Polyphonic pads, Wavetable based |
+| LD | MIDI | Leads, FM based, mono with glide |
+| SR | MIDI | Sampler, built in sounds plus a hot swap slot |
 | VA1 | MIDI | Various, nests all five instruments above |
 | VA2 | MIDI | Various, second instance |
-| PM1 | **Audio** | Pre master |
+| PM | **Audio** | Pre master |
 
 Two VA tracks rather than one, because the whole point of a nesting rack is
 that you want a second one the moment you have used the first.
@@ -49,26 +53,26 @@ that you want a second one the moment you have used the first.
 Every track carries the same devices in the same order. The instrument sits
 third, after the MIDI effects that feed it:
 
-    ARP1   MFX1   <instrument>   EQC   AFX1   AFXS1   Channel EQ   VOL1
+    ARP   MFX   <instrument>   EQC   AFX   AFXS   Channel EQ   VOL
 
 | Device | Kind | Carries |
 |---|---|---|
-| ARP1 | MIDI rack | Style, Rate, Retrigger, Random Notes, Jitter, Transpose Steps, Gates, Velocity Random |
-| MFX1 | MIDI rack | Velocity Range, Velocity Random, Pitch, Scale Selector, Scale Root |
+| ARP | MIDI rack | Style, Rate, Retrigger, Random Notes, Jitter, Transpose Steps, Gates, Velocity Random |
+| MFX | MIDI rack | Velocity Range, Velocity Random, Pitch, Scale Selector, Scale Root |
 | EQC | Audio rack | Lo-Hi EQ, EQ Dry-Wet, Compressor Dry-Wet, Gain, and the sidechain |
-| AFX1 | Audio rack | Eight character effects, one selector |
-| AFXS1 | Audio rack | Second effect slot, freely editable |
+| AFX | Audio rack | Eight character effects, one selector |
+| AFXS | Audio rack | Second effect slot, freely editable |
 | Channel EQ | Stock Live | Left stock. Not everything needs wrapping |
-| VOL1 | Audio rack | Sub-Cut, Pre-Gain, Limiter |
+| VOL | Audio rack | Sub-Cut, Pre-Gain, Limiter |
 
 The arpeggiator is a DEVICE, not a track. Putting it in the strip means any
 track can be arpeggiated without routing anything.
 
 **Naming rule:** an instance of the strip is named for the track it sits
-on, `EQC_BS1` on BS1. Copying a strip between tracks without renaming is
-how you end up staring at `EQC_LD1` on a pad track wondering what it means.
+on, `EQC_BS` on BS. Copying a strip between tracks without renaming is
+how you end up staring at `EQC_LD` on a pad track wondering what it means.
 
-Six return tracks. Sends live on the channel strip and on DR1 pads, NOT on
+Six return tracks. Sends live on the channel strip and on DR pads, NOT on
 the instrument rack, so an instrument's eight knobs stay spent on sound.
 
 **Returns are named for character, not device.** A return called
@@ -104,7 +108,7 @@ Slots 1, 2, 7 and 8 are FIXED across every rack. Slots 3 to 6 are where a
 rack spends its character. A rack that cannot use a slot leaves it empty
 rather than inventing a use for it.
 
-SR1 is the deliberate exception: a sampler has no instrument axis, so slots
+SR is the deliberate exception: a sampler has no instrument axis, so slots
 1 and 2 become Samples and Start Point, and slots 3 to 6 become Filter,
 Pitch, Loop Length and Attack. Same shape, different content.
 
@@ -213,7 +217,7 @@ This is what makes a two part address pay off twice: inside VA1, the first
 number is which instrument family you are in, and sweeping it walks from
 percussion into bass into leads without leaving the track.
 
-## DR1 structure
+## DR structure
 
 Three levels of nesting per pad:
 
@@ -263,7 +267,7 @@ Per pad, reached by diving into the pad on Push, which is free:
     Filter+Drive   Send A   Send B   Decay   Volume
 
 Send A and Send B at kit level are **FX SELECTORS**, not send levels. The
-knob swaps which effect the send feeds. DR1 return chains live inside the
+knob swaps which effect the send feeds. DR return chains live inside the
 Drum Rack via Show Return Chains, and each holds a selector across several
 reverbs and delays.
 
@@ -295,7 +299,7 @@ are local, so a pad can say what its own slot 5 does. And the conservative
 branch was not free: it left the first knob inside every pad dead and the
 kit and pad rows offset by one.
 
-## AFX1
+## AFX
 
 Eight character effects behind one selector, so a knob swaps the effect
 rather than layering it. Parallel audio chains are expensive; a selector is
@@ -308,14 +312,14 @@ reachable in a jam and obviously different from its neighbours.
 
 ## Sidechain
 
-No ghost track. The EQC compressor sidechains from DR1 with the sidechain
+No ghost track. The EQC compressor sidechains from DR with the sidechain
 EQ set to a low band only, so it tracks the kick and ignores hats. Reverb
 returns are sidechained too, not just instrument channels.
 
-## PM1
+## PM
 
 The Master track has no Session clip slots, so master bus moves cannot be
-automated in Session view. PM1 solves this: an audio track that all seven
+automated in Session view. PM solves this: an audio track that all seven
 other tracks route into, carrying the master chain, with silent dummy clips
 holding automation envelopes. Requires Session Automation Recording enabled
 in Record/Warp/Launch preferences.
@@ -332,13 +336,6 @@ is for:
 - **Sounds are the compositional unit.** The template succeeds when a whole
   track can be built without opening the browser once.
 
-## Current state
-
-**Not here.** What is built lives in `README.md`, what is unfinished lives
-in `doc/TODO.md`, and this file is the target rather than the progress
-report. The table that used to sit here listed DR1, BS1, LD1 and VA1 as
-blocked on capabilities that have all landed.
-
 ## Not built yet, but within reach
 
 Not blockers. Decisions deferred, listed so they are chosen deliberately
@@ -347,38 +344,19 @@ rather than by accident:
 - **How many chains sit behind the Sound macro, and whether the selector
   steps or crossfades.** Stepping gives clean recall; crossfading gives a
   sweep. The choice changes what the knob is for.
-- **Per pad unlinking of DR1's global Sound and Pitch.** The global knob
+- **Per pad unlinking of DR's global Sound and Pitch.** The global knob
   chains into every pad, and a pad should be able to opt out without
   breaking the chain for its neighbours.
 - **Per engine parameter ranges.** Every binding currently reaches a
   parameter's full range. Scoped ranges are what make one knob feel the
   same across engines that disagree about units.
-- **The slot 6 wildcard, per rack.** PD1 spends `Character` on resonance,
+- **The slot 6 wildcard, per rack.** PD spends `Character` on resonance,
   because Operator and Simpler both have one and slot 3 is cutoff alone.
   That is a default, not a decision. Pairing resonance onto slot 3 frees
   slot 6 for what it is actually for: attack on a pad, saturation on a
   bass, glide on a lead, and Meld's L-B-H-N morph wherever Meld lands.
 - **Whether a slot may change meaning with depth.** Fixed per rack is the
-  current rule. Per level buys four more controls inside DR1 and costs the
-  guarantee that a knob means one thing. See DR1 structure above.
-- **A second effect slot on the strip.** AFXS1 exists in the layout and has
+  current rule. Per level buys four more controls inside DR and costs the
+  guarantee that a knob means one thing. See DR structure above.
+- **A second effect slot on the strip.** AFXS exists in the layout and has
   no contents.
-
-## What was tried and rejected
-
-- **Driving a running Live for the build.** Live's API can create tracks,
-  write notes, set names and tempo. It cannot group devices, map macros, or
-  set chain zones, because the Object Model does not expose those. Verified
-  against Live's own `LomTypes` table, not assumed.
-
-  It also cannot load the racks this project generates, which is the part
-  that killed it as a build route: a device reaches a track only by browser
-  URI, and Live's browser index is a snapshot taken at startup, so a rack
-  written while Live is running is not there to load. The Set is written as
-  a file instead, by `patchbay session`. `THE_BASEMENT.md` and Q30.
-- **Building on ableton-inspector.** Read only, `.als` only, and its schema
-  coverage stops well short of devices and racks. Useful only as
-  confirmation that these files are gzipped XML and that samples live in
-  `FileRef` elements.
-
-The 13 slot layout this document used to specify is in `THE_BASEMENT.md`.

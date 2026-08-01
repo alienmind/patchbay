@@ -13,40 +13,45 @@ def print_header(text):
 
 def run_samples():
     print_header("📦 [1/3] CLASSIFYING SAMPLES")
-    cmd = [sys.executable, "scripts/fetch_samples.py", "--apply"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print("\033[1;31m❌ Sample classification failed:\033[0m")
-        print(result.stdout)
-        print(result.stderr)
-        sys.exit(result.returncode)
-    
-    lines = result.stdout.splitlines()
-    for line in lines:
-        if "copying" in line or "would copy" in line:
-            print(f"🎵 \033[1;32m{line.strip()}\033[0m")
-        elif "already there" in line:
-            print(f"⏩ \033[1;30m{line.strip()}\033[0m")
-        elif "not placed" in line:
-            print(f"🚫 \033[1;33m{line.strip()}\033[0m")
-        elif "UNCLASSIFIED" in line:
-            print(f"❓ \033[1;31m{line.strip()}\033[0m")
-        elif "decided by:" in line:
-            print(f"\n🧠 \033[1;35m{line.strip()}\033[0m")
-        elif "copied, logged to" in line:
-            print(f"\n✅ \033[1;32m{line.strip()}\033[0m")
-        elif line.strip() == "":
-            continue
-        elif line.startswith("  "):
-            print(f"   📁 \033[1;34m{line.strip()}\033[0m")
-        else:
-            print(f"   {line}")
+    specs = get_example_specs()
+    for spec in specs:
+        name, _ = os.path.splitext(os.path.basename(spec))
+        target = f"samples/{name}"
+        print(f"\nTarget: {target}")
+        cmd = [sys.executable, "scripts/fetch_samples.py", target, "--apply"]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            print("\033[1;31m❌ Sample classification failed:\033[0m")
+            print(result.stdout)
+            print(result.stderr)
+            sys.exit(result.returncode)
+        
+        lines = result.stdout.splitlines()
+        for line in lines:
+            if "copying" in line or "would copy" in line:
+                print(f"📄 \033[1;32m{line.strip()}\033[0m")
+            elif "already there" in line:
+                print(f"⏩ \033[1;30m{line.strip()}\033[0m")
+            elif "not placed" in line:
+                print(f"🚫 \033[1;33m{line.strip()}\033[0m")
+            elif "UNCLASSIFIED" in line:
+                print(f"❓ \033[1;31m{line.strip()}\033[0m")
+            elif "decided by:" in line:
+                print(f"\n🧠 \033[1;35m{line.strip()}\033[0m")
+            elif "copied, logged to" in line:
+                print(f"\n✅ \033[1;32m{line.strip()}\033[0m")
+            elif line.strip() == "":
+                continue
+            elif line.startswith("  "):
+                print(f"   📂 \033[1;34m{line.strip()}\033[0m")
+            else:
+                print(f"   {line}")
 
 def get_example_specs():
     specs = []
     for path in glob.glob("examples/*.py"):
         name = os.path.basename(path)
-        if name not in ("fetch_samples.py", "build_examples.py"):
+        if name not in ("fetch_samples.py", "build_examples.py", "alienmindsequencer.py"):
             specs.append(path)
     return specs
 

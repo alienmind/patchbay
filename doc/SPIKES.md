@@ -36,7 +36,7 @@ without any of them.
 
 **~~Q1. Rack inside a chain.~~ ANSWERED: it writes, and it drives.**
 `build/VA1.adg` is two levels built by `patchbay` from
-`examples/patchbayground.py`. It loads, Macro 1 swaps sub-rack, Macros 2
+`examples/playgrnd.py`. It loads, Macro 1 swaps sub-rack, Macros 2
 to 4 chain macro-to-macro into whichever is selected, and variations
 recall through that chain. So a rack Live never saved survives being
 nested, and a mapping written rather than saved drives identically.
@@ -47,7 +47,7 @@ attributes and a nested one carries an `Id`; that one attribute decides
 whether Live accepts the drop. The guard restricting skeletons to
 top-level racks is gone.
 
-**Q2. Aftertouch.** `PATCHBAYGROUND.md` wants aftertouch mapped to filter
+**Q2. Aftertouch.** `EXAMPLE_PLAYGRND.md` wants aftertouch mapped to filter
 and pitch on every sound, excluding drum pads. Nothing is known about how
 that is stored. It is probably a sibling of the `KeyMidi` mechanism, since
 that already encodes MIDI, but that is a guess.
@@ -83,7 +83,7 @@ answer was unknown.
 *Untested tail, cheap if ever wanted:* whether Live keeps the flag or strips
 it. Save the probe back out of Live and diff `MacroHasValue.5`.
 
-**Q6. Drum rack return selectors.** `PATCHBAYGROUND.md` wants each DR1
+**Q6. Drum rack return selectors.** `EXAMPLE_PLAYGRND.md` wants each DR1
 return chain to hold a selector across several reverbs and delays, so a
 macro swaps the EFFECT rather than the send level. The pieces are known
 separately; the combination is untested.
@@ -99,7 +99,7 @@ if a spec ever states send levels as knob percentages.
 ## Retired
 
 **Sidechain source.** Absent from the Live Object Model AND not yet found
-in the file format. `PATCHBAYGROUND.md` needs it for DR1. It stays manual,
+in the file format. `EXAMPLE_PLAYGRND.md` needs it for DR1. It stays manual,
 priced at one afternoon. Revisit only if that proves annoying in practice.
 
 **Since answered:** Q33. Both the routing target and the sidechain source

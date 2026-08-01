@@ -94,7 +94,7 @@ from the donor library, plus a class-based `Layout` whose slots are
 attributes, gives pyright everything it needs:
 
 ```
-line 24: Cannot access attribute "filtr" for class "type[PATCHBAYGROUND]"
+line 24: Cannot access attribute "filtr" for class "type[EXAMPLE_PLAYGRND]"
 line 25: Argument of type "Literal['Filter/Freqency']" cannot be assigned
          to parameter "path" of type "OperatorParam"
 line 26: Argument of type "Literal['Globals/PortamentoTim']" cannot be
@@ -118,7 +118,7 @@ Of 63 tests:
 |---|---|
 | load a checked-in `.adg` and assert facts about it | 19 |
 | build a rack through the DSL | 20 |
-| go through `examples/patchbayground.py` | 9 |
+| go through `examples/playgrnd.py` | 9 |
 
 The 19 are not Python. "`s1_source.adg` has these mappings at this depth"
 is a claim about a file, and it is also where the twelve spikes are

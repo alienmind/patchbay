@@ -29,6 +29,20 @@ NOT_A_DEVICE = {
 }
 
 
+def _max_device_name(el):
+    """The AMXD name of a Max device, or its XML tag if not found."""
+    tag = el.tag
+    if tag not in ("MxDeviceMidiEffect", "MxDeviceAudioEffect"):
+        return tag
+    ref = el.find(".//MxPatchRef/FileRef/RelativePath")
+    if ref is not None and ref.get("Value"):
+        return ref.get("Value").split("/")[-1].replace(".amxd", "")
+    ref = el.find(".//MxPatchRef/FileRef/Path")
+    if ref is not None and ref.get("Value"):
+        return ref.get("Value").split("/")[-1].replace(".amxd", "")
+    return tag
+
+
 class Device:
     """One harvested device node, plus what it can be asked to do."""
 
@@ -168,11 +182,12 @@ class Library:
             n = len(found)
             if n < 2:
                 continue
-            named = Path(path).stem == el.tag
-            best = self._devices.get(el.tag)
+            tag = _max_device_name(el)
+            named = Path(path).stem == tag
+            best = self._devices.get(tag)
             if best is None or ((n, tier, named)
                                 > (len(best.params), best.tier, best.named)):
-                self._devices[el.tag] = Device(el.tag, el, Path(path).name,
+                self._devices[tag] = Device(tag, el, Path(path).name,
                                                named=named, params=found,
                                                tier=tier)
         return self

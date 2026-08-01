@@ -73,7 +73,7 @@ inside a Live Set (`.als`), where chains live under `DeviceChain`.
 **Both directions are implemented**: `extract.preset_from_set` reads a rack
 out of a Set, `live_set.set_from_preset` writes one into a Set, and
 `patchbay session` writes a whole Set of them, verified by loading
-`build/PATCHBAYGROUND.als` in Live 12.4.3. Q9 has the mapping and Q30 what
+`build/EXAMPLE_PLAYGRND.als` in Live 12.4.3. Q9 has the mapping and Q30 what
 writing it costs.
 
 **Four things are required to DIFFER between the forms**, and none of them
@@ -155,7 +155,7 @@ GroupDevicePreset                        (DrumGroupDevice)
          â””â”€ DevicePresets/GroupDevicePreset  (InstrumentGroupDevice)
 ```
 
-This is the DR1 pattern from `PATCHBAYGROUND.md`, confirmed to exist and
+This is the DR1 pattern from `EXAMPLE_PLAYGRND.md`, confirmed to exist and
 function in a real file. **[V]** `build/VA1.adg` is two levels of it
 written from scratch by `patchbay`, and it loads.
 
@@ -244,7 +244,7 @@ So a range shared across engines, which is how one knob position is made
 to mean one result, has to be expressed once per unit. Writing the seconds
 figure on Operator binds the macro to 0.01 .. 20 ms, a full knob sweep
 inside one click of the attack. It does not error; Â§5 mappings never do.
-`examples/patchbayground.py` carries `RELEASE` and `RELEASE_MS` for this,
+`examples/playgrnd.py` carries `RELEASE` and `RELEASE_MS` for this,
 the second derived from the first.
 
 Nothing marks the unit, so the only way to find one is to read the range
@@ -495,7 +495,7 @@ leaves every sibling untouched.
 
 **[V]** The rack's `ChainSelector` is itself an ordinary parameter, so it
 is macro-mappable exactly like any device parameter (Â§5). That is how the
-chain-select layout in `PATCHBAYGROUND.md` gets driven from a macro.
+chain-select layout in `EXAMPLE_PLAYGRND.md` gets driven from a macro.
 
 **[?]** Whether `Max` is inclusive or exclusive is unsettled - it only
 matters at the single-value boundary between touching zones, and probably

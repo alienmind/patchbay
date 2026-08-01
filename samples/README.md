@@ -40,7 +40,7 @@ note. Some racks like SR1 walk a flat list, so they fetch from `fx/` or similar.
 | | fixed by | to change it |
 |---|---|---|
 | which categories exist | fetch_samples rules | add a rule in fetch_samples.py |
-| DR1's eight categories | one MIDI note each, laid out on the Push grid | edit `PADS` in `examples/patchbayground.py` |
+| DR1's eight categories | one MIDI note each, laid out on the Push grid | edit `PADS` in `examples/playgrnd.py` |
 | how many files in a category | nothing | drop a file in, rebuild |
 
 **Eight categories are the fixed drum pads. What is inside one is not.** Adding a

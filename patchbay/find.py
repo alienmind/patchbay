@@ -177,7 +177,12 @@ def param_path(el, device):
     """The slash path from a device down to one of its parameters."""
     parts = []
     while el is not None and el is not device:
-        parts.append(el.tag)
+        tag = el.tag
+        if tag.startswith("MxD") and tag.endswith("Parameter"):
+            name = el.find("Name")
+            if name is not None and name.get("Value"):
+                tag = f"{tag}[{name.get('Value')}]"
+        parts.append(tag)
         el = el.getparent()
     return "/".join(reversed(parts))
 

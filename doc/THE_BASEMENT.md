@@ -37,7 +37,7 @@ factory content at build time.
 
 ## The 13 slot macro layout
 
-`PATCHBAYGROUND.md` specified thirteen named slots: Engine, Cutoff,
+`EXAMPLE_PLAYGRND.md` specified thirteen named slots: Engine, Cutoff,
 Resonance, Decay, Drive, Movement, Space, Character on page one, then
 Glide, Detune, Delay, Width, Transient on page two. Slots 14 to 16 were
 left deliberately unnamed.
@@ -53,13 +53,13 @@ strip, not on the instrument rack, and putting it in the instrument
 layout spent one of only eight useful knobs on something the strip
 already carries.
 
-**Replaced by** the eight slot layout in `PATCHBAYGROUND.md`, with slots
+**Replaced by** the eight slot layout in `EXAMPLE_PLAYGRND.md`, with slots
 1, 2, 7 and 8 fixed across every rack (Instrument, Sound, Release, Volume)
 and 3 to 6 as per rack character. Volume and Release are new; they were
 absent from the thirteen and are the two most universally wanted knobs.
 
-`examples/patchbayground.py` still declares the thirteen. Reconciling it is
-open work, noted under Current state in `PATCHBAYGROUND.md`.
+`examples/playgrnd.py` still declares the thirteen. Reconciling it is
+open work, noted under Current state in `EXAMPLE_PLAYGRND.md`.
 
 ## "Grammar" as the name for the macro layout
 
@@ -244,12 +244,12 @@ from `rack.engine(name, tag)` inside a `with` block, and every relation
 went through one verb:
 
 ```python
-PATCHBAYGROUND = Layout("Instrument", "Sound", "Filter", ...,
+EXAMPLE_PLAYGRND = Layout("Instrument", "Sound", "Filter", ...,
                         selector="Instrument",
                         start={"Filter": 127, "Volume": 127},
                         labels={"Instrument": "> Instrument"})
 
-rack = Rack("PD1", PATCHBAYGROUND, kind=RackKind.INSTRUMENT,
+rack = Rack("PD1", EXAMPLE_PLAYGRND, kind=RackKind.INSTRUMENT,
             labels=paired("attack"))
 with rack.engine("FM", "Operator") as e:
     e.bind(filter=[("Filter/Frequency", *CUTOFF),
@@ -258,7 +258,7 @@ with rack.engine("FM", "Operator") as e:
 rack.nest("PADS", pd1()).bind(filter="filter")
 ```
 
-It built all six racks of `examples/patchbayground.py` correctly for the
+It built all six racks of `examples/playgrnd.py` correctly for the
 whole of Phase 0 to 5. It was replaced because of what it cost to READ and
 to EXTEND, not because anything it wrote was wrong.
 
@@ -344,7 +344,7 @@ cannot get from the knob's position.
 
 **Not tried, and still open:** a shorter name for slot 1. `Engine` fits
 Live's field whole and is what the slot selects, but the eight slot names
-are gated and renaming one reopens `PATCHBAYGROUND.md`, `DSL.md` and
+are gated and renaming one reopens `EXAMPLE_PLAYGRND.md`, `DSL.md` and
 `README.md` with it.
 
 ## `ableton-mcp`, the Live API, and the whole MCP half
@@ -531,7 +531,7 @@ reaches a rack macro one of two ways, and neither is a field in the preset:
   MIDI mapping in the SET, the same class of fact as the sidechain source
   in Q18: not in the `.adg`, so not authorable here.
 
-So `PATCHBAYGROUND.md` asking for aftertouch on filter and pitch for every
+So `EXAMPLE_PLAYGRND.md` asking for aftertouch on filter and pitch for every
 sound is asking for a DEVICE in the strip plus a mapping per Set, not for a
 parameter on the instrument racks. Adding MPE Control to ARP1 or MFX1 is an
 ordinary declaration and needs a donor harvested for it; the mapping stays

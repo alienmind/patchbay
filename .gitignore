@@ -30,3 +30,4 @@ donors/**/*.asd
 # Local scratch, never committed
 glm.ps1
 payload.json
+tmp/

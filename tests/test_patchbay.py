@@ -411,19 +411,19 @@ def test_a_built_rack_does_not_inherit_donor_variations():
     assert variations.count(dev) == 1
 
 
-def test_the_patchbayground_grid_builds():
+def test_the_playgrnd_grid_builds():
     """The spec this project exists for, compiled end to end."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    rack = patchbayground.PD1
+    rack = playgrnd.PD1
     assert len(rack.variation_set) == 96, "2 engines x 4 x 4 x 3"
     dev = find.rack_device(find.preset(rack.build()))
     got = variations.read(dev)
     assert len(got) == 96
     assert len({v["name"] for v in got}) == 96, "names must be distinguishable"
     for v in got:
-        assert set(v["values"]) == {patchbayground.PB[s].number
+        assert set(v["values"]) == {playgrnd.PB[s].number
                                     for s in ("Instrument", "Filter",
                                               "Release", "Character")}
 
@@ -514,9 +514,9 @@ def test_an_instrument_rack_is_refused_in_an_audio_effect_chain():
 
 def test_va1_builds_two_levels():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    root = patchbayground.VA1.build()
+    root = playgrnd.VA1.build()
     racks = list(find.walk_racks(find.preset(root)))
     assert len(racks) == 3, "the outer rack and its two sub-racks"
     chained = [m for m in mappings.find(root)
@@ -732,10 +732,10 @@ def test_sample_refuses_a_device_with_no_sampleref():
 def test_dr1_is_three_levels_with_one_sample_per_chain():
     """Skips where `samples/` is absent: the audio is never committed."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
     from patchbay import samples as S
 
-    kit = patchbayground.DR1
+    kit = playgrnd.DR1
     if kit is None:
         return  # no samples on this machine
 
@@ -744,7 +744,7 @@ def test_dr1_is_three_levels_with_one_sample_per_chain():
 
     notes = sorted(clone.encode_note(int(el.get("Value")))
                    for el in root.iter("ReceivingNote"))
-    assert notes == sorted(n for _, n, _ in patchbayground.PADS)
+    assert notes == sorted(n for _, n, _ in playgrnd.PADS)
     assert len(notes) == len(set(notes)), "two pads on one note fire together"
 
     # kit + one rack per pad
@@ -780,10 +780,10 @@ def test_the_wildcard_slot_reaches_only_the_engines_that_offer_it():
     stops there.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    by_name = {r.name: r for r in patchbayground.RACKS}
-    slot = patchbayground.PB.character.number
+    by_name = {r.name: r for r in playgrnd.RACKS}
+    slot = playgrnd.PB.character.number
 
     # BS1 asks for morph and only Meld has one.
     bs1 = _mapping_matrix(by_name["BS1"])
@@ -803,11 +803,11 @@ def test_the_wildcard_slot_reaches_only_the_engines_that_offer_it():
 def test_the_filter_slot_drives_a_pair_on_every_engine():
     """Slot 3 is cutoff AND resonance, which is what frees slot 6."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    slot = patchbayground.PB.filter.number
-    for rack in patchbayground.RACKS:
-        if rack.layout is not patchbayground.PB:
+    slot = playgrnd.PB.filter.number
+    for rack in playgrnd.RACKS:
+        if rack.layout is not playgrnd.PB:
             continue
         for chain, per_macro in _mapping_matrix(rack).items():
             targets = per_macro.get(slot, [])
@@ -823,12 +823,12 @@ def test_release_is_one_interval_however_an_engine_spells_it():
     three people-minutes of holding notes and comparing tails.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    slot = patchbayground.PB.release.number
+    slot = playgrnd.PB.release.number
     found = set()
-    for rack in patchbayground.RACKS:
-        if rack.layout is not patchbayground.PB:
+    for rack in playgrnd.RACKS:
+        if rack.layout is not playgrnd.PB:
             continue
         for branch in find.branches(find.preset(rack.build())):
             for km in branch.iter("KeyMidi"):
@@ -871,7 +871,7 @@ def test_the_example_racks_still_build_the_same_bytes():
     import os
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
     def digest(rack):
         facts = diff.flatten(rack.build())
@@ -881,8 +881,8 @@ def test_the_example_racks_still_build_the_same_bytes():
     # The per-track strip instances are the same six racks under 46 names,
     # so digesting them costs half the suite's runtime and proves nothing a
     # digest of EQC does not already prove.
-    instances = {r.name for r in patchbayground.STRIP_INSTANCES}
-    built = {rack.name: digest(rack) for rack in patchbayground.RACKS
+    instances = {r.name for r in playgrnd.STRIP_INSTANCES}
+    built = {rack.name: digest(rack) for rack in playgrnd.RACKS
              if rack.name not in instances}
 
     if os.environ.get("PATCHBAY_REGOLD"):
@@ -954,10 +954,10 @@ def test_a_bipolar_binding_opens_off_centre_or_not_at_all():
     but zero on a bipolar parameter is never it.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
     bad = []
-    for rack in patchbayground.RACKS:
+    for rack in playgrnd.RACKS:
         root = rack.build()
         for m in mappings.find(root):
             if not m["macro"]:
@@ -1155,9 +1155,9 @@ def test_the_sidechain_is_configured_but_never_sourced():
     sidechain EQ that is set and switched off is a knob that moves nothing.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    comp = next(patchbayground.EQC.build().iter("Compressor2"))
+    comp = next(playgrnd.EQC.build().iter("Compressor2"))
     assert find.param(comp, "SideChain/OnOff").find("Manual").get("Value") == "true"
     # Flat, not nested: Live renamed these between 12.2 and 12.4.3, and the
     # first donor predated the rename. Q19.
@@ -1215,9 +1215,9 @@ def test_a_bound_modulator_is_switched_on():
     asserted next to the binding that needs it.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    for rack in patchbayground.RACKS:
+    for rack in playgrnd.RACKS:
         root = rack.build()
         for op in root.iter("Operator"):
             if find.param(op, "Lfo/LfoAmount") is None:
@@ -1251,10 +1251,10 @@ def test_glide_is_only_enabled_where_a_rack_spends_it():
     Portamento on there would smear every pad they play.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
     on = {}
-    for rack in patchbayground.RACKS:
+    for rack in playgrnd.RACKS:
         for op in rack.build().iter("Operator"):
             got = params.raw_value(find.param(op, "Globals/PortamentoOn"))
             on.setdefault(rack.name, set()).add(got)
@@ -1273,9 +1273,9 @@ def test_bound_macros_do_not_open_at_zero():
     sound. Nothing in the file was malformed, so only ears caught it.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    for rack in patchbayground.RACKS:
+    for rack in playgrnd.RACKS:
         dev = find.rack_device(find.preset(rack.build()))
         for slot in ("Filter", "Volume"):
             if slot.lower() not in rack.driven_slots():
@@ -1438,12 +1438,12 @@ def test_extract_round_trips_structure():
     """
     from patchbay import extract
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
     # Same reason as the goldens: a strip instance is EQC under another
     # name, and round tripping 46 of them is half this suite's runtime.
-    instances = {r.name for r in patchbayground.STRIP_INSTANCES}
-    for rack in patchbayground.RACKS:
+    instances = {r.name for r in playgrnd.STRIP_INSTANCES}
+    for rack in playgrnd.RACKS:
         if rack.name in instances:
             continue
         original = rack.build()
@@ -1733,9 +1733,9 @@ def test_a_sampler_with_no_sample_declared_carries_no_sample_part():
     blank path in the output means nobody ever named one.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    for rack in patchbayground.RACKS:
+    for rack in playgrnd.RACKS:
         for part in rack.build().iter("MultiSamplePart"):
             ref = part.find("SampleRef/FileRef/Path")
             assert ref is not None and ref.get("Value"), (
@@ -1751,9 +1751,9 @@ def test_an_inverted_range_stays_inverted():
     write one, so nothing outside this repo will ever produce the shape.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    comp = next(patchbayground.EQC.build().iter("Compressor2"))
+    comp = next(playgrnd.EQC.build().iter("Compressor2"))
     r = find.param(comp, "Threshold").find("MidiControllerRange")
     lo = float(r.find("Min").get("Value"))
     hi = float(r.find("Max").get("Value"))
@@ -1782,24 +1782,24 @@ def test_the_skeletons_come_from_donors_and_not_from_evidence():
 
 
 def test_one_strip_instance_per_track_named_for_it():
-    """PATCHBAYGROUND.md's naming rule, as a loop rather than six copies.
+    """EXAMPLE_PLAYGRND.md's naming rule, as a loop rather than six copies.
 
     PM1 is an audio track, so it takes the audio half of the strip and
     neither MIDI rack: 6 racks over 7 MIDI tracks plus 4 over PM1.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
     from patchbay.dsl import RackKind
 
-    names = [r.name for r in patchbayground.STRIP_INSTANCES]
+    names = [r.name for r in playgrnd.STRIP_INSTANCES]
     assert len(names) == 46 == len(set(names))
     assert "EQC_BS1" in names and "VOL1_PM1" in names
     assert not [n for n in names if n.startswith(("ARP1_PM1", "MFX1_PM1"))], (
         "a MIDI effect rack cannot go on an audio track")
-    for inst in patchbayground.STRIP_INSTANCES:
+    for inst in playgrnd.STRIP_INSTANCES:
         if inst.kind is RackKind.MIDI_EFFECT:
             continue
-        assert inst.name.split("_")[1] in patchbayground.TRACKS
+        assert inst.name.split("_")[1] in playgrnd.TRACKS
 
 
 def test_a_named_layout_recovers_slot_names():
@@ -1812,11 +1812,11 @@ def test_a_named_layout_recovers_slot_names():
     """
     from patchbay import extract
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
     root = Path(__file__).resolve().parent.parent
-    spec = root / "examples" / "patchbayground.py"
-    bs1 = next(r for r in patchbayground.RACKS if r.name == "BS1")
+    spec = root / "examples" / "playgrnd.py"
+    bs1 = next(r for r in playgrnd.RACKS if r.name == "BS1")
     out = SCRATCH / "BS1.named.adg"
     io.save(bs1.build(), out)
 
@@ -1867,12 +1867,12 @@ def test_a_send_is_written_on_the_chain_that_owns_the_return():
     nothing.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbayground
+    import playgrnd
 
-    if patchbayground.DR1 is None:
+    if playgrnd.DR1 is None:
         return  # samples/ is absent, as on any machine without the audio
 
-    root = patchbayground.DR1.build()
+    root = playgrnd.DR1.build()
     preset = find.preset(root)
     pads = find.branches(preset)
     assert len(pads) == 8
@@ -1909,7 +1909,7 @@ def test_build_writes_one_file_per_rack_and_nothing_else():
     """
     from patchbay import compile as compile_spec
 
-    spec = Path(__file__).resolve().parent.parent / "examples" / "patchbayground.py"
+    spec = Path(__file__).resolve().parent.parent / "examples" / "playgrnd.py"
     out = SCRATCH / "built"
     built = compile_spec.compile_spec(spec, out)
     assert sorted(p.name for p in out.iterdir()) == sorted(
@@ -2021,7 +2021,7 @@ def test_a_set_hands_out_a_unique_pointee_id():
     """Live refuses a Set with a zero pointee id: "Invalid Pointee Id."
 
     A preset writes `Id="0"` on every `AutomationTarget`,
-    `ModulationTarget` and `Pointee` - 28,214 of them in PATCHBAYGROUND -
+    `ModulationTarget` and `Pointee` - 28,214 of them in EXAMPLE_PLAYGRND -
     and that is correct for a `.adg` and invalid in a `.als`. Read off
     `racks/q9_b.als`, a Set Live saved: 267 pointees, none zero, no
     duplicates, `NextPointeeId` one above the highest.

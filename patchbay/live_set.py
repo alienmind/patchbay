@@ -650,7 +650,7 @@ def _renumber_pointees(root: Element) -> int:
     """Give every pointee a unique non-zero id. Returns the next free one.
 
     A PRESET writes `Id="0"` on all of them - 28,214 of them in
-    PATCHBAYGROUND - and a SET refuses that outright:
+    EXAMPLE_PLAYGRND - and a SET refuses that outright:
 
         The document "..." is corrupt and cannot be loaded.
         (Invalid Pointee Id.)

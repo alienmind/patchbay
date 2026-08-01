@@ -5,7 +5,7 @@ and Sets in code, by writing the `.adg` and `.als` XML directly. A spec is
 an ordinary Python module importing from `patchbay.dsl`. Offline authoring, not live coding - nothing here
 makes a sound, it produces the instrument.
 
-`examples/patchbayground.py` is ONE example and the end-to-end test. It is
+`examples/playgrnd.py` is ONE example and the end-to-end test. It is
 not what the library is for, and per rule 6 the library knows nothing about
 it.
 
@@ -78,7 +78,7 @@ nothing.
 
 **Class 1: the output does not move.** A refactor, a rename, a DSL surface
 change. `tests/golden.txt` holds a digest per rack in
-`examples/patchbayground.py`; if it still passes, nothing moved. NO Live
+`examples/playgrnd.py`; if it still passes, nothing moved. NO Live
 check, and no asking for one. The passing gate is the claim, not "it is
 only a refactor".
 
