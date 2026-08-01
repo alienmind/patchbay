@@ -49,7 +49,7 @@ We preserve the 8-slot `PB` layout from `playgrnd` because muscle memory is the 
 | 7 | Release | Release or decay |
 | 8 | Volume | Always |
 
-## Drum Rack (DR1)
+## Drum Rack (DR)
 
 The Drum Rack uses 8 pads spread across the bottom two rows of Push. 
-It diverges from `playgrnd` by keeping all its **Returns internal**. The `A` and `B` sends at the pad level feed directly into a Reverb and a Delay rack hidden inside `DR1` itself. This makes the drum kit completely self-contained and ready to be dragged into any other set without needing external return tracks.
+It diverges from `playgrnd` by keeping all its **Returns internal**. The `A` and `B` sends at the pad level feed directly into a Reverb and a Delay rack hidden inside `DR` itself. This makes the drum kit completely self-contained and ready to be dragged into any other set without needing external return tracks.

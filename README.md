@@ -5,15 +5,15 @@
 Author Ableton Live racks in code instead of by clicking!
 
 PatchBay is a Python DSL and a toolchain for writing Live racks as source.
-You declare what a rack is - engines, macro layout, bindings, ranges, zones,
-variations, nesting - and `patchbay build` produces the `.adg` Live opens.
+You declare what a rack is: engines, macro layout, bindings, ranges, zones,
+variations, nesting. And `patchbay build` produces the `.adg` Live opens.
 It also runs backwards: `patchbay extract` reads a saved rack and prints
 the declaration that rebuilds it.
 
 Several examples are provided in the `examples/` folder.
-Inspired by [strudel.cc](https://strudel.cc) and TidalCycles, PatchBay is for **offline authoring**, not live coding. Nothing here makes a sound-it produces the assets you load in your DAW.
+Inspired by [strudel.cc](https://strudel.cc) and TidalCycles, PatchBay is for **offline authoring**, not live coding. Nothing here makes a sound: it produces the assets you load in your DAW.
 
-## TLDR - How do I run this
+## TLDR: How do I run this
 
 Needs Python 3.10+, [uv](https://docs.astral.sh/uv/), and an install of
 Live 12 (the Set writer reads Live's own factory templates).
@@ -79,7 +79,7 @@ not build, the file format will.
 
 ## Basic Concepts
 
-Similar to a real patchbay in a music studio - routing signals between studio equipment - 
+Similar to a real patchbay in a music studio, routing signals between studio equipment, 
 this tool routes macros to parameters, chains to zones, and racks onto tracks.
 
 ```python
@@ -104,7 +104,7 @@ SAMPLER = (Engine("OriginalSimpler")
            .drives(PB.filter, "Filter/Slot/Value/SimplerFilter/Freq")
            .drives(PB.release, "VolumeAndPan/Envelope/ReleaseTime", over=RELEASE))
 
-PD1 = (Rack.instrument("PD1", PB)
+PD = (Rack.instrument("PD", PB)
        .chain("FM", FM)
        .chain("Sample", SAMPLER))
 ```
@@ -307,7 +307,7 @@ was an editable install still pointing at the folder's old name.
 | `patchbay build SPEC -o DIR` | compile a spec into rack presets, one `.adg` per rack and nothing else |
 | `patchbay build SPEC --clean` | the same, dropping `.adg` files in the output directory this build did not write |
 | `patchbay session SPEC -o OUT.als` | write a Live Set from the same spec: tracks, returns, colours, routing, every rack placed |
-| `patchbay diff A B` | structural diff - the discovery engine |
+| `patchbay diff A B` | structural diff: the discovery engine |
 | `patchbay mappings SRC` | list macro mappings |
 | `patchbay variations SRC` | list macro variations |
 | `patchbay clone SRC DEST -n N` | duplicate a chain |
@@ -321,7 +321,7 @@ was an editable install still pointing at the folder's old name.
 
 `patchbay <command> --help` for options. Two worth knowing: `diff -n N`
 caps output per section, because adding one device drags its whole
-parameter blob in - a Reverb is some 800 facts. And `clone --stride N`
+parameter blob in (a Reverb is some 800 facts). And `clone --stride N`
 gives each copy its own macro block rather than ganging them together.
 
 ## Layout
@@ -343,7 +343,7 @@ tests/       assertions against the recorded findings.
 | file | what it is | read it when |
 |---|---|---|
 | **`doc/TODO.md`** | the live backlog: in flight, next, open spikes | before starting anything |
-| **`doc/ARCHITECTURE.md`** | how the `.adg` format works - the consolidated model | before writing code that touches XML |
+| **`doc/ARCHITECTURE.md`** | how the `.adg` format works (the consolidated model) | before writing code that touches XML |
 | **`doc/DSL.md`** | why the DSL is shaped as it is | before extending the DSL |
 | **`doc/SPIKES.md`** | discovery procedure and the spikes that answered it | before investigating anything |
 | **`doc/SCHEMA.md`** | lab notebook: raw findings, citing files | when you doubt a claim in ARCHITECTURE |
