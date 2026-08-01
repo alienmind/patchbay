@@ -31,3 +31,6 @@ donors/**/*.asd
 glm.ps1
 payload.json
 tmp/
+
+.gemini
+.gemini/scratch
