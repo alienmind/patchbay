@@ -2,10 +2,10 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-sb14_techno_sequence_02_0_1_layout = Layout(
+techno_seq_02_0_1_layout = Layout(
     Slot('Macro 1'),
 )
-sb14_techno_sequence_02_0_1 = (Rack.instrument('SB14 Techno Sequence 02_0_1', sb14_techno_sequence_02_0_1_layout)
+techno_seq_02_0_1 = (Rack.instrument('techno_seq_02_0_1', techno_seq_02_0_1_layout)
         .chain('',
             Engine('MidiPitcher')
             .sets('Pitch', -24)
@@ -82,7 +82,7 @@ sb14_techno_sequence_02_0_1 = (Rack.instrument('SB14 Techno Sequence 02_0_1', sb
             .sets('TransientShaping/Manual', 0))
             .zone(0, 0)))
 
-sb14_techno_sequence_02_0_layout = Layout(
+techno_seq_02_0_layout = Layout(
     Slot('Macro 1', start=107.950005, label='Sub Bass'),
     Slot('Macro 2'),
     Slot('Macro 3'),
@@ -92,16 +92,16 @@ sb14_techno_sequence_02_0_layout = Layout(
     Slot('Macro 7', start=41.3253975, label='Echo Mix'),
     Slot('Macro 8', start=57.546875, label='Reverb Decay'),
 )
-sb14_techno_sequence_02_0 = (Rack.instrument('SB14 Techno Sequence 02_0', sb14_techno_sequence_02_0_layout)
+techno_seq_02_0 = (Rack.instrument('techno_seq_02_0', techno_seq_02_0_layout)
         .chain('',
             Engine('MidiPitcher')
             .then(Engine('MidiChord'))
             .then(Engine('UltraAnalog')
-            .drives(sb14_techno_sequence_02_0_layout.macro_2, 'SignalChain1/FilterCutoffFrequency', over=Range(0, 1))
-            .drives(sb14_techno_sequence_02_0_layout.macro_3, 'SignalChain1/FilterQFactor', over=Range(0, 1))
-            .drives(sb14_techno_sequence_02_0_layout.macro_4, 'SignalChain1/FilterEnvCutoffMod', over=Range(-1, 1))
-            .drives(sb14_techno_sequence_02_0_layout.macro_5, 'SignalChain1/OscillatorDetune', over=Range(0.5, 1))
-            .drives(sb14_techno_sequence_02_0_layout.macro_5, 'SignalChain2/OscillatorDetune', over=Range(0.5, 0)))
+            .drives(techno_seq_02_0_layout.macro_2, 'SignalChain1/FilterCutoffFrequency', over=Range(0, 1))
+            .drives(techno_seq_02_0_layout.macro_3, 'SignalChain1/FilterQFactor', over=Range(0, 1))
+            .drives(techno_seq_02_0_layout.macro_4, 'SignalChain1/FilterEnvCutoffMod', over=Range(-1, 1))
+            .drives(techno_seq_02_0_layout.macro_5, 'SignalChain1/OscillatorDetune', over=Range(0.5, 1))
+            .drives(techno_seq_02_0_layout.macro_5, 'SignalChain2/OscillatorDetune', over=Range(0.5, 0)))
             .then(Engine('Echo')
             .sets('Delay_OffsetL', 0)
             .sets('Delay_OffsetL/Manual', 0)
@@ -128,8 +128,8 @@ sb14_techno_sequence_02_0 = (Rack.instrument('SB14 Techno Sequence 02_0', sb14_t
             .sets('Feedback/Manual', 0.3452380896)
             .sets('Modulation_Frequency', 1.99999976)
             .sets('Modulation_Frequency/Manual', 1.99999976)
-            .drives(sb14_techno_sequence_02_0_layout.macro_6, 'Feedback', over=Range(0, 1.5))
-            .drives(sb14_techno_sequence_02_0_layout.macro_7, 'DryWet', over=Range(0, 1)))
+            .drives(techno_seq_02_0_layout.macro_6, 'Feedback', over=Range(0, 1.5))
+            .drives(techno_seq_02_0_layout.macro_7, 'DryWet', over=Range(0, 1)))
             .then(Engine('Reverb')
             .sets('BandHighOn', True)
             .sets('BandHighOn/Manual', True)
@@ -149,7 +149,7 @@ sb14_techno_sequence_02_0 = (Rack.instrument('SB14 Techno Sequence 02_0', sb14_t
             .sets('ShelfLoGain/Manual', 0.2761904895)
             .sets('ShelfLowOn', True)
             .sets('ShelfLowOn/Manual', True)
-            .drives(sb14_techno_sequence_02_0_layout.macro_8, 'DecayTime', over=Range(199.999985, 60000.0039)))
+            .drives(techno_seq_02_0_layout.macro_8, 'DecayTime', over=Range(199.999985, 60000.0039)))
             .then(Engine('Eq8')
             .sets('Bands.0/ParameterA/Freq', 30)
             .sets('Bands.0/ParameterA/Freq/Manual', 30)
@@ -213,12 +213,12 @@ sb14_techno_sequence_02_0 = (Rack.instrument('SB14 Techno Sequence 02_0', sb14_t
             .sets('Bands.7/ParameterB/Q/Manual', 0.7071067691)
             .sets('SelectedBand', 2))
             .zone(0, 0))
-        .chain('', sb14_techno_sequence_02_0_1.unchained().zone(0, 0)))
+        .chain('', techno_seq_02_0_1.unchained().zone(0, 0)))
 
-sb14_techno_sequence_02_layout = Layout(
+techno_seq_02_layout = Layout(
     Slot('Macro 1'),
 )
-sb14_techno_sequence_02 = (Rack.instrument('SB14 Techno Sequence 02', sb14_techno_sequence_02_layout)
-        .chain('', sb14_techno_sequence_02_0.unchained().zone(0, 0)))
+techno_seq_02 = (Rack.instrument('techno_seq_02', techno_seq_02_layout)
+        .chain('', techno_seq_02_0.unchained().zone(0, 0)))
 
-RACKS = [sb14_techno_sequence_02]
+RACKS = [techno_seq_02]

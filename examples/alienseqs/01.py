@@ -2,7 +2,7 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-r0_ebm_techno_sequence_generator__studio_brootle__layout = Layout(
+r_ebm_gen__layout = Layout(
     Slot('Macro 1', start=63.5),
     Slot('Macro 2', start=63.5),
     Slot('Macro 3'),
@@ -20,7 +20,7 @@ r0_ebm_techno_sequence_generator__studio_brootle__layout = Layout(
     Slot('Macro 15', start=32.2539711, label='Reverb Decay'),
     Slot('Macro 16', start=34, label='Reverb Mix'),
 )
-r0_ebm_techno_sequence_generator__studio_brootle = (Rack.instrument('0 EBM Techno Sequence Generator (Studio Brootle)', r0_ebm_techno_sequence_generator__studio_brootle__layout)
+r_ebm_gen = (Rack.instrument('ebm_gen', r_ebm_gen__layout)
         .chain('',
             Engine('MxDeviceMidiEffect')
             .sets('PatchSlot/Value/MxPatchRef/LastModDate', 1731965126)
@@ -101,16 +101,16 @@ r0_ebm_techno_sequence_generator__studio_brootle = (Rack.instrument('0 EBM Techn
             .sets('Voice_Unison_Mode', 3)
             .sets('Volume', 0.19140625)
             .sets('Volume/Manual', 0.19140625)
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_1, 'Voice_Modulators_TimeScale', over=Range(-1, 1))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_2, 'Voice_Modulators_Amount', over=Range(0, 2))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_3, 'Voice_Filter1_Frequency', over=Range(19.9999981, 20479.998))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_4, 'Voice_Modulators_Envelope2_Times_Decay', over=Range(0.001500000013, 20))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_5, 'Voice_Oscillator1_Pitch_Detune', over=Range(0.5, -0.5))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_5, 'Voice_Oscillator2_Pitch_Detune', over=Range(-0.5, 0.5))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_6, 'Voice_Filter2_Drive', over=Range(0, 24))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_7, 'Voice_Modulators_Lfo1_Shape_Amount', over=Range(0, 1))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_8, 'Voice_Modulators_Lfo2_Shape_Amount', over=Range(0, 1))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_9, 'Voice_Unison_Amount', over=Range(0, 1)))
+            .drives(r_ebm_gen__layout.macro_1, 'Voice_Modulators_TimeScale', over=Range(-1, 1))
+            .drives(r_ebm_gen__layout.macro_2, 'Voice_Modulators_Amount', over=Range(0, 2))
+            .drives(r_ebm_gen__layout.macro_3, 'Voice_Filter1_Frequency', over=Range(19.9999981, 20479.998))
+            .drives(r_ebm_gen__layout.macro_4, 'Voice_Modulators_Envelope2_Times_Decay', over=Range(0.001500000013, 20))
+            .drives(r_ebm_gen__layout.macro_5, 'Voice_Oscillator1_Pitch_Detune', over=Range(0.5, -0.5))
+            .drives(r_ebm_gen__layout.macro_5, 'Voice_Oscillator2_Pitch_Detune', over=Range(-0.5, 0.5))
+            .drives(r_ebm_gen__layout.macro_6, 'Voice_Filter2_Drive', over=Range(0, 24))
+            .drives(r_ebm_gen__layout.macro_7, 'Voice_Modulators_Lfo1_Shape_Amount', over=Range(0, 1))
+            .drives(r_ebm_gen__layout.macro_8, 'Voice_Modulators_Lfo2_Shape_Amount', over=Range(0, 1))
+            .drives(r_ebm_gen__layout.macro_9, 'Voice_Unison_Amount', over=Range(0, 1)))
             .then(Engine('Roar')
             .sets('Feedback_FeedbackNote', 36)
             .sets('Feedback_FeedbackNote/Manual', 36)
@@ -141,10 +141,10 @@ r0_ebm_techno_sequence_generator__studio_brootle = (Rack.instrument('0 EBM Techn
             .sets('Stage3_Shaper_Trim/MidiControllerRange/Min', 0.06309573352)
             .sets('Stage3_Shaper_Type', 3)
             .sets('Stage3_Shaper_Type/Manual', 3)
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_10, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_11, 'Stage1_Shaper_Amount', over=Range(0, 1))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_12, 'Stage2_Shaper_Amount', over=Range(0, 1))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_13, 'Stage3_Shaper_Amount', over=Range(0, 1)))
+            .drives(r_ebm_gen__layout.macro_10, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
+            .drives(r_ebm_gen__layout.macro_11, 'Stage1_Shaper_Amount', over=Range(0, 1))
+            .drives(r_ebm_gen__layout.macro_12, 'Stage2_Shaper_Amount', over=Range(0, 1))
+            .drives(r_ebm_gen__layout.macro_13, 'Stage3_Shaper_Amount', over=Range(0, 1)))
             .then(Engine('Echo')
             .sets('Delay_OffsetL', 0)
             .sets('Delay_OffsetL/Manual', 0)
@@ -173,7 +173,7 @@ r0_ebm_techno_sequence_generator__studio_brootle = (Rack.instrument('0 EBM Techn
             .sets('Feedback/Manual', 0.3452380896)
             .sets('Modulation_Frequency', 1.99999976)
             .sets('Modulation_Frequency/Manual', 1.99999976)
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_14, 'DryWet', over=Range(0, 1)))
+            .drives(r_ebm_gen__layout.macro_14, 'DryWet', over=Range(0, 1)))
             .then(Engine('Reverb')
             .sets('BandFreq', 2074.35474)
             .sets('BandFreq/Manual', 2074.35474)
@@ -199,8 +199,8 @@ r0_ebm_techno_sequence_generator__studio_brootle = (Rack.instrument('0 EBM Techn
             .sets('ShelfLoGain/Manual', 0.200000003)
             .sets('ShelfLowOn', True)
             .sets('ShelfLowOn/Manual', True)
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_15, 'DecayTime', over=Range(199.999985, 60000.0039))
-            .drives(r0_ebm_techno_sequence_generator__studio_brootle__layout.macro_16, 'MixDirect', over=Range(0, 1)))
+            .drives(r_ebm_gen__layout.macro_15, 'DecayTime', over=Range(199.999985, 60000.0039))
+            .drives(r_ebm_gen__layout.macro_16, 'MixDirect', over=Range(0, 1)))
             .then(Engine('DrumBuss')
             .sets('BoomAmount', 0)
             .sets('BoomAmount/Manual', 0)
@@ -225,4 +225,4 @@ r0_ebm_techno_sequence_generator__studio_brootle = (Rack.instrument('0 EBM Techn
             .sets('TransientShaping/Manual', 0))
             .zone(0, 0)))
 
-RACKS = [r0_ebm_techno_sequence_generator__studio_brootle]
+RACKS = [r_ebm_gen]

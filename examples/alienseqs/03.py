@@ -2,12 +2,12 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-r0_raw_techno_sequence_generator__studio_brootle__0_1_layout = Layout(
+r_raw_gen__0_1_layout = Layout(
     Slot('Macro 1', start=30, label='Sub Bass FiltrFreq'),
     Slot('Macro 2', start=31.2460327, label='Sub Bass Drive'),
     Slot('Macro 3', start=63.5, label='Sub Bass Gain'),
 )
-r0_raw_techno_sequence_generator__studio_brootle__0_1 = (Rack.instrument('0 Raw Techno Sequence Generator (Studio Brootle)_0_1', r0_raw_techno_sequence_generator__studio_brootle__0_1_layout)
+r_raw_gen__0_1 = (Rack.instrument('raw_gen_0_1', r_raw_gen__0_1_layout)
         .chain('',
             Engine('MidiPitcher')
             .sets('Pitch', -12)
@@ -102,17 +102,17 @@ r0_raw_techno_sequence_generator__studio_brootle__0_1 = (Rack.instrument('0 Raw 
             .sets('Morph/Manual', 0)
             .sets('Resonance', 0.3324468136)
             .sets('Resonance/Manual', 0.3324468136)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_1_layout.macro_1, 'Cutoff', over=Range(20, 135))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_1_layout.macro_2, 'Drive', over=Range(0, 24)))
+            .drives(r_raw_gen__0_1_layout.macro_1, 'Cutoff', over=Range(20, 135))
+            .drives(r_raw_gen__0_1_layout.macro_2, 'Drive', over=Range(0, 24)))
             .then(Engine('StereoGain')
             .sets('BassMono', False)
             .sets('BassMono/Manual', False)
             .sets('BassMonoFrequency', 120)
             .sets('BassMonoFrequency/Manual', 120)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_1_layout.macro_3, 'Gain', over=Range(0, 56.2341309)))
+            .drives(r_raw_gen__0_1_layout.macro_3, 'Gain', over=Range(0, 56.2341309)))
             .zone(0, 0)))
 
-r0_raw_techno_sequence_generator__studio_brootle__0_layout = Layout(
+r_raw_gen__0_layout = Layout(
     Slot('Macro 1', start=101, label='Sub Bass Volume'),
     Slot('Macro 2', start=48),
     Slot('Macro 3'),
@@ -130,7 +130,7 @@ r0_raw_techno_sequence_generator__studio_brootle__0_layout = Layout(
     Slot('Macro 15', start=44.3492088, label='Reverb Mix'),
     Slot('Macro 16', start=22.1746044, label='Final Crunch'),
 )
-r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Techno Sequence Generator (Studio Brootle)_0', r0_raw_techno_sequence_generator__studio_brootle__0_layout)
+r_raw_gen__0 = (Rack.instrument('raw_gen_0', r_raw_gen__0_layout)
         .chain('Sequence',
             Engine('MidiPitcher')
             .sets('Pitch', -24)
@@ -259,11 +259,11 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('PitchEnv/PitchEnv/EnvelopeAmount/Manual', 0.2857142985)
             .sets('Shaper/Drive', 3.1875)
             .sets('Shaper/Drive/Manual', 3.1875)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_2, 'EnvScale/EnvTime', over=Range(-100, 100))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_3, 'Filter/Frequency', over=Range(30, 18500))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_4, 'Filter/Resonance', over=Range(0, 1.25))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_5, 'Operator.3/Tune/Fine', over=Range(0, 1000))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_6, 'Filter/Drive', over=Range(0, 24)))
+            .drives(r_raw_gen__0_layout.macro_2, 'EnvScale/EnvTime', over=Range(-100, 100))
+            .drives(r_raw_gen__0_layout.macro_3, 'Filter/Frequency', over=Range(30, 18500))
+            .drives(r_raw_gen__0_layout.macro_4, 'Filter/Resonance', over=Range(0, 1.25))
+            .drives(r_raw_gen__0_layout.macro_5, 'Operator.3/Tune/Fine', over=Range(0, 1000))
+            .drives(r_raw_gen__0_layout.macro_6, 'Filter/Drive', over=Range(0, 24)))
             .then(Engine('AutoFilter2')
             .sets('DryWet', 0.277777791)
             .sets('DryWet/Manual', 0.277777791)
@@ -294,7 +294,7 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('Lfo_TimeMode', 2)
             .sets('Lfo_TimeMode/Manual', 2)
             .sets('SideChainEq_Q/MidiControllerRange/Max', 11.999999)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_7, 'Filter_Frequency', over=Range(19.9999981, 19999.9961)))
+            .drives(r_raw_gen__0_layout.macro_7, 'Filter_Frequency', over=Range(19.9999981, 19999.9961)))
             .then(Engine('Transmute')
             .sets('DecayDamping_DecayTime', 0.5495895147)
             .sets('DecayDamping_DecayTime/Manual', 0.5495895147)
@@ -318,8 +318,8 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('PartialFrequencies_FrequencyNote/Manual', 50)
             .sets('PartialFrequencies_PartialStretch', 0.5)
             .sets('PartialFrequencies_PartialStretch/Manual', 0.5)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_8, 'Global_DryWet', over=Range(0, 1))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_9, 'DecayDamping_DecayTime', over=Range(0.001000000047, 20)))
+            .drives(r_raw_gen__0_layout.macro_8, 'Global_DryWet', over=Range(0, 1))
+            .drives(r_raw_gen__0_layout.macro_9, 'DecayDamping_DecayTime', over=Range(0.001000000047, 20)))
             .then(Engine('Echo')
             .sets('Delay_OffsetL', -0.03609375283)
             .sets('Delay_OffsetL/Manual', -0.03609375283)
@@ -348,7 +348,7 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('Feedback/Manual', 0.3452380896)
             .sets('Modulation_Frequency', 1.99999976)
             .sets('Modulation_Frequency/Manual', 1.99999976)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_10, 'DryWet', over=Range(0, 1)))
+            .drives(r_raw_gen__0_layout.macro_10, 'DryWet', over=Range(0, 1)))
             .then(Engine('Roar')
             .sets('Input_InputGain', 0.2928644717)
             .sets('Input_InputGain/Manual', 0.2928644717)
@@ -362,7 +362,7 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('Stage3_Shaper_Amount', 0.5634920597)
             .sets('Stage3_Shaper_Amount/Manual', 0.5634920597)
             .sets('Stage3_Shaper_Trim/MidiControllerRange/Min', 0.06309573352)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_11, 'Stage3_Shaper_Amount', over=Range(0, 1)))
+            .drives(r_raw_gen__0_layout.macro_11, 'Stage3_Shaper_Amount', over=Range(0, 1)))
             .then(Engine('Echo')
             .sets('CurrentTab', 2)
             .sets('Delay_OffsetL', 0.04640625045)
@@ -392,8 +392,8 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('Modulation_Frequency/Manual', 1.99999976)
             .sets('Reverb_Level', 0.3174603283)
             .sets('Reverb_Level/Manual', 0.3174603283)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_12, 'Feedback', over=Range(0, 1.5))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_13, 'DryWet', over=Range(0, 1)))
+            .drives(r_raw_gen__0_layout.macro_12, 'Feedback', over=Range(0, 1.5))
+            .drives(r_raw_gen__0_layout.macro_13, 'DryWet', over=Range(0, 1)))
             .then(Engine('Reverb')
             .sets('BandFreq', 1658.85437)
             .sets('BandFreq/Manual', 1658.85437)
@@ -417,8 +417,8 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('ShelfLoGain/Manual', 0.200000003)
             .sets('ShelfLowOn', True)
             .sets('ShelfLowOn/Manual', True)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_14, 'DecayTime', over=Range(199.999985, 60000.0039))
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_15, 'MixDirect', over=Range(0, 1)))
+            .drives(r_raw_gen__0_layout.macro_14, 'DecayTime', over=Range(199.999985, 60000.0039))
+            .drives(r_raw_gen__0_layout.macro_15, 'MixDirect', over=Range(0, 1)))
             .then(Engine('DrumBuss')
             .sets('BoomAmount', 0)
             .sets('BoomAmount/Manual', 0)
@@ -441,11 +441,11 @@ r0_raw_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Raw Te
             .sets('OutputGain/Manual', 0.3368299007)
             .sets('TransientShaping', 0)
             .sets('TransientShaping/Manual', 0)
-            .drives(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_16, 'CrunchAmount', over=Range(0, 1)))
+            .drives(r_raw_gen__0_layout.macro_16, 'CrunchAmount', over=Range(0, 1)))
             .zone(0, 0))
-        .chain('', r0_raw_techno_sequence_generator__studio_brootle__0_1.unchained().zone(0, 0)))
+        .chain('', r_raw_gen__0_1.unchained().zone(0, 0)))
 
-r0_raw_techno_sequence_generator__studio_brootle__layout = Layout(
+r_raw_gen__layout = Layout(
     Slot('Macro 1', start=101),
     Slot('Macro 2', start=48),
     Slot('Macro 3'),
@@ -463,7 +463,7 @@ r0_raw_techno_sequence_generator__studio_brootle__layout = Layout(
     Slot('Macro 15', start=44.3492088),
     Slot('Macro 16', start=22.1746044),
 )
-r0_raw_techno_sequence_generator__studio_brootle = (Rack.instrument('0 Raw Techno Sequence Generator (Studio Brootle)', r0_raw_techno_sequence_generator__studio_brootle__layout)
-        .chain('', r0_raw_techno_sequence_generator__studio_brootle__0.chaining(r0_raw_techno_sequence_generator__studio_brootle__layout.macro_1.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_1), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_2.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_2), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_3.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_3), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_4.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_4), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_5.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_5), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_6.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_6), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_7.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_7), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_8.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_8), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_9.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_9), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_10.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_10), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_11.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_11), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_12.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_12), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_13.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_13), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_14.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_14), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_15.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_15), r0_raw_techno_sequence_generator__studio_brootle__layout.macro_16.to(r0_raw_techno_sequence_generator__studio_brootle__0_layout.macro_16)).zone(0, 0)))
+r_raw_gen = (Rack.instrument('raw_gen', r_raw_gen__layout)
+        .chain('', r_raw_gen__0.chaining(r_raw_gen__layout.macro_1.to(r_raw_gen__0_layout.macro_1), r_raw_gen__layout.macro_2.to(r_raw_gen__0_layout.macro_2), r_raw_gen__layout.macro_3.to(r_raw_gen__0_layout.macro_3), r_raw_gen__layout.macro_4.to(r_raw_gen__0_layout.macro_4), r_raw_gen__layout.macro_5.to(r_raw_gen__0_layout.macro_5), r_raw_gen__layout.macro_6.to(r_raw_gen__0_layout.macro_6), r_raw_gen__layout.macro_7.to(r_raw_gen__0_layout.macro_7), r_raw_gen__layout.macro_8.to(r_raw_gen__0_layout.macro_8), r_raw_gen__layout.macro_9.to(r_raw_gen__0_layout.macro_9), r_raw_gen__layout.macro_10.to(r_raw_gen__0_layout.macro_10), r_raw_gen__layout.macro_11.to(r_raw_gen__0_layout.macro_11), r_raw_gen__layout.macro_12.to(r_raw_gen__0_layout.macro_12), r_raw_gen__layout.macro_13.to(r_raw_gen__0_layout.macro_13), r_raw_gen__layout.macro_14.to(r_raw_gen__0_layout.macro_14), r_raw_gen__layout.macro_15.to(r_raw_gen__0_layout.macro_15), r_raw_gen__layout.macro_16.to(r_raw_gen__0_layout.macro_16)).zone(0, 0)))
 
-RACKS = [r0_raw_techno_sequence_generator__studio_brootle]
+RACKS = [r_raw_gen]

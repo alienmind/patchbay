@@ -2,12 +2,12 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-sb26___hypnotic_techno_sequences_08_0_1_layout = Layout(
+hypnotic_seq_08_0_1_layout = Layout(
     Slot('Macro 1', start=41, label='Sub Bass FiltrFreq'),
     Slot('Macro 2', start=42, label='Sub Bass Drive'),
     Slot('Macro 3', start=77, label='Sub Bass Gain'),
 )
-sb26___hypnotic_techno_sequences_08_0_1 = (Rack.instrument('SB26 - Hypnotic Techno Sequences 08_0_1', sb26___hypnotic_techno_sequences_08_0_1_layout)
+hypnotic_seq_08_0_1 = (Rack.instrument('hypnotic_seq_08_0_1', hypnotic_seq_08_0_1_layout)
         .chain('',
             Engine('MidiPitcher')
             .sets('Pitch', -12)
@@ -102,8 +102,8 @@ sb26___hypnotic_techno_sequences_08_0_1 = (Rack.instrument('SB26 - Hypnotic Tech
             .sets('Morph/Manual', 0)
             .sets('Resonance', 0.3324468136)
             .sets('Resonance/Manual', 0.3324468136)
-            .drives(sb26___hypnotic_techno_sequences_08_0_1_layout.macro_1, 'Cutoff', over=Range(20, 135))
-            .drives(sb26___hypnotic_techno_sequences_08_0_1_layout.macro_2, 'Drive', over=Range(0, 24)))
+            .drives(hypnotic_seq_08_0_1_layout.macro_1, 'Cutoff', over=Range(20, 135))
+            .drives(hypnotic_seq_08_0_1_layout.macro_2, 'Drive', over=Range(0, 24)))
             .then(Engine('StereoGain')
             .sets('BassMono', False)
             .sets('BassMono/Manual', False)
@@ -111,10 +111,10 @@ sb26___hypnotic_techno_sequences_08_0_1 = (Rack.instrument('SB26 - Hypnotic Tech
             .sets('BassMonoFrequency/Manual', 120)
             .sets('Gain', 2.35530567)
             .sets('Gain/Manual', 2.35530567)
-            .drives(sb26___hypnotic_techno_sequences_08_0_1_layout.macro_3, 'Gain', over=Range(0, 56.2341309)))
+            .drives(hypnotic_seq_08_0_1_layout.macro_3, 'Gain', over=Range(0, 56.2341309)))
             .zone(0, 0)))
 
-sb26___hypnotic_techno_sequences_08_0_layout = Layout(
+hypnotic_seq_08_0_layout = Layout(
     Slot('Macro 1', start=77),
     Slot('Macro 2', start=42),
     Slot('Macro 3', start=18.8515625),
@@ -132,7 +132,7 @@ sb26___hypnotic_techno_sequences_08_0_layout = Layout(
     Slot('Macro 15', start=18.1428585, label='Echo Mix'),
     Slot('Macro 16', start=51.4047585, label='Reverb Decay'),
 )
-sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno Sequences 08_0', sb26___hypnotic_techno_sequences_08_0_layout)
+hypnotic_seq_08_0 = (Rack.instrument('hypnotic_seq_08_0', hypnotic_seq_08_0_layout)
         .chain('',
             Engine('InstrumentMeld')
             .sets('MeldVoice_Drive', 0.1484375)
@@ -185,7 +185,7 @@ sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno
             .sets('MeldVoice_VoiceSpreadAmount/Manual', 0.109375)
             .sets('Volume', 0.2526068687)
             .sets('Volume/Manual', 0.2526068687)
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_3, 'MeldVoice_Drive', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_3, 'MeldVoice_Drive', over=Range(0, 1))
             .then(Engine('AutoFilter2')
             .sets('DryWet', 0.2698412836)
             .sets('DryWet/Manual', 0.2698412836)
@@ -214,9 +214,9 @@ sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno
             .sets('Lfo_Waveform', 7)
             .sets('Lfo_Waveform/Manual', 7)
             .sets('SideChainEq_Q/MidiControllerRange/Max', 11.999999)
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_4, 'Filter_Resonance', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_5, 'Filter_Drive', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_6, 'DryWet', over=Range(0, 1)))
+            .drives(hypnotic_seq_08_0_layout.macro_4, 'Filter_Resonance', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_5, 'Filter_Drive', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_6, 'DryWet', over=Range(0, 1)))
             .then(Engine('Roar')
             .sets('Input_InputGain', 2.20220184)
             .sets('Input_InputGain/Manual', 2.20220184)
@@ -232,11 +232,11 @@ sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno
             .sets('Stage3_Shaper_Amount', 0.1587301642)
             .sets('Stage3_Shaper_Amount/Manual', 0.1587301642)
             .sets('Stage3_Shaper_Trim/MidiControllerRange/Min', 0.06309573352)
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_7, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_8, 'Stage1_Shaper_Amount', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_9, 'Stage2_Shaper_Amount', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_10, 'Stage3_Shaper_Amount', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_11, 'Feedback_FeedbackAmount', over=Range(0, 1)))
+            .drives(hypnotic_seq_08_0_layout.macro_7, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
+            .drives(hypnotic_seq_08_0_layout.macro_8, 'Stage1_Shaper_Amount', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_9, 'Stage2_Shaper_Amount', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_10, 'Stage3_Shaper_Amount', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_11, 'Feedback_FeedbackAmount', over=Range(0, 1)))
             .then(Engine('AutoFilter2')
             .sets('Filter_Circuit', 0)
             .sets('Filter_Circuit/Manual', 0)
@@ -279,9 +279,9 @@ sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno
             .sets('Lfo_Waveform', 7)
             .sets('Lfo_Waveform/Manual', 7)
             .sets('SideChainEq_Q/MidiControllerRange/Max', 11.999999)
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_12, 'Filter_Resonance', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_13, 'Filter_Drive', over=Range(0, 1))
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_14, 'DryWet', over=Range(0, 1)))
+            .drives(hypnotic_seq_08_0_layout.macro_12, 'Filter_Resonance', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_13, 'Filter_Drive', over=Range(0, 1))
+            .drives(hypnotic_seq_08_0_layout.macro_14, 'DryWet', over=Range(0, 1)))
             .then(Engine('Echo')
             .sets('Delay_OffsetL', 0)
             .sets('Delay_OffsetL/Manual', 0)
@@ -310,7 +310,7 @@ sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno
             .sets('Feedback/Manual', 0.3452380896)
             .sets('Modulation_Frequency', 1.99999976)
             .sets('Modulation_Frequency/Manual', 1.99999976)
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_15, 'DryWet', over=Range(0, 1)))
+            .drives(hypnotic_seq_08_0_layout.macro_15, 'DryWet', over=Range(0, 1)))
             .then(Engine('Reverb')
             .sets('BandFreq', 1060.86157)
             .sets('BandFreq/Manual', 1060.86157)
@@ -334,11 +334,11 @@ sb26___hypnotic_techno_sequences_08_0 = (Rack.instrument('SB26 - Hypnotic Techno
             .sets('ShelfLoGain/Manual', 0.200000003)
             .sets('ShelfLowOn', True)
             .sets('ShelfLowOn/Manual', True)
-            .drives(sb26___hypnotic_techno_sequences_08_0_layout.macro_16, 'DecayTime', over=Range(199.999985, 60000.0039)))
+            .drives(hypnotic_seq_08_0_layout.macro_16, 'DecayTime', over=Range(199.999985, 60000.0039)))
             .zone(0, 0))
-        .chain('', sb26___hypnotic_techno_sequences_08_0_1.chaining(sb26___hypnotic_techno_sequences_08_0_layout.macro_1.to(sb26___hypnotic_techno_sequences_08_0_1_layout.macro_3), sb26___hypnotic_techno_sequences_08_0_layout.macro_2.to(sb26___hypnotic_techno_sequences_08_0_1_layout.macro_2)).zone(0, 0)))
+        .chain('', hypnotic_seq_08_0_1.chaining(hypnotic_seq_08_0_layout.macro_1.to(hypnotic_seq_08_0_1_layout.macro_3), hypnotic_seq_08_0_layout.macro_2.to(hypnotic_seq_08_0_1_layout.macro_2)).zone(0, 0)))
 
-sb26___hypnotic_techno_sequences_08_layout = Layout(
+hypnotic_seq_08_layout = Layout(
     Slot('Macro 1', start=77),
     Slot('Macro 2', start=42),
     Slot('Macro 3', start=18.8515625),
@@ -356,7 +356,7 @@ sb26___hypnotic_techno_sequences_08_layout = Layout(
     Slot('Macro 15', start=18.1428585),
     Slot('Macro 16', start=51.4047585),
 )
-sb26___hypnotic_techno_sequences_08 = (Rack.instrument('SB26 - Hypnotic Techno Sequences 08', sb26___hypnotic_techno_sequences_08_layout)
-        .chain('', sb26___hypnotic_techno_sequences_08_0.chaining(sb26___hypnotic_techno_sequences_08_layout.macro_1.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_3), sb26___hypnotic_techno_sequences_08_layout.macro_2.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_2), sb26___hypnotic_techno_sequences_08_layout.macro_3.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_3), sb26___hypnotic_techno_sequences_08_layout.macro_4.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_4), sb26___hypnotic_techno_sequences_08_layout.macro_5.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_5), sb26___hypnotic_techno_sequences_08_layout.macro_6.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_6), sb26___hypnotic_techno_sequences_08_layout.macro_7.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_7), sb26___hypnotic_techno_sequences_08_layout.macro_8.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_8), sb26___hypnotic_techno_sequences_08_layout.macro_9.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_9), sb26___hypnotic_techno_sequences_08_layout.macro_10.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_10), sb26___hypnotic_techno_sequences_08_layout.macro_11.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_11), sb26___hypnotic_techno_sequences_08_layout.macro_12.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_12), sb26___hypnotic_techno_sequences_08_layout.macro_13.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_13), sb26___hypnotic_techno_sequences_08_layout.macro_14.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_14), sb26___hypnotic_techno_sequences_08_layout.macro_15.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_15), sb26___hypnotic_techno_sequences_08_layout.macro_16.to(sb26___hypnotic_techno_sequences_08_0_layout.macro_16)).zone(0, 0)))
+hypnotic_seq_08 = (Rack.instrument('hypnotic_seq_08', hypnotic_seq_08_layout)
+        .chain('', hypnotic_seq_08_0.chaining(hypnotic_seq_08_layout.macro_1.to(hypnotic_seq_08_0_layout.macro_3), hypnotic_seq_08_layout.macro_2.to(hypnotic_seq_08_0_layout.macro_2), hypnotic_seq_08_layout.macro_3.to(hypnotic_seq_08_0_layout.macro_3), hypnotic_seq_08_layout.macro_4.to(hypnotic_seq_08_0_layout.macro_4), hypnotic_seq_08_layout.macro_5.to(hypnotic_seq_08_0_layout.macro_5), hypnotic_seq_08_layout.macro_6.to(hypnotic_seq_08_0_layout.macro_6), hypnotic_seq_08_layout.macro_7.to(hypnotic_seq_08_0_layout.macro_7), hypnotic_seq_08_layout.macro_8.to(hypnotic_seq_08_0_layout.macro_8), hypnotic_seq_08_layout.macro_9.to(hypnotic_seq_08_0_layout.macro_9), hypnotic_seq_08_layout.macro_10.to(hypnotic_seq_08_0_layout.macro_10), hypnotic_seq_08_layout.macro_11.to(hypnotic_seq_08_0_layout.macro_11), hypnotic_seq_08_layout.macro_12.to(hypnotic_seq_08_0_layout.macro_12), hypnotic_seq_08_layout.macro_13.to(hypnotic_seq_08_0_layout.macro_13), hypnotic_seq_08_layout.macro_14.to(hypnotic_seq_08_0_layout.macro_14), hypnotic_seq_08_layout.macro_15.to(hypnotic_seq_08_0_layout.macro_15), hypnotic_seq_08_layout.macro_16.to(hypnotic_seq_08_0_layout.macro_16)).zone(0, 0)))
 
-RACKS = [sb26___hypnotic_techno_sequences_08]
+RACKS = [hypnotic_seq_08]

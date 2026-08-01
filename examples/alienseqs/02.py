@@ -2,7 +2,7 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout = Layout(
+r_hypnotic_gen__0_layout = Layout(
     Slot('Macro 1', start=94, label='Sub Volume'),
     Slot('Macro 2', start=38),
     Slot('Macro 3', start=30),
@@ -14,7 +14,7 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout = Layout(
     Slot('Macro 9', start=92, label='Phaser Fcbk'),
     Slot('Macro 10', start=89, label='Phaser Mix'),
 )
-r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 Hypnotic Techno Sequence Generator (Studio Brootle)_0', r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout)
+r_hypnotic_gen__0 = (Rack.instrument('hypnotic_gen_0', r_hypnotic_gen__0_layout)
         .chain('Bleep Sequence',
             Engine('Operator')
             .sets('EnvScale/EnvTime', -40)
@@ -92,9 +92,9 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 H
             .sets('Shaper/Drive/Manual', 5.25)
             .sets('Shaper/DryWet', 86)
             .sets('Shaper/DryWet/Manual', 86)
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_2, 'EnvScale/EnvTime', over=Range(-100, 100))
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_3, 'Filter/Frequency', over=Range(30, 18500))
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_4, 'Operator.3/Tune/Fine', over=Range(0, 1000))
+            .drives(r_hypnotic_gen__0_layout.macro_2, 'EnvScale/EnvTime', over=Range(-100, 100))
+            .drives(r_hypnotic_gen__0_layout.macro_3, 'Filter/Frequency', over=Range(30, 18500))
+            .drives(r_hypnotic_gen__0_layout.macro_4, 'Operator.3/Tune/Fine', over=Range(0, 1000))
             .then(Engine('Overdrive')
             .sets('BandWidth', 8.46875)
             .sets('BandWidth/Manual', 8.46875)
@@ -108,9 +108,9 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 H
             .sets('PreserveDynamics/Manual', 0.5)
             .sets('Tone', 41.2698402)
             .sets('Tone/Manual', 41.2698402)
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_5, 'Drive', over=Range(0, 100)))
+            .drives(r_hypnotic_gen__0_layout.macro_5, 'Drive', over=Range(0, 100)))
             .then(Engine('BeatRepeat')
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_6, 'Chance', over=Range(0, 1)))
+            .drives(r_hypnotic_gen__0_layout.macro_6, 'Chance', over=Range(0, 1)))
             .then(Engine('PhaserNew')
             .sets('DryWet', 0.700787425)
             .sets('DryWet/Manual', 0.700787425)
@@ -144,8 +144,8 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 H
             .sets('SafeBassFrequency/Manual', 105.171776)
             .sets('Spread', 1)
             .sets('Spread/Manual', 1)
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_9, 'Feedback', over=Range(0, 0.9900000095))
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_10, 'DryWet', over=Range(0, 1)))
+            .drives(r_hypnotic_gen__0_layout.macro_9, 'Feedback', over=Range(0, 0.9900000095))
+            .drives(r_hypnotic_gen__0_layout.macro_10, 'DryWet', over=Range(0, 1)))
             .then(Engine('AutoFilter2')
             .sets('DryWet', 0.206349209)
             .sets('DryWet/Manual', 0.206349209)
@@ -232,7 +232,7 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 H
             .sets('Modulation_Frequency/Manual', 1.99999976)
             .sets('Wobble_Amount', 0.625)
             .sets('Wobble_Amount/Manual', 0.625)
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_7, 'DryWet', over=Range(0, 1)))
+            .drives(r_hypnotic_gen__0_layout.macro_7, 'DryWet', over=Range(0, 1)))
             .then(Engine('StereoGain')
             .sets('BassMono', False)
             .sets('BassMono/Manual', False)
@@ -277,7 +277,7 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 H
             .sets('ShelfLoGain/Manual', 0.200000003)
             .sets('ShelfLowOn', True)
             .sets('ShelfLowOn/Manual', True)
-            .drives(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_8, 'DecayTime', over=Range(199.999985, 60000.0039)))
+            .drives(r_hypnotic_gen__0_layout.macro_8, 'DecayTime', over=Range(199.999985, 60000.0039)))
             .then(Engine('Eq8')
             .sets('Bands.0/ParameterA/Freq', 30)
             .sets('Bands.0/ParameterA/Freq/Manual', 30)
@@ -462,7 +462,7 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__0 = (Rack.instrument('0 H
             .sets('SideChainEq_Q/MidiControllerRange/Max', 11.999999))
             .zone(0, 0)))
 
-r0_hypnotic_techno_sequence_generator__studio_brootle__layout = Layout(
+r_hypnotic_gen__layout = Layout(
     Slot('Macro 1', start=94),
     Slot('Macro 2', start=38),
     Slot('Macro 3', start=30),
@@ -474,7 +474,7 @@ r0_hypnotic_techno_sequence_generator__studio_brootle__layout = Layout(
     Slot('Macro 9', start=23),
     Slot('Macro 10', start=29),
 )
-r0_hypnotic_techno_sequence_generator__studio_brootle = (Rack.instrument('0 Hypnotic Techno Sequence Generator (Studio Brootle)', r0_hypnotic_techno_sequence_generator__studio_brootle__layout)
-        .chain('', r0_hypnotic_techno_sequence_generator__studio_brootle__0.chaining(r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_1.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_1), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_2.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_2), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_3.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_3), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_4.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_4), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_5.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_5), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_6.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_6), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_7.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_9), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_8.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_10), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_9.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_7), r0_hypnotic_techno_sequence_generator__studio_brootle__layout.macro_10.to(r0_hypnotic_techno_sequence_generator__studio_brootle__0_layout.macro_8)).zone(0, 0)))
+r_hypnotic_gen = (Rack.instrument('hypnotic_gen', r_hypnotic_gen__layout)
+        .chain('', r_hypnotic_gen__0.chaining(r_hypnotic_gen__layout.macro_1.to(r_hypnotic_gen__0_layout.macro_1), r_hypnotic_gen__layout.macro_2.to(r_hypnotic_gen__0_layout.macro_2), r_hypnotic_gen__layout.macro_3.to(r_hypnotic_gen__0_layout.macro_3), r_hypnotic_gen__layout.macro_4.to(r_hypnotic_gen__0_layout.macro_4), r_hypnotic_gen__layout.macro_5.to(r_hypnotic_gen__0_layout.macro_5), r_hypnotic_gen__layout.macro_6.to(r_hypnotic_gen__0_layout.macro_6), r_hypnotic_gen__layout.macro_7.to(r_hypnotic_gen__0_layout.macro_9), r_hypnotic_gen__layout.macro_8.to(r_hypnotic_gen__0_layout.macro_10), r_hypnotic_gen__layout.macro_9.to(r_hypnotic_gen__0_layout.macro_7), r_hypnotic_gen__layout.macro_10.to(r_hypnotic_gen__0_layout.macro_8)).zone(0, 0)))
 
-RACKS = [r0_hypnotic_techno_sequence_generator__studio_brootle]
+RACKS = [r_hypnotic_gen]

@@ -33,7 +33,7 @@ def get_seq_xml():
     preset = root.find(".//GroupDevicePreset")
     
     # Now we need to inject the SQ Sequencer into each branch of the preset.
-    source = Path('donors/AlienSequencerRacks')
+    source = Path('donors/seq_racks')
     adgs = [adg for adg in source.rglob('*.adg') if 'AlienMind Sequencer Rack' not in adg.name]
     
     # Map by name

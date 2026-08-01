@@ -1157,7 +1157,7 @@ def test_the_sidechain_is_configured_but_never_sourced():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import playgrnd
 
-    comp = next(playgrnd.EQC.build().iter("Compressor2"))
+    comp = next(playgrnd.EQC_RACK.build().iter("Compressor2"))
     assert find.param(comp, "SideChain/OnOff").find("Manual").get("Value") == "true"
     # Flat, not nested: Live renamed these between 12.2 and 12.4.3, and the
     # first donor predated the rename. Q19.
@@ -1753,7 +1753,7 @@ def test_an_inverted_range_stays_inverted():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
     import playgrnd
 
-    comp = next(playgrnd.EQC.build().iter("Compressor2"))
+    comp = next(playgrnd.EQC_RACK.build().iter("Compressor2"))
     r = find.param(comp, "Threshold").find("MidiControllerRange")
     lo = float(r.find("Min").get("Value"))
     hi = float(r.find("Max").get("Value"))
@@ -1792,8 +1792,8 @@ def test_one_strip_instance_per_track_named_for_it():
     from patchbay.dsl import RackKind
 
     names = [r.name for r in playgrnd.STRIP_INSTANCES]
-    assert len(names) == 46 == len(set(names))
-    assert "EQC_BS1" in names and "VOL1_PM1" in names
+    assert len(names) == 45 == len(set(names))
+    assert "EQC_BS" in names and "VOL_PM" in names
     assert not [n for n in names if n.startswith(("ARP1_PM1", "MFX1_PM1"))], (
         "a MIDI effect rack cannot go on an audio track")
     for inst in playgrnd.STRIP_INSTANCES:

@@ -2,12 +2,12 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-sb41___16_techno_sequences_09_0_1_layout = Layout(
+techno_seq2_09_0_1_layout = Layout(
     Slot('Macro 1', start=38, label='Sub Bass FiltrFreq'),
     Slot('Macro 2', start=31.2460327, label='Sub Bass Drive'),
     Slot('Macro 3', start=65, label='Sub Bass Gain'),
 )
-sb41___16_techno_sequences_09_0_1 = (Rack.instrument('SB41 - 16 Techno Sequences 09_0_1', sb41___16_techno_sequences_09_0_1_layout)
+techno_seq2_09_0_1 = (Rack.instrument('techno_seq2_09_0_1', techno_seq2_09_0_1_layout)
         .chain('',
             Engine('MidiPitcher')
             .sets('Pitch', -12)
@@ -104,8 +104,8 @@ sb41___16_techno_sequences_09_0_1 = (Rack.instrument('SB41 - 16 Techno Sequences
             .sets('Morph/Manual', 0)
             .sets('Resonance', 0.4122340381)
             .sets('Resonance/Manual', 0.4122340381)
-            .drives(sb41___16_techno_sequences_09_0_1_layout.macro_1, 'Cutoff', over=Range(20, 135))
-            .drives(sb41___16_techno_sequences_09_0_1_layout.macro_2, 'Drive', over=Range(0, 24)))
+            .drives(techno_seq2_09_0_1_layout.macro_1, 'Cutoff', over=Range(20, 135))
+            .drives(techno_seq2_09_0_1_layout.macro_2, 'Drive', over=Range(0, 24)))
             .then(Engine('StereoGain')
             .sets('BassMono', False)
             .sets('BassMono/Manual', False)
@@ -113,10 +113,10 @@ sb41___16_techno_sequences_09_0_1 = (Rack.instrument('SB41 - 16 Techno Sequences
             .sets('BassMonoFrequency/Manual', 120)
             .sets('Gain', 1.09986293)
             .sets('Gain/Manual', 1.09986293)
-            .drives(sb41___16_techno_sequences_09_0_1_layout.macro_3, 'Gain', over=Range(0, 56.2341309)))
+            .drives(techno_seq2_09_0_1_layout.macro_3, 'Gain', over=Range(0, 56.2341309)))
             .zone(0, 0)))
 
-sb41___16_techno_sequences_09_0_layout = Layout(
+techno_seq2_09_0_layout = Layout(
     Slot('Macro 1', start=107.950005, label='Sub Volume'),
     Slot('Macro 2', label='Filter Freq'),
     Slot('Macro 3', start=80.3671875, label='Filter Decay'),
@@ -132,7 +132,7 @@ sb41___16_techno_sequences_09_0_layout = Layout(
     Slot('Macro 13', start=50.3968315, label='Reverb Decay'),
     Slot('Macro 14', start=50.3968277, label='Reverb Mix'),
 )
-sb41___16_techno_sequences_09_0 = (Rack.instrument('SB41 - 16 Techno Sequences 09_0', sb41___16_techno_sequences_09_0_layout)
+techno_seq2_09_0 = (Rack.instrument('techno_seq2_09_0', techno_seq2_09_0_layout)
         .chain('',
             Engine('MidiPitcher')
             .then(Engine('MidiChord')
@@ -195,10 +195,10 @@ sb41___16_techno_sequences_09_0 = (Rack.instrument('SB41 - 16 Techno Sequences 0
             .sets('SignalChain2/OscillatorSubAmount/Manual', 0)
             .sets('Volume', 0.6747890115)
             .sets('Volume/Manual', 0.6747890115)
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_2, 'SignalChain1/FilterCutoffFrequency', over=Range(0, 1))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_3, 'SignalChain1/Envelope.0/DecayTime', over=Range(0, 1))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_4, 'SignalChain1/OscillatorDetune', over=Range(0.5, 0))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_4, 'SignalChain2/OscillatorDetune', over=Range(0.5, 1)))
+            .drives(techno_seq2_09_0_layout.macro_2, 'SignalChain1/FilterCutoffFrequency', over=Range(0, 1))
+            .drives(techno_seq2_09_0_layout.macro_3, 'SignalChain1/Envelope.0/DecayTime', over=Range(0, 1))
+            .drives(techno_seq2_09_0_layout.macro_4, 'SignalChain1/OscillatorDetune', over=Range(0.5, 0))
+            .drives(techno_seq2_09_0_layout.macro_4, 'SignalChain2/OscillatorDetune', over=Range(0.5, 1)))
             .then(Engine('Roar')
             .sets('Feedback_FeedbackNote', 36)
             .sets('Feedback_FeedbackNote/Manual', 36)
@@ -222,9 +222,9 @@ sb41___16_techno_sequences_09_0 = (Rack.instrument('SB41 - 16 Techno Sequences 0
             .sets('Stage3_Shaper_Amount', 0.3095238209)
             .sets('Stage3_Shaper_Amount/Manual', 0.3095238209)
             .sets('Stage3_Shaper_Trim/MidiControllerRange/Min', 0.06309573352)
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_5, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_6, 'Stage2_Shaper_Amount', over=Range(0, 1))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_7, 'Stage3_Shaper_Amount', over=Range(0, 1)))
+            .drives(techno_seq2_09_0_layout.macro_5, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
+            .drives(techno_seq2_09_0_layout.macro_6, 'Stage2_Shaper_Amount', over=Range(0, 1))
+            .drives(techno_seq2_09_0_layout.macro_7, 'Stage3_Shaper_Amount', over=Range(0, 1)))
             .then(Engine('DrumBuss')
             .sets('BoomAmount', 0)
             .sets('BoomAmount/Manual', 0)
@@ -247,8 +247,8 @@ sb41___16_techno_sequences_09_0 = (Rack.instrument('SB41 - 16 Techno Sequences 0
             .sets('OutputGain/Manual', 0.6749346256)
             .sets('TransientShaping', 0)
             .sets('TransientShaping/Manual', 0)
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_8, 'DriveAmount', over=Range(0, 1))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_9, 'CrunchAmount', over=Range(0, 1)))
+            .drives(techno_seq2_09_0_layout.macro_8, 'DriveAmount', over=Range(0, 1))
+            .drives(techno_seq2_09_0_layout.macro_9, 'CrunchAmount', over=Range(0, 1)))
             .then(Engine('Echo')
             .sets('Delay_OffsetL', 0)
             .sets('Delay_OffsetL/Manual', 0)
@@ -279,9 +279,9 @@ sb41___16_techno_sequences_09_0 = (Rack.instrument('SB41 - 16 Techno Sequences 0
             .sets('Modulation_Frequency/Manual', 1.99999976)
             .sets('Reverb_Level', 0.4296875)
             .sets('Reverb_Level/Manual', 0.4296875)
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_10, 'Feedback', over=Range(0, 1.5))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_11, 'Reverb_Level', over=Range(0, 1))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_12, 'DryWet', over=Range(0, 1)))
+            .drives(techno_seq2_09_0_layout.macro_10, 'Feedback', over=Range(0, 1.5))
+            .drives(techno_seq2_09_0_layout.macro_11, 'Reverb_Level', over=Range(0, 1))
+            .drives(techno_seq2_09_0_layout.macro_12, 'DryWet', over=Range(0, 1)))
             .then(Engine('Eq8')
             .sets('Bands.0/ParameterA/Freq', 30)
             .sets('Bands.0/ParameterA/Freq/Manual', 30)
@@ -367,12 +367,12 @@ sb41___16_techno_sequences_09_0 = (Rack.instrument('SB41 - 16 Techno Sequences 0
             .sets('ShelfLoGain/Manual', 0.200000003)
             .sets('ShelfLowOn', True)
             .sets('ShelfLowOn/Manual', True)
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_13, 'DecayTime', over=Range(199.999985, 60000.0039))
-            .drives(sb41___16_techno_sequences_09_0_layout.macro_14, 'MixDirect', over=Range(0, 1)))
+            .drives(techno_seq2_09_0_layout.macro_13, 'DecayTime', over=Range(199.999985, 60000.0039))
+            .drives(techno_seq2_09_0_layout.macro_14, 'MixDirect', over=Range(0, 1)))
             .zone(0, 0))
-        .chain('', sb41___16_techno_sequences_09_0_1.unchained().zone(0, 0)))
+        .chain('', techno_seq2_09_0_1.unchained().zone(0, 0)))
 
-sb41___16_techno_sequences_09_layout = Layout(
+techno_seq2_09_layout = Layout(
     Slot('Macro 1', start=107.950005),
     Slot('Macro 2'),
     Slot('Macro 3', start=80.3671875),
@@ -388,7 +388,7 @@ sb41___16_techno_sequences_09_layout = Layout(
     Slot('Macro 13', start=50.3968315),
     Slot('Macro 14', start=50.3968277),
 )
-sb41___16_techno_sequences_09 = (Rack.instrument('SB41 - 16 Techno Sequences 09', sb41___16_techno_sequences_09_layout)
-        .chain('', sb41___16_techno_sequences_09_0.chaining(sb41___16_techno_sequences_09_layout.macro_1.to(sb41___16_techno_sequences_09_0_layout.macro_1), sb41___16_techno_sequences_09_layout.macro_2.to(sb41___16_techno_sequences_09_0_layout.macro_2), sb41___16_techno_sequences_09_layout.macro_3.to(sb41___16_techno_sequences_09_0_layout.macro_3), sb41___16_techno_sequences_09_layout.macro_4.to(sb41___16_techno_sequences_09_0_layout.macro_4), sb41___16_techno_sequences_09_layout.macro_5.to(sb41___16_techno_sequences_09_0_layout.macro_5), sb41___16_techno_sequences_09_layout.macro_6.to(sb41___16_techno_sequences_09_0_layout.macro_6), sb41___16_techno_sequences_09_layout.macro_7.to(sb41___16_techno_sequences_09_0_layout.macro_7), sb41___16_techno_sequences_09_layout.macro_8.to(sb41___16_techno_sequences_09_0_layout.macro_8), sb41___16_techno_sequences_09_layout.macro_9.to(sb41___16_techno_sequences_09_0_layout.macro_9), sb41___16_techno_sequences_09_layout.macro_10.to(sb41___16_techno_sequences_09_0_layout.macro_10), sb41___16_techno_sequences_09_layout.macro_11.to(sb41___16_techno_sequences_09_0_layout.macro_11), sb41___16_techno_sequences_09_layout.macro_12.to(sb41___16_techno_sequences_09_0_layout.macro_12), sb41___16_techno_sequences_09_layout.macro_13.to(sb41___16_techno_sequences_09_0_layout.macro_13), sb41___16_techno_sequences_09_layout.macro_14.to(sb41___16_techno_sequences_09_0_layout.macro_14)).zone(0, 0)))
+techno_seq2_09 = (Rack.instrument('techno_seq2_09', techno_seq2_09_layout)
+        .chain('', techno_seq2_09_0.chaining(techno_seq2_09_layout.macro_1.to(techno_seq2_09_0_layout.macro_1), techno_seq2_09_layout.macro_2.to(techno_seq2_09_0_layout.macro_2), techno_seq2_09_layout.macro_3.to(techno_seq2_09_0_layout.macro_3), techno_seq2_09_layout.macro_4.to(techno_seq2_09_0_layout.macro_4), techno_seq2_09_layout.macro_5.to(techno_seq2_09_0_layout.macro_5), techno_seq2_09_layout.macro_6.to(techno_seq2_09_0_layout.macro_6), techno_seq2_09_layout.macro_7.to(techno_seq2_09_0_layout.macro_7), techno_seq2_09_layout.macro_8.to(techno_seq2_09_0_layout.macro_8), techno_seq2_09_layout.macro_9.to(techno_seq2_09_0_layout.macro_9), techno_seq2_09_layout.macro_10.to(techno_seq2_09_0_layout.macro_10), techno_seq2_09_layout.macro_11.to(techno_seq2_09_0_layout.macro_11), techno_seq2_09_layout.macro_12.to(techno_seq2_09_0_layout.macro_12), techno_seq2_09_layout.macro_13.to(techno_seq2_09_0_layout.macro_13), techno_seq2_09_layout.macro_14.to(techno_seq2_09_0_layout.macro_14)).zone(0, 0)))
 
-RACKS = [sb41___16_techno_sequences_09]
+RACKS = [techno_seq2_09]

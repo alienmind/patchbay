@@ -2,10 +2,10 @@
 
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 
-sb14_techno_sequence_09_0_1_layout = Layout(
+techno_seq_09_0_1_layout = Layout(
     Slot('Macro 1'),
 )
-sb14_techno_sequence_09_0_1 = (Rack.instrument('SB14 Techno Sequence 09_0_1', sb14_techno_sequence_09_0_1_layout)
+techno_seq_09_0_1 = (Rack.instrument('techno_seq_09_0_1', techno_seq_09_0_1_layout)
         .chain('',
             Engine('MidiPitcher')
             .sets('Pitch', -24)
@@ -100,7 +100,7 @@ sb14_techno_sequence_09_0_1 = (Rack.instrument('SB14 Techno Sequence 09_0_1', sb
             .sets('SideChainEq_Q/MidiControllerRange/Max', 11.999999))
             .zone(0, 0)))
 
-sb14_techno_sequence_09_0_layout = Layout(
+techno_seq_09_0_layout = Layout(
     Slot('Macro 1', start=103.950005, label='Sub Bass'),
     Slot('Macro 2', start=63.5),
     Slot('Macro 3', start=63.5),
@@ -116,7 +116,7 @@ sb14_techno_sequence_09_0_layout = Layout(
     Slot('Macro 13', start=34.2698441, label='Reverb Decay'),
     Slot('Macro 14', start=30.2380962, label='Reverb Mix'),
 )
-sb14_techno_sequence_09_0 = (Rack.instrument('SB14 Techno Sequence 09_0', sb14_techno_sequence_09_0_layout)
+techno_seq_09_0 = (Rack.instrument('techno_seq_09_0', techno_seq_09_0_layout)
         .chain('',
             Engine('InstrumentVector')
             .sets('MonoPoly', 0)
@@ -167,13 +167,13 @@ sb14_techno_sequence_09_0 = (Rack.instrument('SB14 Techno Sequence 09_0', sb14_t
             .sets('Voice_Unison_Amount/Manual', 0.328125)
             .sets('Voice_Unison_Mode', 2)
             .sets('Voice_Unison_VoiceCount', 4)
-            .drives(sb14_techno_sequence_09_0_layout.macro_2, 'Voice_Modulators_TimeScale', over=Range(-1, 1))
-            .drives(sb14_techno_sequence_09_0_layout.macro_3, 'Voice_Modulators_Amount', over=Range(0, 2))
-            .drives(sb14_techno_sequence_09_0_layout.macro_4, 'Voice_Filter1_Frequency', over=Range(19.9999981, 20479.998))
-            .drives(sb14_techno_sequence_09_0_layout.macro_5, 'Voice_Filter1_Resonance', over=Range(0, 1.25))
-            .drives(sb14_techno_sequence_09_0_layout.macro_6, 'Voice_Filter1_Drive', over=Range(0, 24))
-            .drives(sb14_techno_sequence_09_0_layout.macro_7, 'Voice_Unison_Amount', over=Range(0, 1))
-            .drives(sb14_techno_sequence_09_0_layout.macro_8, 'Voice_Oscillator1_Effects_Effect2', over=Range(0, 1))
+            .drives(techno_seq_09_0_layout.macro_2, 'Voice_Modulators_TimeScale', over=Range(-1, 1))
+            .drives(techno_seq_09_0_layout.macro_3, 'Voice_Modulators_Amount', over=Range(0, 2))
+            .drives(techno_seq_09_0_layout.macro_4, 'Voice_Filter1_Frequency', over=Range(19.9999981, 20479.998))
+            .drives(techno_seq_09_0_layout.macro_5, 'Voice_Filter1_Resonance', over=Range(0, 1.25))
+            .drives(techno_seq_09_0_layout.macro_6, 'Voice_Filter1_Drive', over=Range(0, 24))
+            .drives(techno_seq_09_0_layout.macro_7, 'Voice_Unison_Amount', over=Range(0, 1))
+            .drives(techno_seq_09_0_layout.macro_8, 'Voice_Oscillator1_Effects_Effect2', over=Range(0, 1))
             .then(Engine('Roar')
             .sets('Feedback_FeedbackAmount', 0.2343789339)
             .sets('Feedback_FeedbackAmount/Manual', 0.2343789339)
@@ -204,8 +204,8 @@ sb14_techno_sequence_09_0 = (Rack.instrument('SB14 Techno Sequence 09_0', sb14_t
             .sets('Stage3_Shaper_Amount', 0.07142857462)
             .sets('Stage3_Shaper_Amount/Manual', 0.07142857462)
             .sets('Stage3_Shaper_Trim/MidiControllerRange/Min', 0.06309573352)
-            .drives(sb14_techno_sequence_09_0_layout.macro_9, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
-            .drives(sb14_techno_sequence_09_0_layout.macro_10, 'Feedback_FeedbackAmount', over=Range(0, 1)))
+            .drives(techno_seq_09_0_layout.macro_9, 'Input_InputGain', over=Range(0.06309573352, 15.8489332))
+            .drives(techno_seq_09_0_layout.macro_10, 'Feedback_FeedbackAmount', over=Range(0, 1)))
             .then(Engine('Echo')
             .sets('ChannelMode', 1)
             .sets('ChannelMode/Manual', 1)
@@ -234,8 +234,8 @@ sb14_techno_sequence_09_0 = (Rack.instrument('SB14 Techno Sequence 09_0', sb14_t
             .sets('Feedback/Manual', 0.8928571343)
             .sets('Modulation_Frequency', 1.99999976)
             .sets('Modulation_Frequency/Manual', 1.99999976)
-            .drives(sb14_techno_sequence_09_0_layout.macro_11, 'Feedback', over=Range(0, 1.5))
-            .drives(sb14_techno_sequence_09_0_layout.macro_12, 'DryWet', over=Range(0, 1)))
+            .drives(techno_seq_09_0_layout.macro_11, 'Feedback', over=Range(0, 1.5))
+            .drives(techno_seq_09_0_layout.macro_12, 'DryWet', over=Range(0, 1)))
             .then(Engine('Hybrid')
             .sets('Algorithm_Decay', 1.14194334)
             .sets('Algorithm_Decay/Manual', 1.14194334)
@@ -253,15 +253,15 @@ sb14_techno_sequence_09_0 = (Rack.instrument('SB14 Techno Sequence 09_0', sb14_t
             .sets('Eq_Peak2Frequency/Manual', 2408.10352)
             .sets('Eq_Peak2Gain', 1.49254858)
             .sets('Eq_Peak2Gain/Manual', 1.49254858)
-            .drives(sb14_techno_sequence_09_0_layout.macro_13, 'Algorithm_Decay', over=Range(0.1000000015, 60))
-            .drives(sb14_techno_sequence_09_0_layout.macro_14, 'DryWet', over=Range(0, 1)))
+            .drives(techno_seq_09_0_layout.macro_13, 'Algorithm_Decay', over=Range(0.1000000015, 60))
+            .drives(techno_seq_09_0_layout.macro_14, 'DryWet', over=Range(0, 1)))
             .zone(0, 0))
-        .chain('', sb14_techno_sequence_09_0_1.unchained().zone(0, 0)))
+        .chain('', techno_seq_09_0_1.unchained().zone(0, 0)))
 
-sb14_techno_sequence_09_layout = Layout(
+techno_seq_09_layout = Layout(
     Slot('Macro 1'),
 )
-sb14_techno_sequence_09 = (Rack.instrument('SB14 Techno Sequence 09', sb14_techno_sequence_09_layout)
-        .chain('', sb14_techno_sequence_09_0.unchained().zone(0, 0)))
+techno_seq_09 = (Rack.instrument('techno_seq_09', techno_seq_09_layout)
+        .chain('', techno_seq_09_0.unchained().zone(0, 0)))
 
-RACKS = [sb14_techno_sequence_09]
+RACKS = [techno_seq_09]
