@@ -6,6 +6,11 @@ title: "PatchBay"
 
 Build Ableton Live racks and Sets from code.
 
+<p align="center">
+  <img src="logo.png" alt="patchbaylogo" width="250" />
+</p>
+
+
 ## Why this project?
 
 Live already exposes a programming interface. The Live Object Model drives a session that is **open

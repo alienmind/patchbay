@@ -1,5 +1,9 @@
 # PatchBay
 
+<p align="center">
+  <img src="doc/logo.png" alt="patchbaylogo" width="250" />
+</p>
+
 ## What this is
 
 Author Ableton Live racks in code instead of by clicking!
