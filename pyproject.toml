@@ -8,12 +8,15 @@ dependencies = ["lxml"]
 patchbay = "patchbay.cli:main"
 
 [dependency-groups]
-dev = ["pytest", "poethepoet"]
+dev = ["pytest", "poethepoet", "ruff", "pyright"]
 
 [tool.poe.tasks]
 fetch = "python scripts/fetch_samples.py"
 build-examples = "python scripts/build_examples.py"
 test = "pytest tests/ -q"
+lint = "ruff check . && ruff format --check ."
+typecheck = "pyright"
+check = ["lint", "typecheck"]
 
 [build-system]
 requires = ["setuptools"]
@@ -24,3 +27,11 @@ build-backend = "setuptools.build_meta"
 # five top-level packages.
 [tool.setuptools]
 packages = ["patchbay"]
+
+[tool.pyright]
+extraPaths = ["examples"]
+
+
+[tool.ruff]
+exclude = ["build", "scratch", ".venv"]
+

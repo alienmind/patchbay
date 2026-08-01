@@ -1,0 +1,13 @@
+{
+    "python.analysis.extraPaths": ["examples"],
+    "python.analysis.typeCheckingMode": "standard",
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        }
+    },
+    "ruff.importStrategy": "fromEnvironment",
+    "python.testing.pytestEnabled": true
+}
