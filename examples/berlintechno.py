@@ -5,8 +5,8 @@ Reverse engineered from `donors/BerlinTechno/BerlinTechno.als`, a Live
 over the parsed tree. Every binding, range, note and macro position below
 was read out of that file. Nothing here was written from memory.
 
-    patchbay build examples/berlintechno.py -o build/
-    patchbay session examples/berlintechno.py -o build/BERLINTECHNO.als
+    patchbay build examples/berlintechno.py -o build/berlintechno/
+    patchbay session examples/berlintechno.py -o build/berlintechno.als
 
 `examples/patchbayground.py` is this project's own target and is designed
 from the layout outward. This file is the opposite exercise: somebody
@@ -63,7 +63,7 @@ from patchbay.live_set import Session, Track
 #: tracked file. `samples/README.md` is the standing rule and it applies to
 #: a donor Project folder exactly as it applies to `samples/`.
 SAMPLE_ROOT = (Path(__file__).resolve().parent.parent
-               / "donors" / "BerlinTechno" / "Samples")
+               / "samples" / "all" / "berlintechno")
 
 
 def find_sample(category: str) -> Path | None:
@@ -85,23 +85,15 @@ def find_sample(category: str) -> Path | None:
 # The pad layout
 # ===========================================================================
 
-# EIGHT SLOTS, IDENTICAL ON ALL EIGHT PADS. Not approximately: the eight
+# EIGHT SLOTS, IDENTICAL ON ALL EIGHT PADS.
 # Select racks in the donor carry the same ten bindings over the same ten
 # ranges, macro for macro, and differ only in where the knobs are parked and
 # which sample is loaded. One design, eight instances, arrived at by hand in
 # a Set that has no code in it.
 #
-# That is `patchbayground.py`'s central claim, reached independently and
-# from the other direction. The differences are what is worth reading:
-#
-#   PB names an IDEA per slot     - Filter, Drive, Movement, Character
-#   this names a SIGNAL PATH      - HPF, LPF, PAN, VOLUME, DECAY
-#
-# PB's layout has to survive Operator, Simpler, Wavetable, Drift and Meld
-# answering the same knob, so a slot is named for the musical idea and each
-# engine binds its own parameter. Here there is ONE engine, a Sampler, so a
-# slot can be named for the thing it moves. A layout is only as abstract as
-# it has to be.
+# Here there is one engine per pad (a Sampler), so a slot is named
+# for the signal path it moves - HPF, LPF, PAN, VOLUME, DECAY.
+# A layout is only as abstract as it has to be.
 #
 # No slot selects. `SAMPLE SELECTR` looks like a selector and is not one: it
 # drives the Sampler's own `Player/SampleSelector`, which walks multisample
@@ -110,9 +102,8 @@ def find_sample(category: str) -> Path | None:
 #
 # The starts here are the ones every pad shares; a pad overrides its own
 # below. PAN at 63.5 is centre over -1..1 and PITCH at 63.5 is 0 semitones
-# over -48..48, the same bipolar-parameter case `patchbayground.py` hit on
-# MidiPitcher. HPF at 0 and LPF at 127 park both filters wide open, which is
-# what makes the pair neutral on a fresh drop.
+# over -48..48, because they are bipolar parameters. HPF at 0 and LPF at 
+# 127 park both filters wide open, which makes the pair neutral on a fresh drop.
 SELECT = Layout(
     Slot("SAMPLE SELECTR"),          # 1  multisample zone, not a chain
     Slot("PITCH", start=63.5),       # 2  0 st, bipolar
@@ -130,8 +121,8 @@ SELECT = Layout(
 # ===========================================================================
 
 #: Milliseconds. Operator and Simpler keep envelope times in ms over
-#: 1..60000, which `patchbayground.py` measured the hard way; this donor
-#: writes the full native span on the mapping, so DECAY sweeps 1 ms to 60 s.
+#: 1..60000. This donor writes the full native span on the mapping,
+#: so DECAY sweeps 1 ms to 60 s.
 DECAY_MS = Range(1.0, 60000.0, "ms")
 
 #: Semitones. Bipolar, which is why the slot carries a start.
@@ -142,10 +133,8 @@ PITCH_ST = Range(-48.0, 48.0, "st")
 BAND_HZ = Range(10.0, 22000.0, "Hz")
 
 #: Decibels. The donor writes Simpler's whole native span rather than
-#: capping at unity, so VOLUME reaches +36 dB. `patchbayground.py` caps
-#: every volume binding at its engine's unity for the opposite reason: one
-#: knob across five engines cannot be allowed to mean five loudnesses. With
-#: one engine and a mixer underneath, the wider knob is a defensible call.
+#: capping at unity, so VOLUME reaches +36 dB. With one engine and a mixer
+#: underneath, the wider knob is a defensible call.
 VOLUME_DB = Range(-36.0, 36.0, "dB")
 
 #: Linear amplitude, the third scale. Rides along on VOLUME.
@@ -302,23 +291,17 @@ SELECT_RACKS = [select_rack(*row[:1], *row[2:]) for row in PADS]
 # The FX racks
 # ===========================================================================
 #
-# THE TECHNIQUE THIS SET IS ACTUALLY ABOUT, and the sharpest difference from
-# `patchbayground.py`.
+# THE TECHNIQUE THIS SET IS ACTUALLY ABOUT.
 #
-# PB's AFX1 is eight effects behind ONE SELECTOR: eight alternatives, one
-# active, the knob swaps which. Its comment says why - "parallel audio
-# chains are expensive; a selector is not".
-#
-# Every FX rack here is the other shape: eight to ten effects IN SERIES, all
-# of them in circuit, one macro per effect. The signal goes through all ten.
-# A knob is not "which effect" but "how much of this one", so the eight
-# knobs are a mixing desk over a fixed chain rather than a chooser.
+# Every FX rack here puts eight to ten effects IN SERIES, all of them in
+# circuit, one macro per effect. The signal goes through all ten. A knob
+# is not "which effect" but "how much of this one", so the eight knobs
+# are a mixing desk over a fixed chain.
 #
 # What makes that affordable is the second technique. **One macro drives a
 # device's `DryWet` AND its `On` switch.** At 0 the device is BYPASSED, not
 # merely dry, so ten devices in series cost nothing until a knob is turned
-# and the rack is a menu that pays for what it uses. PB sets `On` STATICALLY
-# with `sets(..., True)` in six places and never drives one.
+# and the rack is a menu that pays for what it uses.
 #
 # That mapping is not a `MidiControllerRange`. A boolean's mapping range is
 # `MidiCCOnOffThresholds`, a different element, and this project has never
@@ -331,7 +314,7 @@ SELECT_RACKS = [select_rack(*row[:1], *row[2:]) for row in PADS]
 # The ranges are the donor's own and several are narrow on purpose:
 # Overdrive at 0..50 of a 0..100 DryWet, Amp at 0..0.3, Reverb at 0..0.5.
 # A knob that reaches only a third of its target is a knob you cannot ruin
-# the sound with, which is the same argument PB's capped volume ranges make.
+# the sound with.
 
 HAT_FX = Layout(
     Slot("WARM"),
@@ -350,7 +333,7 @@ HAT_FX = Layout(
 # BRIGHT is the one worth reading: it lifts a band AND drops the global gain
 # over an inverted range, `0..4` against `0..-4`, so the knob tilts the
 # spectrum at constant loudness instead of just adding 4 dB. Two parameters,
-# one idea, one knob - PB's paired Filter slot, applied to an EQ.
+# one idea, one knob.
 HAT_STRIP = Rack.audio_effect("HAT FX", HAT_FX).chain(
     "Chain",
     Engine("Eq8")
@@ -518,8 +501,8 @@ RIDE_DELAY_FX = Layout(
 # and is written down rather than hidden.
 #
 # Zones at 0/0/0/0 across every chain is worth noting on its own: this Set
-# uses a rack as a parallel MIXER, where `patchbayground.py` uses one as a
-# selector everywhere. Same construct, opposite reading.
+# uses a rack as a parallel MIXER rather than a selector. Same construct,
+# opposite reading.
 RIDE_DELAY = Rack.audio_effect("RIDE DELAY", RIDE_DELAY_FX).chain(
     "Wet",
     Engine("Delay")
@@ -552,12 +535,9 @@ FX_RACKS = [HAT_STRIP, CLAP_STRIP, PERC_STRIP, HAT_DELAYS, RIDE_DELAY]
 # **The drum rack has NO MACROS AT ALL.** Sixteen unnamed, unbound, all at
 # zero. Every knob in this kit lives one level down, inside a pad.
 #
-# `patchbayground.py`'s DR1 argues the opposite case at length: kit macros
-# that chain into all eight pads at once, so one knob filters the whole kit.
-# This Set says a kit knob is not worth having, and the reason is legible
-# from the pads - eight pads with eight DIFFERENT decays and volumes is a
-# kit tuned per pad, and a kit-wide knob would move all eight off their
-# settings together.
+# The reason is legible from the pads - eight pads with eight DIFFERENT decays
+# and volumes is a kit tuned per pad, and a kit-wide knob would move all
+# eight off their settings together.
 #
 # So the layout is empty rather than absent. A drum rack has no chain
 # selector to drive either way (a pad is chosen by its note), which is the
@@ -565,15 +545,13 @@ FX_RACKS = [HAT_STRIP, CLAP_STRIP, PERC_STRIP, HAT_DELAYS, RIDE_DELAY]
 KIT = Layout()
 
 # Four returns INSIDE the drum rack, so the whole kit's effects travel with
-# the preset and the Set needs no return tracks at all. `patchbayground.py`
-# puts six returns on the SET and two inside DR1; this Set has none on the
-# Set and four inside. A rack that carries its own returns is a self
-# contained instrument, which is the argument for doing it this way.
+# the preset and the Set needs no return tracks at all. A rack that carries
+# its own returns is a self-contained instrument, which is the argument for
+# doing it this way.
 #
 # `b Delay C/S` and `c Delay Hats` are the same device on two returns,
 # tuned for two sources - clap/snare and hats. Naming a return for WHAT
-# FEEDS IT rather than for its character is the opposite convention from
-# PB's `A-Rvb:Short`.
+# FEEDS IT rather than for its character.
 REVERB_RETURN = Rack.audio_effect("a Reverb", Layout()).chain(
     "Chain",
     Engine("Reverb")
@@ -597,7 +575,7 @@ def kit() -> Rack:
     silent floor, at full. Every other pad sits on the floor, which is what
     `ret()` writes anyway.
     """
-    made = Rack.drum("ADRKT_RT_Drums Selector", KIT)
+    made = Rack.drum("Drums Selector", KIT)
     for rack, (name, note, *_) in zip(SELECT_RACKS, PADS):
         sends = {"d Drums Fx 1": 1.0} if name == "TOM" else None
         made = made.pad(name, note, rack.unchained(), sends=sends)
@@ -617,7 +595,7 @@ RACKS: list[Rack] = [KIT_RACK] + SELECT_RACKS + FX_RACKS
 # The Set
 # ===========================================================================
 #
-#     patchbay session examples/berlintechno.py -o build/BERLINTECHNO.als
+#     patchbay session examples/berlintechno.py -o build/berlintechno.als
 #
 # One track. The donor has eight, and the other seven carry loose devices
 # with no rack on them - a Wavetable and five effects, an Operator and five

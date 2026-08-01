@@ -59,7 +59,9 @@ def run_build():
     specs = get_example_specs()
     for spec in specs:
         print_header(f"🛠️  [2/3] BUILDING RACKS FOR {os.path.basename(spec)}")
-        cmd = [sys.executable, "-m", "patchbay.cli", "build", spec, "-o", "build/"]
+        name, _ = os.path.splitext(os.path.basename(spec))
+        out_dir = f"build/{name}/"
+        cmd = [sys.executable, "-m", "patchbay.cli", "build", spec, "-o", out_dir]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"\033[1;31m❌ Rack build failed for {spec}:\033[0m")
@@ -95,7 +97,7 @@ def run_session():
             
         base = os.path.basename(spec)
         name, _ = os.path.splitext(base)
-        out_file = f"build/{name.upper()}.als"
+        out_file = f"build/{name}.als"
         
         print_header(f"🎛️  [3/3] ASSEMBLING LIVE SET FOR {base}")
         cmd = [sys.executable, "-m", "patchbay.cli", "session", spec, "-o", out_file]

@@ -405,7 +405,7 @@ shared is the layout: `EQ.gain` is macro 6 whichever device answers it.
 `Rack.instrument`, `Rack.audio_effect`, `Rack.midi_effect`, `Rack.drum`.
 The kind picks the rack device tag and the branch tag - a
 `MidiEffectGroupDevice` holds `MidiEffectBranchPreset`, read off
-`donors/AM_midi.adg` rather than guessed - and it decides what may nest
+`donors/AnotherExample_midi.adg` rather than guessed - and it decides what may nest
 inside. An effect rack takes only its own kind, because Live refuses the
 preset otherwise, and the refusal happens at `chain()` rather than on the
 drop.

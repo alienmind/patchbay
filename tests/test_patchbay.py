@@ -1129,7 +1129,7 @@ def test_a_placed_device_does_not_inherit_the_donor_rack_mappings():
 
 
 def test_a_midi_effect_rack_builds_with_its_own_branch_tag():
-    """MidiEffectGroupDevice holds MidiEffectBranchPreset, per donors/AM_midi.adg."""
+    """MidiEffectGroupDevice holds MidiEffectBranchPreset, per donors/AnotherExample_midi.adg."""
     g = Layout(Slot("Rate"))
     rack = Rack.midi_effect("ARP", g).chain(
         "strip", Engine("MidiArpeggiator").drives(g.rate, "SyncedRate"))

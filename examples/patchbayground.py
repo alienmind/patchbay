@@ -11,8 +11,8 @@ engines as chains, a sound addressed by two knobs. Rebuilt here to our own
 taste, from a declaration, because doing it by hand is thousands of macro
 mappings entered by mouse.
 
-    patchbay build examples/patchbayground.py -o build/
-    patchbay session examples/patchbayground.py -o build/PATCHBAYGROUND.als
+    patchbay build examples/patchbayground.py -o build/patchbayground/
+    patchbay session examples/patchbayground.py -o build/patchbayground.als
 
 One file, both halves. The racks are declared first and the Set that places
 them is at the bottom, built from the SAME objects rather than from the
@@ -1086,7 +1086,7 @@ BY_NAME: dict[str, Rack] = {r.name: r for r in RACKS}
 # The Set
 # ===========================================================================
 #
-#     patchbay session examples/patchbayground.py -o build/PATCHBAYGROUND.als
+#     patchbay session examples/patchbayground.py -o build/patchbayground.als
 #
 # Which rack sits on which track, in what order, what the returns are
 # called, and how it is all coloured and routed. The racks above are the
