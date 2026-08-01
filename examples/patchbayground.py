@@ -532,7 +532,7 @@ SAMPLE_ROOT = Path(__file__).resolve().parent.parent / "samples"
 #: because a pad is a note and eight notes are laid out on the grid. How
 #: many files sit inside one is not fixed at all: that is the drum rack's
 #: whole shape, and renaming a category is one edit to the third field.
-DR1_SAMPLES = SAMPLE_ROOT / "DR1"
+DR1_SAMPLES = SAMPLE_ROOT
 
 # What a pad calls its knobs, over the shared pairing. The layout is
 # positional: same slot, same chaining, different word, which is the drum

@@ -92,12 +92,11 @@ MANIFEST = SAMPLES / "manifests" / "reorg_log.csv"
 class Rule:
     """One category, where it lands, and what names mean it.
 
-    `dest` is a path under `samples/`, which is the per-rack scheme
-    `samples/README.md` documents: `<RACK>/<category>/` for a rack with
-    categories, `<RACK>/` for a flat one.
+    `dest` is a path under `samples/`, which is the scheme
+    `samples/README.md` documents: `<category>/` for a generic category.
 
     **`dest = None` means recognised and deliberately not placed.** Only
-    `samples/<RACK>/` is ever read by a build, so sorting a file no rack
+    `samples/<category>/` is ever read by a build, so sorting a file no rack
     can play would create a folder nothing opens. Saying so is more useful
     than either inventing a home for it or failing to classify it.
     """
@@ -130,16 +129,16 @@ RULES: tuple[Rule, ...] = (
           r"\bmix\b", r"\bsequence\b", r"\bsq\b")),                    # 239
 
     # Bare `oh` is deliberately absent: see the module docstring.
-    Rule("ohat", "DR1/ohat", (r"open.?hat", r"\bohh\b", r"\boh.?hat\b")),  # 0
-    Rule("hat", "DR1/hat",
+    Rule("ohat", "ohat", (r"open.?hat", r"\bohh\b", r"\boh.?hat\b")),  # 0
+    Rule("hat", "hat",
          (r"closed.?hat", r"\bch\b", r"hi.?hat", r"\bhh\b", r"hat")),  # 147
-    Rule("clap", "DR1/clap", (r"clap", r"\bclp\b", r"\bcp\b", r"snap")),  # 50
-    Rule("rim", "DR1/rim", (r"\brim", r"\brs\b", r"side.?stick")),        # 0
-    Rule("snare", "DR1/snare", (r"snare", r"\bsd\b", r"\bsnr\b")),       # 70
-    Rule("kick", "DR1/kick",
+    Rule("clap", "clap", (r"clap", r"\bclp\b", r"\bcp\b", r"snap")),  # 50
+    Rule("rim", "rim", (r"\brim", r"\brs\b", r"side.?stick")),        # 0
+    Rule("snare", "snare", (r"snare", r"\bsd\b", r"\bsnr\b")),       # 70
+    Rule("kick", "kick",
          (r"kick", r"\bbd\b", r"bass.?drum", r"\b808\b", r"thump",
           r"\bbdrum")),                                                # 144
-    Rule("tom", "DR1/tom", (r"\btom\b", r"\btm\b", r"conga", r"bongo")),  # 0
+    Rule("tom", "tom", (r"\btom\b", r"\btm\b", r"conga", r"bongo")),  # 0
 
     # The pad is MISC, and `perc` stays in the patterns because that is the
     # word packs put in filenames. A category name and a filename token are
@@ -148,7 +147,7 @@ RULES: tuple[Rule, ...] = (
     # `glitch` is here rather than in fx because the pack that ships 72 of
     # them files them under Drums: they are percussive one-shots, and a pad
     # is where they are playable.
-    Rule("misc", "DR1/misc",
+    Rule("misc", "misc",
          (r"perc", r"glitch", r"shaker", r"tamb", r"cowbell", r"clave",
           r"wood", r"block", r"click", r"\bcym", r"\bcy\b", r"\bpc\b",
           # Cymbals land here rather than in a `cymbals/` folder of their
@@ -157,12 +156,12 @@ RULES: tuple[Rule, ...] = (
           r"crash", r"splash", r"\bride\b", r"\bbell\b")),               # 357
 
     # Everything with no pad: atmospheres, alarms, drones, speech, stabs.
-    Rule("fx", "SR1",
+    Rule("fx", "fx",
          (r"\bfx\b", r"vox", r"vocal", r"voice", r"\bhit\b", r"stab",
           r"impact", r"riser", r"sweep", r"nois", r"drop", r"chord",
           r"\bsyn\b", r"\bsy\b", r"synth", r"drone", r"atmo", r"alarm",
           r"\btalk\b", r"screech", r"siren",
-          # A bass one-shot has no pad, so SR1 is where it goes. Five files
+          # A bass one-shot has no pad, so the fx folder is where it goes. Five files
           # here are `..._BASS_126_Gm_7`: they carry a tempo AND a key and
           # are probably bars rather than hits. The NAME cannot settle it
           # and LENGTH would, which is the audio stage's first job.

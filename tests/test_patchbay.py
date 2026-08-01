@@ -2172,7 +2172,7 @@ def test_sample_classification_is_ordered_specific_first():
     survey settled.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    from patchbaygrnd_fetch_samples import RULES, classify
+    from fetch_samples import RULES, classify
 
     names = [r.category for r in RULES]
     assert len(names) == len(set(names)), f"a duplicate rule is dead: {names}"
@@ -2222,19 +2222,19 @@ def test_sample_classification_is_ordered_specific_first():
 
 
 def test_a_loop_is_not_placed_at_all():
-    """No rack reads anything outside `samples/<RACK>/`, so a loop has no home.
+    """No rack reads anything outside `samples/<category>/`, so a loop has no home.
 
     Recognising one is still worth doing: it is what keeps 311 bar-length
     files out of the pads, where they are unplayable. `dest = None` says
     recognised and deliberately left alone, which is a different answer
     from "no rule matched".
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbaygrnd_fetch_samples as rs
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import fetch_samples as rs
 
     placed = {r.dest for r in rs.RULES if r.dest is not None}
-    assert all(d.split("/")[0] in ("DR1", "SR1") for d in placed), (
-        f"a rule writes outside samples/<RACK>/: {sorted(placed)}")
+    assert all("/" not in d for d in placed), (
+        f"a rule writes a deep path: {sorted(placed)}")
 
     got = rs.classify(Path("kick_loop_126bpm.wav"))
     assert got is not None and got.category == "loop" and got.dest is None
@@ -2250,8 +2250,8 @@ def test_a_folder_that_says_loop_outranks_the_filename():
     It carries only the unambiguous tokens. `bpm` is not among them for the
     reason the next test gives.
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbaygrnd_fetch_samples as rs
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import fetch_samples as rs
 
     got = rs.classify(rs.DROP / "loops" / "kick" / "kick_001.wav")
     assert got is not None, "a folder saying loop was ignored"
@@ -2269,8 +2269,8 @@ def test_the_folder_stage_is_a_fallback_and_skips_the_loop_rule():
     to folder names, the `bpm` pattern would call every one of them a loop,
     so `FolderStage` drops that rule. The name always wins where it speaks.
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
-    import patchbaygrnd_fetch_samples as rs
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import fetch_samples as rs
 
     assert [s.name for s in rs.PIPELINE] == ["folder-form", "name", "folder"]
     folder = next(st for st in rs.PIPELINE if st.name == "folder")

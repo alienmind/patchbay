@@ -8,7 +8,12 @@ dependencies = ["lxml"]
 patchbay = "patchbay.cli:main"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["pytest", "poethepoet"]
+
+[tool.poe.tasks]
+fetch = "python scripts/fetch_samples.py"
+build-examples = "python scripts/build_examples.py"
+test = "pytest tests/ -q"
 
 [build-system]
 requires = ["setuptools"]

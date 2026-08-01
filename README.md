@@ -39,8 +39,8 @@ uv sync                         # creates .venv, installs patchbay editable
 shape it arrived in. 
 
 ```
-uv run python examples/patchbaygrnd_fetch_samples.py         # Will show some help
-uv run python examples/patchbaygrnd_fetch_samples.py --apply # Will classify (copy) into the required folders
+uv run poe fetch         # Will show some help
+uv run poe fetch --apply # Will classify (copy) into the required folders
 ```
 
 The result is a copy of each file into `samples/<RACK>/<category>/`, renamed and numbered
@@ -50,8 +50,7 @@ classification can be fixed with a re-run. See `samples/README.md` for details.
 **Building PATCHBAYGRND: the exemplary racks and Set**, both from the one example spec:
 
 ```
-uv run patchbay build examples/patchbayground.py -o build/
-uv run patchbay session examples/patchbayground.py -o build/PATCHBAYGROUND.als
+uv run poe build-examples
 ```
 
 The first writes 52 `.adg` files. The second writes one `.als` holding all
@@ -63,7 +62,7 @@ Then drag `build/PATCHBAYGROUND.als` into Live. **Do not double-click an
 `.adg`** - that starts a second Live instance and loads nothing.
 
 ```
-uv run pytest tests/ -q         # 120 tests, ~2 min
+uv run poe test         # 120 tests, ~2 min
 ```
 
 Everything below is why any of it works.
@@ -295,7 +294,7 @@ own:
 patchbay harvest "path/to/Project"
 ```
 
-`uv run pytest tests/ -q` runs 116 tests asserting the library still agrees
+`uv run poe test` runs 116 tests asserting the library still agrees
 with every recorded finding. One of them clears the variations Live wrote
 in `racks/s8_c.adg`, writes them back through `patchbay`, and requires the
 diff to be empty. Another holds a digest of every example rack, DR1's
@@ -335,8 +334,8 @@ both still moving.
 Then either activate the environment, or prefix commands with `uv run`:
 
 ```
-uv run patchbay build examples/patchbayground.py -o build/
-uv run pytest tests/ -q
+uv run poe build-examples
+uv run poe test
 ```
 
 `uv run` works from any directory with `--project`, which matters for the

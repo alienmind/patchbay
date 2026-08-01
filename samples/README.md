@@ -14,40 +14,37 @@ enumerate it and it does not name its sources.
 
 ## The contract
 
-**One folder per rack, named exactly as the rack is.** A rack that wants
-samples looks in `samples/<RACK>/` and nowhere else. Two racks never
-negotiate over a folder, and a folder no rack is named for is never read.
+**One folder per category.** A rack that wants samples looks in `samples/<category>/`
+and nowhere else. Racks share folders rather than hoarding their own copies.
 
 ```
 samples/
   all/        DROP ANYTHING HERE. Never read by a build
-  DR1/        one subfolder per pad category
-    kick/     tom/      snare/    hat/
-    rim/      misc/     clap/     ohat/
-  SR1/        flat, no categories
+  kick/       tom/      snare/    hat/
+  rim/        misc/     clap/     ohat/
+  fx/         
   manifests/  the move log, never read by a build
 ```
 
 **There are no other folders, and that is the rule.** A build reads
-`samples/<RACK>/` and nothing else, so a folder no rack is named for is a
+`samples/<category>/` folders, so a folder no rack asks for is a
 folder nothing opens. `cymbals/` and `loops/` used to exist and were
 exactly that: write-only. Cymbals now go to the `misc` pad, which is the
 pad that plays one, and loops go nowhere at all.
 
-**A rack with categories has one subfolder per category. A flat rack has
-none.** DR1 is a drum rack, so a category is a pad and a pad is a MIDI
-note. SR1 walks one list, so its files sit directly in `SR1/`.
+**A category is mapped to a pad.** DR1 is a drum rack, so a category is a pad and a pad is a MIDI
+note. Some racks like SR1 walk a flat list, so they fetch from `fx/` or similar.
 
 ## What is fixed and what is not
 
 | | fixed by | to change it |
 |---|---|---|
-| which racks have folders | the rack's name | add a folder named for the rack |
+| which categories exist | fetch_samples rules | add a rule in fetch_samples.py |
 | DR1's eight categories | one MIDI note each, laid out on the Push grid | edit `PADS` in `examples/patchbayground.py` |
 | how many files in a category | nothing | drop a file in, rebuild |
 
-**Eight categories is the fixed part. What is inside one is not.** Adding a
-file to `DR1/snare/` adds a chain to the snare pad on the next build, and
+**Eight categories are the fixed drum pads. What is inside one is not.** Adding a
+file to `snare/` adds a chain to the snare pad on the next build, and
 nothing has to be told. That is the drum rack's whole shape, and it is why
 no sample count appears in the spec.
 
@@ -74,17 +71,17 @@ folder, `.asd` analysis files included, is ignored.
 
 ## Current counts
 
-    DR1/      307 over eight categories
-    SR1/        6
+    kick/     ...
+    fx/         6
     all/     1419 waiting to be sorted
 
 Counts change as the collection does. Ask the filesystem, not this file.
 
 ## How the tree is built
 
-    python examples/patchbaygrnd_fetch_samples.py            # say what would happen
-    python examples/patchbaygrnd_fetch_samples.py --explain  # and why, per file
-    python examples/patchbaygrnd_fetch_samples.py --apply    # do it
+    uv run poe fetch            # say what would happen
+    uv run poe fetch --explain  # and why, per file
+    uv run poe fetch --apply    # do it
 
 Drop a pack into `samples/all/` in whatever shape it arrived in. The script
 COPIES each file into the folder its name says it belongs in, renamed
@@ -126,7 +123,7 @@ token frequency and then by checking what each rule caught. They place
 1331 of them.
 
 **A loop is recognised and then left alone.** No rack plays one: a pad is a
-one-shot and SR1 walks one-shots too. Recognising them is what keeps 311
+one-shot and fx walks one-shots too. Recognising them is what keeps 311
 bar-length files out of the pads; giving them a folder would only be a
 folder nothing reads.
 
@@ -152,5 +149,4 @@ because the directory they arrived in does not survive sorting.
 
 `cymbals/` and `loops/` are raw material no rack reads. That is not an
 oversight and nothing is broken: discovery only ever looks inside
-`samples/<RACK>/`, so a folder no rack is named for costs nothing. Give one
-to a rack by moving it under that rack's folder.
+the configured categories.

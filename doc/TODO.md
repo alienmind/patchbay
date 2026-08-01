@@ -89,7 +89,7 @@ or simply refusing to guess and naming the donor per spec.
 
 ## 1. Classifying by sound
 
-We currently have a basic classification algorithm for samples based on file names `examples/patchbaygrnd_fetch_samples.py`,
+We currently have a basic classification algorithm for samples based on file names `scripts/fetch_samples.py`,
 which sorts a drop folder. But this is not enough to properly cluster the samples as we want them to be:
 
 ### Enhancements
