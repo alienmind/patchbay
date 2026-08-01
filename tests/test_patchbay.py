@@ -2171,7 +2171,7 @@ def test_sample_classification_is_ordered_specific_first():
     from 1332 files in ten commercial packs; these are the decisions that
     survey settled.
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "examples"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
     from fetch_samples import RULES, classify
 
     names = [r.category for r in RULES]
