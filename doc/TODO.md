@@ -18,6 +18,7 @@ costs against what it decides.
 | 6 | A chain that holds a rack AND devices | me | a DSL surface change | Whether a real-world rack shape can be declared at all |
 | 7 | A macro on a BOOLEAN writes no threshold | you, one check | one load in Live | Whether a knob can carry a device's bypass |
 | 8 | Donor tie-break is wrong for a device with optional slots | me | small | Which donor wins, on every Sampler-shaped device |
+| 9 | A track fed by other tracks needs Monitor = In | me | small, one value | Whether a written Set makes a sound without being touched |
 
 Items 6 to 8 all came out of `examples/berlintechno.py`. `doc/BERLINTECHNO.md`
 has the comparison they sit in.
@@ -238,6 +239,34 @@ found and fixed, three harmless additions, 53 unchanged. Q28 has the table.
 Worth re-running after a Live update, because a rename is the one change
 that breaks a spec silently: the DSL validates a binding against the donor,
 so a stale donor is a stale vocabulary and the check passes on a fiction.
+
+## 9. Monitor on a track that other tracks feed
+
+`patchbay session` routes seven tracks into PM1 and PM1 arrives with
+**Monitor = Off**, so the Set loads correct and silent. Confirmed in Live
+12.4.3: setting PM1's Monitor to In is the whole fix.
+
+Off is not something this writes. It is what Live's own
+`Core Library/Defaults/Creating Tracks/Audio Track/Default Audio Track.als`
+carries, and a fresh audio track is normally fine with it because nothing
+feeds it. A track that RECEIVES another track's output is the case where
+the default is wrong, and `live_set` sets the routing without setting the
+monitor to match.
+
+**What is missing is the enum, not the idea.** The field is
+`DeviceChain/MainSequencer/MonitoringEnum`, it reads `2` on a fresh audio
+track and `1` on a fresh MIDI track, and no factory Set anywhere routes a
+track into another track, so there is nothing to diff for which value means
+In. `build/PM1_monitor_0.als` and `build/PM1_monitor_1.als` are the two
+candidates, written and unloaded.
+
+Either load one of those and say which sounds, or set Monitor to In by hand
+and save the Set anywhere for a diff. Then `_route_output` sets it on the
+target whenever a track is routed into another, and this stops being a
+manual step.
+
+**Until then it is one radio button per Set**, and it belongs in Standing
+manual work only until the value is known.
 
 ## Standing manual work
 
