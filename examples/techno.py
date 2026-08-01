@@ -1,6 +1,6 @@
 """EXAMPLE_TECHNO - a donor Set read back into a spec.
 
-Reverse engineered from `donors/BerlinTechno/BerlinTechno.als`, a Live
+Reverse engineered from `donors/Techno/Techno.als`, a Live
 11.0.11 Set at 135 BPM, with `patchbay extract` and one-question scripts
 over the parsed tree. Every binding, range, note and macro position below
 was read out of that file. Nothing here was written from memory.

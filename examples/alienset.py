@@ -1,9 +1,6 @@
 """EXAMPLE_ALIENSET - an example Set combining multiple techniques
 
-Designed for techno but also for other electronic music genres. Uses the consistent PB layout for 
-instruments from playgrnd, but relies on a CPU-efficient ALIEN_FX series rack 
-for effects instead of a heavy channel strip. Returns are self-contained inside the Drum Rack.
-
+Designed for techno but also for other electronic music genres.
     patchbay build examples/alienset.py -o build/alienset/
     patchbay session examples/alienset.py -o build/alienset.als
 """
@@ -17,7 +14,7 @@ from patchbay import clone, live_set, samples
 from patchbay.dsl import Engine, Layout, Rack, Range, Slot
 from patchbay.library import Library
 from patchbay.live_set import Session, Track
-from alienmindsequencer import get_seq_xml
+from alienseq import get_seq_xml
 
 # ===========================================================================
 # The layout and ranges
@@ -127,14 +124,14 @@ def sound_family(rack: Rack) -> list:
     return out
 
 # Pad: lush wavetable + drift
-PD1 = (Rack.instrument("PD1", PB)
+PD = (Rack.instrument("PD", PB)
         .spends(PB.character, "attack")
         .label(PB.filter, PAIRED)
         .chain("Wave", WAVE)
         .chain("Drift", DRIFT))
 
 # Bass: FM + Wavetable + Meld (morph)
-BS1 = (Rack.instrument("BS1", PB)
+BS = (Rack.instrument("BS", PB)
        .spends(PB.character, "morph")
        .label(PB.filter, PAIRED)
        .chain("Wave", WAVE)
@@ -142,21 +139,21 @@ BS1 = (Rack.instrument("BS1", PB)
        .chain("Meld", MELD))
 
 # Lead: FM + Meld
-LD1 = (Rack.instrument("LD1", PB)
+LD = (Rack.instrument("LD", PB)
        .spends(PB.character, "glide")
        .label(PB.filter, PAIRED)
        .chain("FM", FM.sets("Globals/PortamentoOn", True))
        .chain("Meld", MELD))
 
-# ARP: Same engines as LD1, but dedicated track for arps
-ARP1 = (Rack.instrument("ARP1", PB)
+# ARP: Same engines as LD, but dedicated track for arps
+ARP = (Rack.instrument("ARP", PB)
         .spends(PB.character, "glide")
         .label(PB.filter, PAIRED)
         .chain("FM", FM.sets("Globals/PortamentoOn", True))
         .chain("Meld", MELD))
 
 # Sampler track (Multisampler focus)
-SR1 = (Rack.instrument("SR1", PB)
+SR = (Rack.instrument("SR", PB)
        .spends(PB.character, "attack")
        .label(PB.filter, PAIRED)
        .chain("Sample", SAMPLER))
@@ -165,7 +162,7 @@ SR1 = (Rack.instrument("SR1", PB)
 
 
 # ===========================================================================
-# FX RACKS (from BerlinTechno)
+# FX RACKS (from Techno)
 # ===========================================================================
 
 ALIEN_FX_LAYOUT = Layout(
@@ -205,7 +202,7 @@ ALIEN_FX = Rack.audio_effect("ALIEN_FX", ALIEN_FX_LAYOUT).chain(
 
 
 # ===========================================================================
-# The Drum Rack (DR1)
+# The Drum Rack (DR)
 # ===========================================================================
 
 KIT = Layout(
@@ -284,10 +281,10 @@ PAD_FX = (Engine("Erosion")
                 .drives(PAD_WITH_FX.fx_drive, "DryWet", over=Range(0.0, 1.0))))
 
 SAMPLE_ROOT = Path(__file__).resolve().parent.parent / "samples"
-DR1_SAMPLES = SAMPLE_ROOT
+DR_SAMPLES = SAMPLE_ROOT
 
 def pad_samples(category: str, limit: int = 16) -> list[Path]:
-    return samples.audio(DR1_SAMPLES / category)[:limit]
+    return samples.audio(DR_SAMPLES / category)[:limit]
 
 def pad_rack(name: str, sound: str) -> Rack | None:
     files = pad_samples(sound)
@@ -315,7 +312,7 @@ DRUMS_FX_RETURN = Rack.audio_effect("b Drums Fx 1", Layout()).chain(
 )
 
 def dr1() -> Rack | None:
-    kit = (Rack.drum("DR1", KIT)
+    kit = (Rack.drum("DR", KIT)
            .ret("a Reverb", REVERB_RETURN.unchained())
            .ret("b Drums Fx 1", DRUMS_FX_RETURN.unchained())
            .sending(KIT.send_a, "a Reverb")
@@ -332,7 +329,7 @@ def dr1() -> Rack | None:
 
     return kit if built else None
 
-DR1 = dr1()
+DR = dr1()
 
 # ===========================================================================
 # Set Assembly
@@ -390,32 +387,32 @@ def SESSION() -> Session:
     
     # Track 1: DR (Removed ALIEN_FX as it's now per-pad)
     tracks.append(Track("DR", "midi", [d for d in [
-        _preset(DR1), _stock("ChannelEq"), _stock("Limiter")
+        _preset(DR), _stock("ChannelEq"), _stock("Limiter")
     ] if d is not None], out="PM", sidechain=None, color=colors[0]))
 
     # Track 2: BS
     tracks.append(Track("BS", "midi", [d for d in [
-        _preset(BS1), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
+        _preset(BS), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
     ] if d is not None], out="PM", sidechain="DR", color=colors[1]))
 
     # Track 3: PD
     tracks.append(Track("PD", "midi", [d for d in [
-        _preset(PD1), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
+        _preset(PD), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
     ] if d is not None], out="PM", sidechain="DR", color=colors[2]))
 
     # Track 4: LD
     tracks.append(Track("LD", "midi", [d for d in [
-        _preset(LD1), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
+        _preset(LD), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
     ] if d is not None], out="PM", sidechain="DR", color=colors[3]))
 
     # Track 5: ARP
     tracks.append(Track("ARP", "midi", [d for d in [
-        _preset(ARP1), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
+        _preset(ARP), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
     ] if d is not None], out="PM", sidechain="DR", color=colors[4]))
 
     # Track 6: SR
     tracks.append(Track("SR", "midi", [d for d in [
-        _preset(SR1), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
+        _preset(SR), _stock("ChannelEq"), _stock("Compressor2"), _stock("Limiter")
     ] if d is not None], out="PM", sidechain="DR", color=colors[5]))
 
     # Track 7: SEQ

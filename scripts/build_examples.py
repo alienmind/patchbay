@@ -51,7 +51,7 @@ def get_example_specs():
     specs = []
     for path in glob.glob("examples/*.py"):
         name = os.path.basename(path)
-        if name not in ("fetch_samples.py", "build_examples.py", "alienmindsequencer.py"):
+        if name not in ("fetch_samples.py", "build_examples.py", "alienseq.py"):
             specs.append(path)
     return specs
 

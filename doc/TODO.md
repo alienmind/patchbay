@@ -25,7 +25,7 @@ has the comparison they sit in.
 
 ## 6. A chain that holds a rack AND devices
 
-Every drum pad in `donors/BerlinTechno/BerlinTechno.als` is
+Every drum pad in `donors/Techno/Techno.als` is
 
     [Select rack] -> [FX rack] -> Eq8 -> StereoGain
 
@@ -60,7 +60,7 @@ parameter's mapping range is `MidiControllerRange` and `Range` writes that;
 a BOOLEAN's is a different element, and `.drives(slot, "On")` writes a
 `KeyMidi` and leaves the thresholds to whatever the donor carries.
 
-It matters because of what the technique buys. BerlinTechno drives a
+It matters because of what the technique buys. Techno drives a
 device's `DryWet` and its `On` from ONE macro, so ten effects in series are
 bypassed until their knob is turned. Every `sets(..., True)` in
 `examples/playgrnd.py` is the static version of the same idea.
@@ -80,7 +80,7 @@ and neither is fuller in any useful sense.
 
 The shipped `donors/MultiSampler.adg` had LFO and Shaper filled, AuxEnv
 empty, and NO `SampleRef` at all: 97 parameters, and unable to play a
-sample. The copy in BerlinTechno is the mirror at 95, so it lost the
+sample. The copy in Techno is the mirror at 95, so it lost the
 tie-break while being the only usable one. It has been swapped in by hand.
 
 Count is a proxy for "more configured" and it fails on exactly the devices
@@ -95,7 +95,7 @@ which sorts a drop folder. But this is not enough to properly cluster the sample
 
 ### Enhancements
 
-Based on some of the exmaples used:
+Based on some of the examples used:
 
 | case | example in the drop | what would settle it |
 |---|---|---|

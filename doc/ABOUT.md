@@ -1,8 +1,8 @@
 ---
-title: "patchbay"
+title: "PatchBay"
 ---
 
-# patchbay
+# PatchBay
 
 Build Ableton Live racks and Sets from code.
 
@@ -18,7 +18,7 @@ of what the Set contains simply has no API at all. Grouping devices into
 a rack, creating a macro mapping, setting a chain zone: none of these are
 in the Object Model.
 
-patchbay covers the other half by writing the **files**. An `.adg` is a
+PatchBay covers the other half by writing the **files**. An `.adg` is a
 gzipped XML document, so is an `.als`, so is an `.adv`. What the API will
 not build, the file format will, and patchbay writes and reads that XML
 directly.

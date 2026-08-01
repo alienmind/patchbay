@@ -1,36 +1,19 @@
 # PLAYGRND
 
-Some inspiration of this project came while trying to recreate the amazing **PLAYGRND**, an Ableton Live Set
-by **Andri Sören**: https://www.youtube.com/watch?v=plQ9F-0RmDw (please support the author and buy his product!).
+`examples/playgrnd.py` is the ultimate end-to-end test of PatchBay, inspired by Andri Sören's **PLAYGRND** Ableton Live Set ([YouTube](https://www.youtube.com/watch?v=plQ9F-0RmDw)). Please support the original author and buy their product!
 
-Based on the information publicly made available from him, what that Set demonstrates
-is worth taking: one macro layout repeated across every rack, engines as chains,
-using knobs to quickly switch between instruments, a semi fixed channel strip on every track,
-and racks nested inside racks so one instrument reaches all the others.
-
-[`examples/playgrnd.py`](examples/playgrnd.py) is this
-project's attempt at rebuilding something with that complexity with the obvious non intention
-of copying the author intelectual property.
-
-It primarily serves as **one big example, and the end-to-end test** that puts this idea into stress:
-Twelve racks, six instruments and a six rack channel strip, three levels of nesting, 96 variations, eight drum pads
-- if a change breaks something real, it breaks there first. All twelve have been loaded into Live 12.4.3 and played.
+This example proves that a hyper-mapped template for Push 3 can be generated from code. With 12 racks, 6 instruments, a 6-rack channel strip, 3 levels of nesting, 96 variations, and 8 drum pads, it puts PatchBay to the test. If a change breaks the system, it breaks here first. All racks have been loaded and played in Live 12.4.3.
 
 ## Goal
 
-What that Set demonstrates is an ARCHITECTURE: A hyper-mapped Live template for Push 3.
-The design goal is that the mouse is never needed during a jam: every meaningful control sits on a
-macro, reachable from a Push encoder.
+The design goal is to never need a mouse during a jam: every meaningful control sits on a macro, reachable from a Push encoder. Achieving this requires:
+- One unified macro layout repeated across every rack
+- Engines configured as parallel chains
+- Sounds selectable via macro positions
+- A fixed channel strip on every track
+- Racks nested inside racks
 
-PLAYGRND has one macro layout repeated across every rack, engines as
-chains, sounds as selector positions, a fixed channel strip on every track,
-and racks nested inside racks so one instrument can reach all the others.
-
-Assembling a template of this kind by hand is thousands of macro mappings
-and tens of thousands of parameter values, entered one at a time by mouse.
-
-Our own build of that idea helps automate the tedious parts: the tracks, the slot names,
-the engine choices and the sound design are yours.
+Building a template like this by hand takes thousands of manual macro mappings. `patchbay` automates this tedium so you can focus on the music: the tracks, the slot names, the engine choices, and the sound design are yours to define.
 
 ## The eight tracks
 

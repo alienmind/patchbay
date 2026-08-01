@@ -4,16 +4,14 @@
 
 Author Ableton Live racks in code instead of by clicking!
 
-patchbay is a Python DSL and a toolchain for writing Live racks as source.
+PatchBay is a Python DSL and a toolchain for writing Live racks as source.
 You declare what a rack is - engines, macro layout, bindings, ranges, zones,
 variations, nesting - and `patchbay build` produces the `.adg` Live opens.
 It also runs backwards: `patchbay extract` reads a saved rack and prints
 the declaration that rebuilds it.
 
-Several examples are provided under the examples/ folder.
-Inspired in ideas from [strudel.cc](https://strudel.cc) and TidalCycles,
-but PatchBay is about **offline authoring** and not live coding of music.
-Nothing here makes a sound. It produces the assets you will load in your DAW.
+Several examples are provided in the `examples/` folder.
+Inspired by [strudel.cc](https://strudel.cc) and TidalCycles, PatchBay is for **offline authoring**, not live coding. Nothing here makes a sound-it produces the assets you load in your DAW.
 
 ## TLDR - How do I run this
 
@@ -28,21 +26,9 @@ uv run poe build-examples       # Will build all the example racks and sessions
 
 ## Motivation
 
-Instead of spending an afternoon dragging, dropping, patching
-and connecting macros, ~~I've spend two weeks of frantically coding this tool, so~~ you just do an edit and a rebuild from a layout you
-already trust.
+Maintaining Ableton Live racks by hand is tedious: you click every mapping, dial every variation, and repeat fixes across copies. 
 
-~~(Yes, that's what sidequesting looks like.)~~
-
-This is useful for music producers and developers of audio tools that want to automate their workflow at least partially.
-
-A rack kept current by hand is hands on work: every mapping clicked, every variation dialled,
-every fix repeated in each copy that inherited it, held together by the author's discipline.
-
-Declared as code, a rack gets the tools ordinary software already has. It
-lives in version control, it diffs, it reviews, it rebuilds. A new Live
-version, a renamed parameter, or a change of taste is an edit to a spec and
-one `patchbay build`.
+By declaring your racks as code, you can use version control, diffs, and automated rebuilds. Changing a parameter or updating for a new Live version becomes a single edit and a quick `patchbay build`.
 
 ## Other use cases
 

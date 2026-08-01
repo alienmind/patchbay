@@ -2646,7 +2646,7 @@ rule this repo already had for the format and had not applied here.
 
 ## Q43. A macro on a BOOLEAN carries `MidiCCOnOffThresholds` - OPEN
 
-**Evidence:** `donors/BerlinTechno/BerlinTechno.als`, the PERC pad's FX
+**Evidence:** `donors/Techno/Techno.als`, the PERC pad's FX
 rack. Macro 5 is mapped to a Saturator's `DryWet` AND to its `On`, and the
 two mappings are not the same shape.
 

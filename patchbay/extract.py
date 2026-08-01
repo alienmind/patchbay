@@ -882,7 +882,7 @@ def _lift_branch(branch, position, branch_template, wrapper_template):
     # not the tag on the other, so `mine` is None and the note is dropped.
     # Q40 going the other way, and `live_set._branch_from_preset` is the
     # mirror of this. Without it every pad keeps the TEMPLATE's note - eight
-    # pads of BerlinTechno.als all arrived on 92 - and a kit of eight pads
+    # pads of Techno.als all arrived on 92 - and a kit of eight pads
     # extracts as one pad holding eight chains. Live loads that.
     theirs = branch.find("BranchInfo")
     mine = made.find("ZoneSettings")

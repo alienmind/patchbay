@@ -5,7 +5,7 @@ from pathlib import Path
 from patchbay import io, find
 from patchbay.dsl import Layout, Rack, Slot
 from patchbay.library import Library
-from alien_seqs import RACKS as ALIEN_SEQS
+from alienseqs import RACKS as ALIEN_SEQS
 
 def get_seq_rack():
     layout = Layout(Slot("Sequence", selects=True))
