@@ -1,51 +1,42 @@
 # CLAUDE.md - working rules for agents in this repo
 
-This repo is a Python DSL and toolchain for AUTHORING Ableton Live racks
-and Sets in code, by writing the `.adg` and `.als` XML directly. A spec is
-an ordinary Python module importing from `patchbay.dsl`. Offline authoring, not live coding - nothing here
-makes a sound, it produces the instrument.
+This repo is a Python DSL and toolchain for AUTHORING Ableton Live racks and Sets in code, by
+writing the `.adg` and `.als` XML directly. A spec is an ordinary Python module importing from
+`patchbay.dsl`. Offline authoring, not live coding - nothing here makes a sound, it produces the
+instrument rack and the live session that contains it.
 
-`examples/playgrnd.py` is ONE example and the end-to-end test. It is
-not what the library is for, and per rule 6 the library knows nothing about
-it.
+`examples/` is where we keep end-to-end examples for the DSL.
 
-Start with `doc/TODO.md` for what to work on, then `doc/ARCHITECTURE.md`
-for how the file format works. This file is only the house rules, the
-things not derivable from the code.
+Start with `doc/TODO.md` for what to work on, then `doc/ARCHITECTURE.md` for how the file format
+works. This file is only the house rules, the things not derivable from the code.
 
 ## The backlog is `doc/TODO.md`
 
-It is the ONLY file that says what is unfinished. Work it, do not work
-around it.
+It is the ONLY file that says what is unfinished. Work it, do not work around it.
 
-1. **Start there.** Take a task, move it to In progress, and keep its
-   status current in that file as it moves. A finding that arrives
-   mid-task is written down when it arrives, not at the end.
-2. **When it lands, DELETE it from `TODO.md`** and materialise what was
-   learned in its permanent home:
+1. **Start there.** Take a task, move it to In progress, and keep its status current in that file as
+   it moves. A finding that arrives mid-task is written down when it arrives, not at the end.
+2. **When it lands, DELETE it from `TODO.md`** and materialise what was learned in its permanent
+   home:
    - a capability a user would want: `README.md`
-   - how the format works: `doc/ARCHITECTURE.md`, evidence in
-     `doc/SCHEMA.md`
+   - how the format works: `doc/ARCHITECTURE.md`, evidence in `doc/SCHEMA.md`
    - a shape decision about the DSL: `doc/DSL.md`
-   - an idea that did not work, an approach abandoned, a theory
-     disproved: `doc/THE_BASEMENT.md`
-3. **Nothing is archived in place.** No completed entries accumulate in
-   `TODO.md`, no struck-through text, no "DONE" markers. A task leaves
-   once, in one direction. A file that accumulates struck-through entries
-   stops being readable and gets deleted; that has happened once already.
+   - an idea that did not work, an approach abandoned, a theory disproved: `doc/THE_BASEMENT.md`
+3. **Nothing is archived in place.** No completed entries accumulate in `TODO.md`, no struck-through
+   text, no "DONE" markers. A task leaves once, in one direction. A file that accumulates
+   struck-through entries stops being readable and gets deleted; that has happened once already.
 
-Bury generously. An approach that failed is worth more written down than
-deleted, because the next reader will otherwise find it attractive again.
-`THE_BASEMENT.md` entries say what was tried, what killed it, and what
-replaced it.
+Bury generously. An approach that failed is worth more written down than deleted, because the next
+reader will otherwise find it attractive again. `THE_BASEMENT.md` entries say what was tried, what
+killed it, and what replaced it.
 
-`README.md` is for a person deciding whether to use this. Working
-procedure, backlog and status are NOT in it.
+`README.md` is for a person deciding whether to use this. Working procedure, backlog and status are
+NOT in it.
 
 ## The method
 
-Nothing here is learned by reading Ableton's schema. It is learned by
-changing ONE thing in Live and diffing:
+Nothing here is learned by reading Ableton's schema. It is learned by changing ONE thing in Live and
+diffing:
 
 1. Save a rack as `a.adg`
 2. Change exactly one thing
@@ -53,77 +44,66 @@ changing ONE thing in Live and diffing:
 4. `patchbay diff a.adg b.adg`
 5. Write the finding in `doc/SCHEMA.md`, citing both files
 
-The one-change rule applies to files you CONSTRUCT too. A test file with
-two edits in it produced one wrong conclusion in this repo already.
+The one-change rule applies to files you CONSTRUCT too. A test file with two edits in it produced
+one wrong conclusion in this repo already.
 
-Every feature is preceded by a diff that proves where the data lives. No
-feature rests on a guess about the format.
+Every feature is preceded by a diff that proves where the data lives. No feature rests on a guess
+about the format.
 
 ## Asking for a test in Live
 
-Live is the only thing that proves a file loads, and the only thing that
-hears a rack. It is also the slowest instrument here and the only one that
-needs a person. Spend it on what nothing else can answer.
+Live is the only thing that proves a file loads, and the only thing that hears a rack. It is also
+the slowest instrument here and the only one that needs a person. Spend it on what nothing else can
+answer.
 
-**REBUILD THE FILES BEFORE ASKING.** `build/` is not regenerated by editing
-a spec, and a check run against a stale `.adg` reports the old binding as
-though it were the new one. That has already cost a round: S2c came back
-saying a knob still drove a low-pass filter, which it did, because the file
+**REBUILD THE FILES BEFORE ASKING.** `build/` is not regenerated by editing a spec, and a check run
+against a stale `.adg` reports the old binding as though it were the new one. That has already cost
+a round: S2c came back saying a knob still drove a low-pass filter, which it did, because the file
 on disk predated the edit that moved it. Run the build, then name the file.
 
 ### Triage before writing a check table
 
-Classify the change first. Most changes are class 1 and cost a human
-nothing.
+Classify the change first. Most changes are class 1 and cost a human nothing.
 
-**Class 1: the output does not move.** A refactor, a rename, a DSL surface
-change. `tests/golden.txt` holds a digest per rack in
-`examples/playgrnd.py`; if it still passes, nothing moved. NO Live
-check, and no asking for one. The passing gate is the claim, not "it is
-only a refactor".
+**Class 1: the output does not move.** A refactor, a rename, a DSL surface change.
+`tests/golden.txt` holds a digest per rack in `examples/playgrnd.py`; if it still passes, nothing
+moved. NO Live check, and no asking for one. The passing gate is the claim, not "it is only a
+refactor".
 
-**Class 2: values move inside constructs Live already loads.** A range, a
-start position, a label, a different parameter path on a device a shipped
-rack already carries. The shape of the file is unchanged, so it loads. Ask
-only where a human PERCEIVES the difference: an ear for a range, an eye for
-a label. Regenerate the goldens, say which racks moved, and keep the table
-to the perceptible part.
+**Class 2: values move inside constructs Live already loads.** A range, a start position, a label, a
+different parameter path on a device a shipped rack already carries. The shape of the file is
+unchanged, so it loads. Ask only where a human PERCEIVES the difference: an ear for a range, an eye
+for a label. Regenerate the goldens, say which racks moved, and keep the table to the perceptible
+part.
 
-**Class 3: the file carries a construct never loaded before.** A new
-element, a nesting depth never reached, a device tag no rack has held, a
-rack kind never dropped. Live may refuse it. One load check, and the answer
-is binary.
+**Class 3: the file carries a construct never loaded before.** A new element, a nesting depth never
+reached, a device tag no rack has held, a rack kind never dropped. Live may refuse it. One load
+check, and the answer is binary.
 
-**Sound judgement is not a class.** Whether a kick is good, whether -8 dBFS
-is right, whether a sweep is musical. Always human, never gated, and listed
-under Standing manual work in `TODO.md`.
+**Sound judgement is not a class.** Whether a kick is good, whether -8 dBFS is right, whether a
+sweep is musical. Always human, never gated, and listed under Standing manual work in `TODO.md`.
 
 ### A claim about the FILE is a test, not a check
 
-Many checks worth writing are structural claims wearing a listening test.
-"Macro 6 moves on Meld and NOTHING on the other two" is two claims, and the
-second is a statement about which mappings exist that `patchbay mappings`
-answers with no Live open. "Release means the same length on both engines"
-is a claim that two ranges are one interval in two units, which a test
-asserts by arithmetic.
+Many checks worth writing are structural claims wearing a listening test. "Macro 6 moves on Meld and
+NOTHING on the other two" is two claims, and the second is a statement about which mappings exist
+that `patchbay mappings` answers with no Live open. "Release means the same length on both engines"
+is a claim that two ranges are one interval in two units, which a test asserts by arithmetic.
 
-Before writing a row into a check table, ask what would falsify it. If the
-answer is a fact in the file, write the test instead. Send a human only
-what a human can perceive: loudness, timbre, whether a word fits on the
-display, whether a knob is playable.
+Before writing a row into a check table, ask what would falsify it. If the answer is a fact in the
+file, write the test instead. Send a human only what a human can perceive: loudness, timbre, whether
+a word fits on the display, whether a knob is playable.
 
-**An ABSENCE is provable, an EFFECT is not.** That a slot reaches no
-parameter is in the file. That a mapped slot does something is not, and
-assuming otherwise is exactly Q16: Drift's `Lfo_Amount` is bound, resolves,
-carries the right range, and moves nothing, because the routing is not a
-parameter. So a structural test may assert which mappings exist and must
-never be read as saying a knob works.
+**An ABSENCE is provable, an EFFECT is not.** That a slot reaches no parameter is in the file. That
+a mapped slot does something is not, and assuming otherwise is exactly Q16: Drift's `Lfo_Amount` is
+bound, resolves, carries the right range, and moves nothing, because the routing is not a parameter.
+So a structural test may assert which mappings exist and must never be read as saying a knob works.
 
 ### Do not spend a human on a design that is still moving
 
-Round B was spent on slots 3 and 6 and voided entirely by the next reshape.
-A check costs a session and is worth only what the design under it is
-worth. Batch checks behind a decision, not in front of one.
+Round B was spent on slots 3 and 6 and voided entirely by the next reshape. A check costs a session
+and is worth only what the design under it is worth. Batch checks behind a decision, not in front of
+one.
 
 ### Make the request SCHEMATIC
 
@@ -136,169 +116,148 @@ Do NOT re-explain how racks work, or what a macro is. That is known.
 
 > Load **`build/PD1.adg`**.
 >
-> | # | Do this | Should happen |
-> |---|---------|---------------|
-> | 1 | Turn Macro 1 full left, then full right | Engine sweeps FM to Sample |
-> | 2 | Turn Macro 2 | Cutoff moves on whichever engine is selected |
+> | #   | Do this                                 | Should happen                                |
+> | --- | --------------------------------------- | -------------------------------------------- |
+> | 1   | Turn Macro 1 full left, then full right | Engine sweeps FM to Sample                   |
+> | 2   | Turn Macro 2                            | Cutoff moves on whichever engine is selected |
 >
 > Expected still broken: macros 5-13 are unbound.
 
-**Name the TRACK TYPE when the rack is not an instrument.** An
-`AudioEffectGroupDevice` cannot go on a bare MIDI track: Live refuses the
-drop before reading the file, the cursor never arms, and "not even
-draggable" is not the same result as "Live rejected it". Say "onto an audio
-track" and the check answers the question it was asked.
+**Name the TRACK TYPE when the rack is not an instrument.** An `AudioEffectGroupDevice` cannot go on
+a bare MIDI track: Live refuses the drop before reading the file, the cursor never arms, and "not
+even draggable" is not the same result as "Live rejected it". Say "onto an audio track" and the
+check answers the question it was asked.
 
-**DRAG IT IN. Never double-click an `.adg`.** Double-clicking starts a
-SECOND Live instance, which hangs for a few seconds and loads nothing.
-That is indistinguishable from Live rejecting the file, and it already
-caused a retracted finding. When a load fails, check
-`%APPDATA%/Ableton/Live <version>/Preferences/Log.txt` for `CommandLine`
-and `Another instance` before concluding anything.
+**DRAG IT IN. Never double-click an `.adg`.** Double-clicking starts a SECOND Live instance, which
+hangs for a few seconds and loads nothing. That is indistinguishable from Live rejecting the file,
+and it already caused a retracted finding. When a load fails, check
+`%APPDATA%/Ableton/Live <version>/Preferences/Log.txt` for `CommandLine` and `Another instance`
+before concluding anything.
 
 ## Hard rules
 
-1. **NEVER INVENT A PARAMETER NAME.** Ableton's element names are not the
-   GUI labels and are not guessable. Saturator's Drive knob is `PreDrive`,
-   its Output is `PostDrive`. Simpler's filter cutoff is
-   `Filter/Slot/Value/SimplerFilter/Freq`. Operator has 217 parameters.
-   Use `library.Device.search("filter", "freq")` and read what comes back.
-   A wrong name does not error, it produces a rack with a missing mapping.
-2. **An `Id` must be unique among its SIBLINGS, and a list member must
-   HAVE one.** Nothing else about uniqueness matters: not contiguity, not
-   matching the index, not file-wide uniqueness. Give two sibling branches
-   the same `Id` and Live refuses the ENTIRE preset. Give a device node
-   none at all and Live refuses the entire document with "Not all list
-   members have Ids", which is what every `.als`-harvested donor did until
-   Q9. `clone.assert_loadable()` catches both before writing; do not route
-   around it.
-3. **Never byte-compare two `.adg` files.** Two semantically identical
-   files differ by about 4 percent, because Live writes CRLF and `<X />`
-   and lxml does not. Use `patchbay diff`, which compares the parsed tree.
-4. **A rack's `Device` and its `BranchPresets` are SIBLINGS.** A parameter
-   controlled by a macro is never a descendant of the rack node owning
-   that macro. Walking up to the nearest `*GroupDevice` to find the owning
-   rack is wrong and has already shipped as a bug once. Walk to the
-   nearest `BranchPresets` and take its parent.
-5. **Three scales, do not mix them.** Device parameters are in native
-   units over their own range. Macros and variations are 0..127
-   continuous. Sends are linear amplitude, 0.000316 to 1. The table is in
-   `doc/ARCHITECTURE.md` section 12.
-6. **No musical vocabulary inside `patchbay/`.** If you are writing the
-   word "kick" or "darkwave" in the library, it belongs in `examples/`.
-   The library knows XML, ids, macros, chains and FileRefs. It does not
-   know what they are for.
+1. **NEVER INVENT A PARAMETER NAME.** Ableton's element names are not the GUI labels and are not
+   guessable. Saturator's Drive knob is `PreDrive`, its Output is `PostDrive`. Simpler's filter
+   cutoff is `Filter/Slot/Value/SimplerFilter/Freq`. Operator has 217 parameters. Use
+   `library.Device.search("filter", "freq")` and read what comes back. A wrong name does not error,
+   it produces a rack with a missing mapping.
+2. **An `Id` must be unique among its SIBLINGS, and a list member must HAVE one.** Nothing else
+   about uniqueness matters: not contiguity, not matching the index, not file-wide uniqueness. Give
+   two sibling branches the same `Id` and Live refuses the ENTIRE preset. Give a device node none at
+   all and Live refuses the entire document with "Not all list members have Ids", which is what
+   every `.als`-harvested donor did until Q9. `clone.assert_loadable()` catches both before writing;
+   do not route around it.
+3. **Never byte-compare two `.adg` files.** Two semantically identical files differ by about 4
+   percent, because Live writes CRLF and `<X />` and lxml does not. Use `patchbay diff`, which
+   compares the parsed tree.
+4. **A rack's `Device` and its `BranchPresets` are SIBLINGS.** A parameter controlled by a macro is
+   never a descendant of the rack node owning that macro. Walking up to the nearest `*GroupDevice`
+   to find the owning rack is wrong and has already shipped as a bug once. Walk to the nearest
+   `BranchPresets` and take its parent.
+5. **Three scales, do not mix them.** Device parameters are in native units over their own range.
+   Macros and variations are 0..127 continuous. Sends are linear amplitude, 0.000316 to 1. The table
+   is in `doc/ARCHITECTURE.md` section 12.
+6. **No musical vocabulary inside `patchbay/`.** If you are writing the word "kick" or "darkwave" in
+   the library, it belongs in `examples/`. The library knows XML, ids, macros, chains and FileRefs.
+   It does not know what they are for.
 
 ## Facts that look like bugs
 
-The terse rules are above. The spike that PROVED each one, with the files
-it used, is `doc/SCHEMA.md`. The consolidated model is
-`doc/ARCHITECTURE.md`. When one of these bites, read the evidence, do not
-re-derive it.
+The terse rules are above. The spike that PROVED each one, with the files it used, is
+`doc/SCHEMA.md`. The consolidated model is `doc/ARCHITECTURE.md`. When one of these bites, read the
+evidence, do not re-derive it.
 
-- **A macro mapping carries no id.** It is a `KeyMidi` element INSIDE the
-  target parameter, encoding a virtual MIDI CC on channel 16 where the CC
-  number is the macro index. The target is named by containment. So a
-  cloned chain keeps working with no remapping, and deleting a parameter
-  deletes its mapping.
-- **A device loads with every parameter removed.** Live fills defaults.
-  Donors are for FIDELITY, not loadability: they carry configured values
-  and tell you what a device can be asked to do.
-- **A donor also carries the MAPPINGS of the rack it came from.**
-  `Compressor2.adg` brings five, all on macro 4. Placed unchanged, one knob
-  moves five parameters nobody bound. `clone.strip_macro_mappings` clears a
-  device as it is placed.
-- **A blank value is not a missing value.** A device lifted out of a
-  `.als` carries `OriginalFileSize=""` and `OriginalCrc=""` on its
-  `LastPresetRef`, which a `.als` accepts and a `.adg` refuses with
-  "Unexpected value for int64 node". `patchbay diff` hides
-  `/LastPresetRef/` by default, so a spike pair does not show it. Pass
-  `--all` when a file loads nowhere and the diff looks clean.
-- **Sample metadata is advisory.** Live re-reads the file on load, so
-  retargeting a sample needs only the two path fields on each of its two
-  FileRefs. `OriginalCrc` is never validated and never needs computing.
-- **`MacroDefaults` lags one save**, as do `PresetRef` and `UserName`.
-  Write `-1` and ignore it.
-- **The UI says Variations, the XML says Snapshots.** Grepping the UI word
-  finds nothing.
+- **A macro mapping carries no id.** It is a `KeyMidi` element INSIDE the target parameter, encoding
+  a virtual MIDI CC on channel 16 where the CC number is the macro index. The target is named by
+  containment. So a cloned chain keeps working with no remapping, and deleting a parameter deletes
+  its mapping.
+- **A device loads with every parameter removed.** Live fills defaults. Donors are for FIDELITY, not
+  loadability: they carry configured values and tell you what a device can be asked to do.
+- **A donor also carries the MAPPINGS of the rack it came from.** `Compressor2.adg` brings five, all
+  on macro 4. Placed unchanged, one knob moves five parameters nobody bound.
+  `clone.strip_macro_mappings` clears a device as it is placed.
+- **A blank value is not a missing value.** A device lifted out of a `.als` carries
+  `OriginalFileSize=""` and `OriginalCrc=""` on its `LastPresetRef`, which a `.als` accepts and a
+  `.adg` refuses with "Unexpected value for int64 node". `patchbay diff` hides `/LastPresetRef/` by
+  default, so a spike pair does not show it. Pass `--all` when a file loads nowhere and the diff
+  looks clean.
+- **Sample metadata is advisory.** Live re-reads the file on load, so retargeting a sample needs
+  only the two path fields on each of its two FileRefs. `OriginalCrc` is never validated and never
+  needs computing.
+- **`MacroDefaults` lags one save**, as do `PresetRef` and `UserName`. Write `-1` and ignore it.
+- **The UI says Variations, the XML says Snapshots.** Grepping the UI word finds nothing.
 
 ## NEVER COMMIT SAMPLES
 
-Nothing under `samples/` is staged, committed or pushed, except
-`samples/README.md`. Not audio. Not a licence file. Not a manifest, a CSV
-or an index that merely LISTS the filenames.
+Nothing under `samples/` is staged, committed or pushed, except `samples/README.md`. Not audio. Not
+a licence file. Not a manifest, a CSV or an index that merely LISTS the filenames.
 
-Sample content is licensed and a public repo is redistribution. This is not
-a tidiness rule.
+Sample content is licensed and a public repo is redistribution. This is not a tidiness rule.
 
-`.gitignore` pins it with `samples/*` plus `!samples/README.md`, so
-`git add -A` cannot sweep them in. Do not add an exception to that pair,
-and do not `git add -f` a path under `samples/`.
+`.gitignore` pins it with `samples/*` plus `!samples/README.md`, so `git add -A` cannot sweep them
+in. Do not add an exception to that pair, and do not `git add -f` a path under `samples/`.
 
-The same care applies to what tracked files SAY. `samples/README.md`
-describes the tree in counts and folder names; it does not enumerate files
-and it does not name a source or a vendor. A filename list and a pack name
-are both content that folder exists to keep out of the repo.
+The same care applies to what tracked files SAY. `samples/README.md` describes the tree in counts
+and folder names; it does not enumerate files and it does not name a source or a vendor. A filename
+list and a pack name are both content that folder exists to keep out of the repo.
 
-Before staging anything from a folder that arrived from outside this
-project, check what is in it. `git add -A` over a vendor directory is how
-a licence file or a file listing gets published, and it is far cheaper to
-notice first than to rewrite pushed history after.
+Before staging anything from a folder that arrived from outside this project, check what is in it.
+`git add -A` over a vendor directory is how a licence file or a file listing gets published, and it
+is far cheaper to notice first than to rewrite pushed history after.
 
 ## Scratch work goes in `build/`
 
-Anything exploratory - a probe file, an unpacked `.xml`, a deliberately
-broken rack you are testing a failure mode with - goes in `build/`, which
-is gitignored.
+Anything exploratory - a probe file, an unpacked `.xml`, a deliberately broken rack you are testing
+a failure mode with - goes in `build/`, which is gitignored.
 
-`racks/` is NOT scratch. Those files are the evidence behind every
-verified claim in `doc/ARCHITECTURE.md`, and the tests read them. Deleting
-one destroys a finding.
+`racks/` is NOT scratch. Those files are the evidence behind every verified claim in
+`doc/ARCHITECTURE.md`, and the tests read them. Deleting one destroys a finding.
 
-A probe that answered its question is deleted once the answer is written
-down. The finding has value; the scaffolding that produced it is noise.
+A probe that answered its question is deleted once the answer is written down. The finding has
+value; the scaffolding that produced it is noise.
 
 ## A prototype waiting on a decision goes in `experimental/`
 
-`build/` is for what gets deleted. A module that has been PROVED against
-the shipping code and is waiting on a call in `TODO.md` is not scratch, and
-losing it means re-deriving it: create `patchbay/experimental/` and
-`examples/experimental/` for that case. Neither exists most of the time,
-which is correct. `patchbay/experimental/` is still under rule 6, so a spec
-with rack names in it goes in the examples half.
+`build/` is for what gets deleted. A module that has been PROVED against the shipping code and is
+waiting on a call in `TODO.md` is not scratch, and losing it means re-deriving it: create
+`patchbay/experimental/` and `examples/experimental/` for that case. Neither exists most of the
+time, which is correct. `patchbay/experimental/` is still under rule 6, so a spec with rack names in
+it goes in the examples half.
 
-Nothing in `patchbay/` imports from `experimental/`. A module leaves in one
-of two directions, never by accumulating: into the library when the
-decision is yes, deleted with a note in `THE_BASEMENT.md` when it is no.
+Nothing in `patchbay/` imports from `experimental/`. A module leaves in one of two directions, never
+by accumulating: into the library when the decision is yes, deleted with a note in `THE_BASEMENT.md`
+when it is no.
 
 ## This is an LF repo
 
-Every tracked text file ends its lines with `\n`, on Windows too.
-`.gitattributes` pins it and `tests/test_patchbay.py` fails on a stray
-`\r`, so do not "fix" a file by letting an editor write CRLF back.
+Every tracked text file ends its lines with `\n`, on Windows too. `.gitattributes` pins it and
+`tests/test_patchbay.py` fails on a stray `\r`, so do not "fix" a file by letting an editor write
+CRLF back.
 
-Do not confuse this with the format finding: **Live** writes CRLF inside an
-`.adg`, and that stays true. Ableton's files are gzip, marked `binary`, and
-git never touches them. A checked-in unpacked `.xml` is marked `-text` for
-the same reason - it must stay byte for byte as Live wrote it, or diffing
-it against a Live-saved file stops meaning anything.
+Do not confuse this with the format finding: **Live** writes CRLF inside an `.adg`, and that stays
+true. Ableton's files are gzip, marked `binary`, and git never touches them. A checked-in unpacked
+`.xml` is marked `-text` for the same reason - it must stay byte for byte as Live wrote it, or
+diffing it against a Live-saved file stops meaning anything.
 
 ## Prose
 
 Applies to every markdown file, docstring and comment in this repo.
 
-1. **NO EM-DASHES.** Neither U+2014 nor U+2013. Use a plain hyphen, a
-   comma, or a full stop. `tests/test_patchbay.py` fails if either appears
-   in a tracked `.md` or `.py` file, so this is enforced, not requested.
-2. **State, do not argue.** "Ids must be unique among siblings", not "it
-   turns out that, interestingly, ids need to be unique among siblings".
-3. **No filler.** Cut "essentially", "basically", "it's worth noting
-   that", "in order to", "leverage", "robust", "seamless".
-4. **No restating what the code says.** A docstring explains WHY, or the
-   constraint that is not visible at the call site. If it paraphrases the
-   function name, delete it.
-5. **Numbers and file names, not adjectives.** "560 KB, 18,148 facts" is
-   worth writing. "A large complex rack" is not.
+1. **NO EM-DASHES.** Neither U+2014 nor U+2013. Use a plain hyphen, a comma, or a full stop.
+   `tests/test_patchbay.py` fails if either appears in a tracked `.md` or `.py` file, so this is
+   enforced, not requested.
+2. **State, do not argue.** "Ids must be unique among siblings", not "it turns out that,
+   interestingly, ids need to be unique among siblings".
+3. **No filler.** Cut "essentially", "basically", "it's worth noting that", "in order to",
+   "leverage", "robust", "seamless".
+4. **No restating what the code says.** A docstring explains WHY, or the constraint that is not
+   visible at the call site. If it paraphrases the function name, delete it.
+5. **Numbers and file names, not adjectives.** "560 KB, 18,148 facts" is worth writing. "A large
+   complex rack" is not.
+6. **Concreteness and clarity.** Do not obscure technical boundaries with vague language.
+   "Patchbay extract drops MxDeviceMidiEffect parameters silently during decompilation" is an objective fact;
+   "The script struggles with some devices" is not.
+   State the exact mechanism of a failure or constraint rather than describing the effort or struggle.
 
 ## Commit messages
 
@@ -311,44 +270,37 @@ ONE LINE. `type: what changed`, stated plainly. No body.
     docs: record the id uniqueness rule
     test: spike evidence for drum rack sends
 
-The subject STATES, it does not argue. Everything you were about to put in
-a body already has a home: the constraint goes in a comment at that line,
-the evidence in `doc/SCHEMA.md`, the model in `doc/ARCHITECTURE.md`, the
-remaining work in `doc/SPIKES.md`.
+The subject STATES, it does not argue. Everything you were about to put in a body already has a
+home: the constraint goes in a comment at that line, the evidence in `doc/SCHEMA.md`, the model in
+`doc/ARCHITECTURE.md`, the remaining work in `doc/RESEARCH_CATALOGUE.md`.
 
 ## Pull request summaries
 
-Same rule as a commit message, one level up: **STATE what was done.** The
-reasoning is already in the markdown, and repeating it in a PR body is
-where the grandiloquence gets in.
+Same rule as a commit message, one level up: **STATE what was done.** The reasoning is already in
+the markdown, and repeating it in a PR body is where the grandiloquence gets in.
 
-A PR body is a list of facts a reviewer needs and nothing else. Tables
-where there is a set of things, prose only where a table would not carry
-it. No narrative of the session, no argument for the change, no adjectives
-about how large or important any of it was.
+A PR body is a list of facts a reviewer needs and nothing else. Tables where there is a set of
+things, prose only where a table would not carry it. No narrative of the session, no argument for
+the change, no adjectives about how large or important any of it was.
 
 Sections, in this order, dropping any that is empty:
 
 1. **The surface that changed**, as a bulleted list of what it now does.
-2. **A state table for the target**, one row per artefact: built, not
-   built, removed from scope. Name what is NOT done as plainly as what is.
-3. **Fixes**, one row each, with the scope affected. A fix that moved no
-   output says so.
+2. **A state table for the target**, one row per artefact: built, not built, removed from scope.
+   Name what is NOT done as plainly as what is.
+3. **Fixes**, one row each, with the scope affected. A fix that moved no output says so.
 4. **Tests**, the count before and after, then what was added.
-5. **Spikes closed**, one line each, with what remains open on any that
-   only half closed.
+5. **Spikes closed**, one line each, with what remains open on any that only half closed.
 
-Numbers, file names and rack names, not judgements. "48 of 56 donors
-lacked one" belongs in a PR. "A mapped macro is not a working macro" does
-not: it is a conclusion, it reads as a slogan, and its evidence is in
-`SCHEMA.md` where a reader can check it.
+Numbers, file names and rack names, not judgements. "48 of 56 donors lacked one" belongs in a PR. "A
+mapped macro is not a working macro" does not: it is a conclusion, it reads as a slogan, and its
+evidence is in `SCHEMA.md` where a reader can check it.
 
-If a golden moved, the PR says which racks and how many times. A reviewer
-cannot see that from a diff of hashes.
+If a golden moved, the PR says which racks and how many times. A reviewer cannot see that from a
+diff of hashes.
 
 ## Fail loudly
 
-A corrupt `.adg` that Live silently half-loads is worse than one it
-rejects. Where we can know in advance, we refuse to write the file.
-`clone.assert_loadable()` is the pattern: raise with the offending
-container named, do not warn and continue.
+A corrupt `.adg` that Live silently half-loads is worse than one it rejects. Where we can know in
+advance, we refuse to write the file. `clone.assert_loadable()` is the pattern: raise with the
+offending container named, do not warn and continue.

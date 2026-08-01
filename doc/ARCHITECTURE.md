@@ -1,49 +1,44 @@
 # Ableton preset format: how it actually works
 
-A technical description of the `.adg` format as established by
-differential diffing against **Ableton Live 12.4.3** on Windows.
+A technical description of the `.adg` format as established by differential diffing against
+**Ableton Live 12.4.3** on Windows.
 
-This document is the consolidated model. `SCHEMA.md` is the lab notebook -
-raw findings, one entry per spike, with the evidence. `SPIKES.md` is the
-procedure that produces them. When the two disagree, `SCHEMA.md` wins,
-because it cites files.
+This document is the consolidated model. `SCHEMA.md` is the lab notebook - raw findings, one entry
+per spike, with the evidence. `RESEARCH_CATALOGUE.md` is the procedure that produces them. When the two
+disagree, `SCHEMA.md` wins, because it cites files.
 
 ## Confidence markers
 
-Every claim here is tagged. Nothing is included on the strength of
-plausibility alone.
+Every claim here is tagged. Nothing is included on the strength of plausibility alone.
 
 - **[V]** verified by diff or direct inspection of named files
-- **[I]** inferred from consistent evidence, not yet isolated by a
-  single-change diff
+- **[I]** inferred from consistent evidence, not yet isolated by a single-change diff
 - **[?]** open question, listed at the end
 
 ---
 
 ## 1. Container
 
-**[V]** An `.adg` is a single gzipped XML document. No archive, no
-manifest, no binary blobs - everything is text.
+**[V]** An `.adg` is a single gzipped XML document. No archive, no manifest, no binary blobs -
+everything is text.
 
 **[V]** Live writes it with these conventions:
 
-| | Live | notes |
-|---|---|---|
-| declaration | `<?xml version="1.0" encoding="UTF-8"?>` | double quotes, no `standalone` |
-| line endings | CRLF | |
-| indentation | tabs | |
-| empty elements | `<X />` | space before slash |
-| end of file | trailing newline | |
+|                | Live                                     | notes                          |
+| -------------- | ---------------------------------------- | ------------------------------ |
+| declaration    | `<?xml version="1.0" encoding="UTF-8"?>` | double quotes, no `standalone` |
+| line endings   | CRLF                                     |                                |
+| indentation    | tabs                                     |                                |
+| empty elements | `<X />`                                  | space before slash             |
+| end of file    | trailing newline                         |                                |
 
-**[V]** **Live does not require any of them.** `patchbay`'s writer (lxml)
-violates all five - single-quoted declaration with `standalone='no'`, LF,
-`<X/>`, no trailing newline - and Live 12.4.3 opens the result correctly.
-A 560 KB rack round-tripped through load-then-save differs by 20,252
+**[V]** **Live does not require any of them.** `patchbay`'s writer (lxml) violates all five -
+single-quoted declaration with `standalone='no'`, LF, `<X/>`, no trailing newline - and Live 12.4.3
+opens the result correctly. A 560 KB rack round-tripped through load-then-save differs by 20,252
 bytes and zero facts.
 
-Consequence: **never byte-diff two `.adg` files.** Two semantically
-identical files differ by ~4%. Use `patchbay diff`, which compares the
-parsed tree.
+Consequence: **never byte-diff two `.adg` files.** Two semantically identical files differ by ~4%.
+Use `patchbay diff`, which compares the parsed tree.
 
 ## 2. Root element and versioning
 
@@ -57,41 +52,37 @@ parsed tree.
          Revision="e3d8be4d07c71dbd4de9e4183bf90652f680375b" />
 ```
 
-Read the Live version from the file, not from the About box - any donor
-or rack can be version-checked without opening Live.
+Read the Live version from the file, not from the About box - any donor or rack can be
+version-checked without opening Live.
 
-`SchemaChangeCount` is the field to watch after a Live update. If it
-moves, the findings in `SCHEMA.md` are suspect and the spikes should be
-re-run.
+`SchemaChangeCount` is the field to watch after a Live update. If it moves, the findings in
+`SCHEMA.md` are suspect and the spikes should be re-run.
 
 ## 3. Preset format vs Set format
 
-**[V]** A rack preset's root child is `<GroupDevicePreset>`. This is the
-*preset* representation, which is **not** the same shape a rack has
-inside a Live Set (`.als`), where chains live under `DeviceChain`.
+**[V]** A rack preset's root child is `<GroupDevicePreset>`. This is the _preset_ representation,
+which is **not** the same shape a rack has inside a Live Set (`.als`), where chains live under
+`DeviceChain`.
 
-**Both directions are implemented**: `extract.preset_from_set` reads a rack
-out of a Set, `live_set.set_from_preset` writes one into a Set, and
-`patchbay session` writes a whole Set of them, verified by loading
-`build/EXAMPLE_PLAYGRND.als` in Live 12.4.3. Q9 has the mapping and Q30 what
+**Both directions are implemented**: `extract.preset_from_set` reads a rack out of a Set,
+`live_set.set_from_preset` writes one into a Set, and `patchbay session` writes a whole Set of them,
+verified by loading `build/EXAMPLE_PLAYGRND.als` in Live 12.4.3. Q9 has the mapping and Q30 what
 writing it costs.
 
-**Four things are required to DIFFER between the forms**, and none of them
-is announced anywhere: a pointee id must be zero in a preset and non-zero
-in a Set (Q31, Q34), a rack's return chain is `AudioEffectBranchPreset` in
-one and `ReturnBranch` in the other (Q32), the branch mixer is renamed
-(Q30), and a branch's `DocumentColorIndex` and a drum branch's
-`ZoneSettings` exist only in preset form (Q35).
+**Four things are required to DIFFER between the forms**, and none of them is announced anywhere: a
+pointee id must be zero in a preset and non-zero in a Set (Q31, Q34), a rack's return chain is
+`AudioEffectBranchPreset` in one and `ReturnBranch` in the other (Q32), the branch mixer is renamed
+(Q30), and a branch's `DocumentColorIndex` and a drum branch's `ZoneSettings` exist only in preset
+form (Q35).
 
-**Three counts are required to AGREE** between the Set skeleton and
-anything spliced into it: `SendsPre` by return count (Q38), `Mixer/Sends`
-on every track by return count (S9), and both `ClipSlotList`s on every
-track by scene count (Q36). Plus one flag, `EnabledByUser`, which is false
-on every send a return carries (Q37). These are the dangerous class: a
-wrong count parses clean and crashes Live with no message.
+**Three counts are required to AGREE** between the Set skeleton and anything spliced into it:
+`SendsPre` by return count (Q38), `Mixer/Sends` on every track by return count (S9), and both
+`ClipSlotList`s on every track by scene count (Q36). Plus one flag, `EnabledByUser`, which is false
+on every send a return carries (Q37). These are the dangerous class: a wrong count parses clean and
+crashes Live with no message.
 
-This distinction is the single most important structural fact in the
-format, because it inverts the containment you would expect.
+This distinction is the single most important structural fact in the format, because it inverts the
+containment you would expect.
 
 ### The sibling duality
 
@@ -121,31 +112,29 @@ format, because it inverts the containment you would expect.
 </GroupDevicePreset>
 ```
 
-`Device` holds what the rack *is*. `BranchPresets` holds what the rack
-*contains*. They are siblings, so:
+`Device` holds what the rack _is_. `BranchPresets` holds what the rack _contains_. They are
+siblings, so:
 
-> **A parameter controlled by a rack's macro is never a descendant of the
-> rack device node that owns that macro.**
+> **A parameter controlled by a rack's macro is never a descendant of the rack device node that owns
+> that macro.**
 
-Any code that resolves "which rack owns this macro" by walking up to the
-nearest `*GroupDevice` ancestor is wrong. The correct walk is: up to the
-nearest `BranchPresets`, then to its parent `GroupDevicePreset`, then
-into that preset's `Device/*GroupDevice`. Implemented in
+Any code that resolves "which rack owns this macro" by walking up to the nearest `*GroupDevice`
+ancestor is wrong. The correct walk is: up to the nearest `BranchPresets`, then to its parent
+`GroupDevicePreset`, then into that preset's `Device/*GroupDevice`. Implemented in
 `patchbay/mappings.py:_owning_rack`.
 
 ### Rack device types
 
-**[V]** Observed: `AudioEffectGroupDevice`, `InstrumentGroupDevice`,
-`DrumGroupDevice`. **[I]** `MidiEffectGroupDevice` presumably exists by
-symmetry; untested.
+**[V]** Observed: `AudioEffectGroupDevice`, `InstrumentGroupDevice`, `DrumGroupDevice`. **[I]**
+`MidiEffectGroupDevice` presumably exists by symmetry; untested.
 
-**[V]** Branch types pair with them: `AudioEffectBranchPreset`,
-`InstrumentBranchPreset`, `DrumBranchPreset`.
+**[V]** Branch types pair with them: `AudioEffectBranchPreset`, `InstrumentBranchPreset`,
+`DrumBranchPreset`.
 
 ### Nesting
 
-**[V]** Racks nest by a chain's `DevicePresets` containing another
-`GroupDevicePreset`. Three levels observed in `racks/s1_source.adg`:
+**[V]** Racks nest by a chain's `DevicePresets` containing another `GroupDevicePreset`. Three levels
+observed in `racks/s1_source.adg`:
 
 ```
 GroupDevicePreset                        (DrumGroupDevice)
@@ -155,41 +144,36 @@ GroupDevicePreset                        (DrumGroupDevice)
          â””â”€ DevicePresets/GroupDevicePreset  (InstrumentGroupDevice)
 ```
 
-This is the DR1 pattern from `EXAMPLE_PLAYGRND.md`, confirmed to exist and
-function in a real file. **[V]** `build/VA1.adg` is two levels of it
-written from scratch by `patchbay`, and it loads.
+This is the DR1 pattern from `EXAMPLE_PLAYGRND.md`, confirmed to exist and function in a real file.
+**[V]** `build/VA1.adg` is two levels of it written from scratch by `patchbay`, and it loads.
 
 ### The one thing that changes with position
 
-**[V] A top-level `GroupDevicePreset` carries no attributes. A nested one
-carries an `Id`.** All 26 racks in `racks/` agree, and it is the only
-structural difference between the same rack built on a top-level skeleton
-and on a nested one.
+**[V] A top-level `GroupDevicePreset` carries no attributes. A nested one carries an `Id`.** All 26
+racks in `racks/` agree, and it is the only structural difference between the same rack built on a
+top-level skeleton and on a nested one.
 
-**[V] A stray `Id` on the top-level preset makes Live refuse the file as a
-drop**, without ever loading it - no dialog, because Live never parses the
-preset. Proved by one change: `build/probe_b_toplevel.adg` loads,
-`build/probe_c_id_added.adg` is the same file plus `Id="0"` and is
-refused.
+**[V] A stray `Id` on the top-level preset makes Live refuse the file as a drop**, without ever
+loading it - no dialog, because Live never parses the preset. Proved by one change:
+`build/probe_b_toplevel.adg` loads, `build/probe_c_id_added.adg` is the same file plus `Id="0"` and
+is refused.
 
-This is the boundary case of the sibling rule in Â§8. At the top level a
-`GroupDevicePreset` has no siblings, so it must carry **no** `Id` rather
-than a unique one.
+This is the boundary case of the sibling rule in §8. At the top level a `GroupDevicePreset` has no
+siblings, so it must carry **no** `Id` rather than a unique one.
 
-Consequence for a generator: **moving a rack between the two positions
-means adding or removing that attribute.** Lifting an inner rack out to
-use standalone is otherwise correct, and lifting one out *without*
-stripping the `Id` is what made this look like a deep serialisation
-problem for a while. See `THE_BASEMENT.md`.
+Consequence for a generator: **moving a rack between the two positions means adding or removing that
+attribute.** Lifting an inner rack out to use standalone is otherwise correct, and lifting one out
+_without_ stripping the `Id` is what made this look like a deep serialisation problem for a while.
+See `THE_BASEMENT.md`.
 
-**[V]** Nothing else about a nested rack differs. `Channel` stays `16` at
-every depth (Â§5), depth is not encoded anywhere, and a `GroupDevicePreset`
-written into a chain's `DevicePresets` needs no other adjustment.
+**[V]** Nothing else about a nested rack differs. `Channel` stays `16` at every depth (§5), depth
+is not encoded anywhere, and a `GroupDevicePreset` written into a chain's `DevicePresets` needs no
+other adjustment.
 
 ## 4. Parameter nodes
 
-**[V]** Every automatable parameter is an element named after the
-parameter, with a consistent set of children:
+**[V]** Every automatable parameter is an element named after the parameter, with a consistent set
+of children:
 
 ```xml
 <PreDrive>
@@ -208,58 +192,51 @@ parameter, with a consistent set of children:
 </PreDrive>
 ```
 
-| child | meaning |
-|---|---|
-| `Manual` | the parameter's value. **[V]** absolute, in the parameter's own units |
-| `MidiControllerRange` | **[V]** the range a macro drives this parameter across - the **mapping range**, not merely a display bound. Saturator Drive defaults to `-36..36` dB |
-| `AutomationTarget` / `ModulationTarget` | automation plumbing. **[V]** `Id="0"` throughout preset files - presets carry no automation, so these are inert here |
-| `KeyMidi` | **[V]** present only when mapped. See Â§5 |
+| child                                   | meaning                                                                                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Manual`                                | the parameter's value. **[V]** absolute, in the parameter's own units                                                                                |
+| `MidiControllerRange`                   | **[V]** the range a macro drives this parameter across - the **mapping range**, not merely a display bound. Saturator Drive defaults to `-36..36` dB |
+| `AutomationTarget` / `ModulationTarget` | automation plumbing. **[V]** `Id="0"` throughout preset files - presets carry no automation, so these are inert here                                 |
+| `KeyMidi`                               | **[V]** present only when mapped. See §5                                                                                                            |
 
-**[V]** Internal parameter names are not the GUI labels. In Saturator,
-**Drive** is `PreDrive` and **Output** is `PostDrive`. Never guess a
-parameter's element name - diff for it.
+**[V]** Internal parameter names are not the GUI labels. In Saturator, **Drive** is `PreDrive` and
+**Output** is `PostDrive`. Never guess a parameter's element name - diff for it.
 
 **[V]** Values are absolute and in native units, not normalised 0..1.
 
-**[I]** **The unit is a property of the parameter, not of the quantity.**
-Two devices measuring the same physical thing may keep it in different
-units, and nothing in the element says which. Envelope release, read with
-`library.Device.range_of` off `racks/s1_source.adg` and `donors/Drift
-Rack.adg`:
+**[I]** **The unit is a property of the parameter, not of the quantity.** Two devices measuring the
+same physical thing may keep it in different units, and nothing in the element says which. Envelope
+release, read with `library.Device.range_of` off `racks/s1_source.adg` and `donors/Drift Rack.adg`:
 
-| device | parameter | range |
-|---|---|---|
-| Operator | `Operator.0/Envelope/ReleaseTime` | 1 .. 60000 |
-| Simpler | `VolumeAndPan/Envelope/ReleaseTime` | 1 .. 60000 |
-| Wavetable | `Voice_Modulators_AmpEnvelope_Times_Release` | 0.0015 .. 20 |
-| Drift | `Envelope1_Release` | 0.01 .. 60 |
-| Meld | `MeldVoice_EngineA_AmpEnvelope_Times_Release` | 0.0015 .. 40 |
+| device    | parameter                                     | range        |
+| --------- | --------------------------------------------- | ------------ |
+| Operator  | `Operator.0/Envelope/ReleaseTime`             | 1 .. 60000   |
+| Simpler   | `VolumeAndPan/Envelope/ReleaseTime`           | 1 .. 60000   |
+| Wavetable | `Voice_Modulators_AmpEnvelope_Times_Release`  | 0.0015 .. 20 |
+| Drift     | `Envelope1_Release`                           | 0.01 .. 60   |
+| Meld      | `MeldVoice_EngineA_AmpEnvelope_Times_Release` | 0.0015 .. 40 |
 
-The first two are milliseconds, the last three seconds. Both cover the
-same 60 s ceiling. What supports the reading is the donor defaults:
-Operator sits at 400 and Simpler at 50, Live's stated 400 ms and 50 ms and
-absurd as seconds.
+The first two are milliseconds, the last three seconds. Both cover the same 60 s ceiling. What
+supports the reading is the donor defaults: Operator sits at 400 and Simpler at 50, Live's stated
+400 ms and 50 ms and absurd as seconds.
 
-So a range shared across engines, which is how one knob position is made
-to mean one result, has to be expressed once per unit. Writing the seconds
-figure on Operator binds the macro to 0.01 .. 20 ms, a full knob sweep
-inside one click of the attack. It does not error; Â§5 mappings never do.
-`examples/playgrnd.py` carries `RELEASE` and `RELEASE_MS` for this,
-the second derived from the first.
+So a range shared across engines, which is how one knob position is made to mean one result, has to
+be expressed once per unit. Writing the seconds figure on Operator binds the macro to 0.01 .. 20 ms,
+a full knob sweep inside one click of the attack. It does not error; §5 mappings never do.
+`examples/playgrnd.py` carries `RELEASE` and `RELEASE_MS` for this, the second derived from the
+first.
 
-Nothing marks the unit, so the only way to find one is to read the range
-and the default together and recognise the number.
+Nothing marks the unit, so the only way to find one is to read the range and the default together
+and recognise the number.
 
-Not confined to envelope times. Auto Filter's `Cutoff` reads 20 .. 135
-where Operator's `Filter/Frequency` reads 30 .. 18500: a MIDI note number
-against hertz, for a knob Live labels in hertz on both. Assume nothing
-transfers between devices until the range says it does.
+Not confined to envelope times. Auto Filter's `Cutoff` reads 20 .. 135 where Operator's
+`Filter/Frequency` reads 30 .. 18500: a MIDI note number against hertz, for a knob Live labels in
+hertz on both. Assume nothing transfers between devices until the range says it does.
 
 ## 5. Macro mappings - the central mechanism
 
-**[V]** **A macro mapping is a `KeyMidi` element inserted as a child of
-the target parameter.** There is no id, no pointer, no path string, and
-no mapping table anywhere in the file.
+**[V]** **A macro mapping is a `KeyMidi` element inserted as a child of the target parameter.**
+There is no id, no pointer, no path string, and no mapping table anywhere in the file.
 
 ```xml
 <PreDrive>
@@ -278,39 +255,37 @@ no mapping table anywhere in the file.
 </PreDrive>
 ```
 
-Live implements rack macros as **MIDI CC on a virtual channel**. The same
-structure serves computer-key mapping and real MIDI mapping; macros are
-one case of it.
+Live implements rack macros as **MIDI CC on a virtual channel**. The same structure serves
+computer-key mapping and real MIDI mapping; macros are one case of it.
 
-| field | value for a macro mapping | meaning |
-|---|---|---|
-| `Channel` | `16` | **[V]** the virtual macro bus, not a real MIDI channel. Fixed - does not vary with macro index or nesting depth |
-| `NoteOrController` | `0`-`15` | **[V]** the macro index, zero-based. `0` = Macro 1, `1` = Macro 2 |
-| `IsNote` | `false` | **[V]** a controller, not a note |
-| `ControllerMapMode` | `0` | **[V]** absolute |
-| `PersistentKeyString` | `""` | **[V]** empty; belongs to computer-key mapping |
-| `LowerRangeNote` / `UpperRangeNote` | `-1` | **[V]** unused when `IsNote` is false |
+| field                               | value for a macro mapping | meaning                                                                                                         |
+| ----------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `Channel`                           | `16`                      | **[V]** the virtual macro bus, not a real MIDI channel. Fixed - does not vary with macro index or nesting depth |
+| `NoteOrController`                  | `0`-`15`                  | **[V]** the macro index, zero-based. `0` = Macro 1, `1` = Macro 2                                               |
+| `IsNote`                            | `false`                   | **[V]** a controller, not a note                                                                                |
+| `ControllerMapMode`                 | `0`                       | **[V]** absolute                                                                                                |
+| `PersistentKeyString`               | `""`                      | **[V]** empty; belongs to computer-key mapping                                                                  |
+| `LowerRangeNote` / `UpperRangeNote` | `-1`                      | **[V]** unused when `IsNote` is false                                                                           |
 
 ### The three rules that follow
 
-**1. Target is named by containment.** The mapped parameter is the one
-that owns the `KeyMidi` block.
+**1. Target is named by containment.** The mapped parameter is the one that owns the `KeyMidi`
+block.
 
-**2. Owning rack is implicit.** Which rack's Macro N is meant is not
-stored. It is resolved structurally, per the walk in Â§3.
+**2. Owning rack is implicit.** Which rack's Macro N is meant is not stored. It is resolved
+structurally, per the walk in §3.
 
-**3. Presence is the mapped/unmapped test.** **[V]** `KeyMidi` is written
-lazily - absent until the parameter is mapped, appearing on the save
-after. Counting `KeyMidi` elements counts mappings.
+**3. Presence is the mapped/unmapped test.** **[V]** `KeyMidi` is written lazily - absent until the
+parameter is mapped, appearing on the save after. Counting `KeyMidi` elements counts mappings.
 
-**[V]** Corollary, and a trap: a macro's display name and value say
-nothing about whether it is mapped. `racks/s1_source.adg` has three live
-mappings while every macro is named the default `Macro N` with value `0`.
+**[V]** Corollary, and a trap: a macro's display name and value say nothing about whether it is
+mapped. `racks/s1_source.adg` has three live mappings while every macro is named the default
+`Macro N` with value `0`.
 
 ### Macro to parameter transfer function
 
-**[V]** A macro drives its target **linearly across the target's own
-`MidiControllerRange`**, on a 0-127 scale:
+**[V]** A macro drives its target **linearly across the target's own `MidiControllerRange`**, on a
+0-127 scale:
 
 ```
 value = Min + (macro / 127) * (Max - Min)
@@ -319,74 +294,65 @@ macro = (value - Min) / (Max - Min) * 127
 
 Verified on two parameters with different ranges:
 
-| macro | target | range | computed | stored |
-|---|---|---|---|---|
-| 69 | Saturator Drive | `-36..36` | `3.11811024` | `3.11810875` |
-| 127 | Saturator Output | `-36..0` | `0` | `0` |
+| macro | target           | range     | computed     | stored       |
+| ----- | ---------------- | --------- | ------------ | ------------ |
+| 69    | Saturator Drive  | `-36..36` | `3.11811024` | `3.11810875` |
+| 127   | Saturator Output | `-36..0`  | `0`          | `0`          |
 
 The 1.5e-6 gap is float32 storage precision.
 
-**[V]** Macro values are **continuous, not integer CC steps.** Mapping a
-parameter sitting at mid-range writes macro `63.5`, not `63` or `64`.
+**[V]** Macro values are **continuous, not integer CC steps.** Mapping a parameter sitting at
+mid-range writes macro `63.5`, not `63` or `64`.
 
-**[V] The mapping range is `MidiControllerRange` on the target.** Narrowing
-it narrows what the macro reaches: setting Drive's `Max` to `12` makes
-Macro 1 at full land on exactly +12 dB. Verified by writing the file and
-loading it.
+**[V] The mapping range is `MidiControllerRange` on the target.** Narrowing it narrows what the
+macro reaches: setting Drive's `Max` to `12` makes Macro 1 at full land on exactly +12 dB. Verified
+by writing the file and loading it.
 
-Worth noting for the macro layout: **Live 12.4.3 exposes no range editor
-in its UI** - not on the macro, the target, or in Map mode. Ranges are
-writable only from the file, so a generator can express per-mapping scoping
-that cannot be built by hand.
+Worth noting for the macro layout: **Live 12.4.3 exposes no range editor in its UI** - not on the
+macro, the target, or in Map mode. Ranges are writable only from the file, so a generator can
+express per-mapping scoping that cannot be built by hand.
 
-**[V] A range may be INVERTED.** `Min > Max` is honoured, and the knob runs
-backwards: EQC's Duck writes `Min 1, Max 0.000316` on the compressor's
-`Threshold`, so the knob rises as the threshold falls. Checked in Live
-12.4.3, Q26. No file Live wrote can carry one, since there is no range
-editor to write it with.
+**[V] A range may be INVERTED.** `Min > Max` is honoured, and the knob runs backwards: EQC's Duck
+writes `Min 1, Max 0.000316` on the compressor's `Threshold`, so the knob rises as the threshold
+falls. Checked in Live 12.4.3, Q26. No file Live wrote can carry one, since there is no range editor
+to write it with.
 
-Unlike a chain zone, which Live REPAIRS when its bounds invert (Â§7). Two
-constructs, two behaviours, and the zone is the one to be careful with.
+Unlike a chain zone, which Live REPAIRS when its bounds invert (§7). Two constructs, two
+behaviours, and the zone is the one to be careful with.
 
-**[V]** Ranges are per parameter, not per device: within one Saturator,
-Drive is `-36..36` while Output is `-36..0`.
+**[V]** Ranges are per parameter, not per device: within one Saturator, Drive is `-36..36` while
+Output is `-36..0`.
 
-This is the arithmetic Phase 5 needs. To place a parameter at a chosen
-value across a variation grid, invert the formula using that parameter's
-own `MidiControllerRange`.
+This is the arithmetic Phase 5 needs. To place a parameter at a chosen value across a variation
+grid, invert the formula using that parameter's own `MidiControllerRange`.
 
-**[V] The macro wins on load.** A mapped parameter still stores its own
-`Manual`, and Live overwrites it from the macro the moment the preset
-loads. So `MacroControls.N/Manual` is not cosmetic: it decides where every
-parameter that macro drives starts.
+**[V] The macro wins on load.** A mapped parameter still stores its own `Manual`, and Live
+overwrites it from the macro the moment the preset loads. So `MacroControls.N/Manual` is not
+cosmetic: it decides where every parameter that macro drives starts.
 
-Read that with the two facts above and the trap is exact. A macro nobody
-has touched reads `0`; a macro at `0` puts its target at the BOTTOM of the
-range; and nothing about the file is malformed when it happens. Gated in
-Live 12.4.3: five racks whose Volume and Filter macros were left at `0`
-loaded silent with the filter shut, and every diff, every id check and all
-49 tests passed on them. Ears caught it.
+Read that with the two facts above and the trap is exact. A macro nobody has touched reads `0`; a
+macro at `0` puts its target at the BOTTOM of the range; and nothing about the file is malformed
+when it happens. Gated in Live 12.4.3: five racks whose Volume and Filter macros were left at `0`
+loaded silent with the filter shut, and every diff, every id check and all 49 tests passed on them.
+Ears caught it.
 
-A generator therefore has to place the knobs, not just wire them. The DSL
-does it with layout-level start positions, see `DSL.md`.
+A generator therefore has to place the knobs, not just wire them. The DSL does it with layout-level
+start positions, see `DSL.md`.
 
 ### Why this matters for cloning
 
-**[V]** Because mappings are containment-addressed rather than
-id-addressed, **a mapping survives a naive subtree copy**. Duplicating a
-chain duplicates its `KeyMidi` blocks, and each copy correctly refers to
-its own new parent's macros.
+**[V]** Because mappings are containment-addressed rather than id-addressed, **a mapping survives a
+naive subtree copy**. Duplicating a chain duplicates its `KeyMidi` blocks, and each copy correctly
+refers to its own new parent's macros.
 
-This contradicts landmine #1 in `CLAUDE.md`, which anticipated that
-cloning would cross-wire mappings through duplicated ids. For **macro
-mappings** that risk does not exist. Id hygiene may still matter for
-other references - see Â§8 - but the highest-risk case is gone.
+This contradicts landmine #1 in `CLAUDE.md`, which anticipated that cloning would cross-wire
+mappings through duplicated ids. For **macro mappings** that risk does not exist. Id hygiene may
+still matter for other references - see §8 - but the highest-risk case is gone.
 
 ### Macro-to-macro is not a special case
 
-**[V]** Mapping an outer rack's macro to an inner rack's macro uses the
-identical structure: a `KeyMidi` on the inner rack's `MacroControls.N`,
-which is itself an ordinary parameter node.
+**[V]** Mapping an outer rack's macro to an inner rack's macro uses the identical structure: a
+`KeyMidi` on the inner rack's `MacroControls.N`, which is itself an ordinary parameter node.
 
 Verified in `racks/s1_source.adg`, which chains three levels:
 
@@ -396,58 +362,52 @@ Macro 1 -> MacroControls.0   [InstrumentGroupDevice, depth 2]
 Macro 1 -> ChainSelector     [InstrumentGroupDevice, depth 2]
 ```
 
-**[V]** `Channel` stays `16` at every depth, so nesting depth is not
-encoded anywhere in the mapping. Depth is purely structural.
+**[V]** `Channel` stays `16` at every depth, so nesting depth is not encoded anywhere in the
+mapping. Depth is purely structural.
 
-**[V]** `ChainSelector` is an ordinary parameter and takes a `KeyMidi`
-like any other - chain selection is macro-mappable by the same mechanism.
+**[V]** `ChainSelector` is an ordinary parameter and takes a `KeyMidi` like any other - chain
+selection is macro-mappable by the same mechanism.
 
 ## 6. The rack device node
 
-**[V]** A rack device carries ~160 children. The macro-related ones are
-fixed-width arrays of **16**, regardless of how many macros are visible:
+**[V]** A rack device carries ~160 children. The macro-related ones are fixed-width arrays of
+**16**, regardless of how many macros are visible:
 
-| family | indices | holds | UI |
-|---|---|---|---|
-| `MacroControls.N` | 0-15 | the macro parameter itself (`Manual`, range, targets) | the knob |
-| `MacroDisplayNames.N` | 0-15 | name; default `"Macro N"` (1-based in the string) | *Rename* |
-| `MacroDefaults.N` | 0-15 | default value, `-1` unset | *Return to Default* |
-| `MacroAnnotations.N` | 0-15 | info text | *Edit Info Text* |
-| `MacroColor.N` | 0-15 | colour | colour palette |
-| `ForceDisplayGenericValue.N` | 0-15 | show raw 0-127 instead of units | *Show Generic 0-127 Value* |
-| `ExcludeMacroFromRandomization.N` | 0-15 | randomisation opt-out | *Exclude Macro from Randomization* |
-| `ExcludeMacroFromSnapshots.N` | 0-15 | variation opt-out | *Exclude Macro **From Variations*** |
+| family                            | indices | holds                                                 | UI                                  |
+| --------------------------------- | ------- | ----------------------------------------------------- | ----------------------------------- |
+| `MacroControls.N`                 | 0-15    | the macro parameter itself (`Manual`, range, targets) | the knob                            |
+| `MacroDisplayNames.N`             | 0-15    | name; default `"Macro N"` (1-based in the string)     | _Rename_                            |
+| `MacroDefaults.N`                 | 0-15    | default value, `-1` unset                             | _Return to Default_                 |
+| `MacroAnnotations.N`              | 0-15    | info text                                             | _Edit Info Text_                    |
+| `MacroColor.N`                    | 0-15    | colour                                                | colour palette                      |
+| `ForceDisplayGenericValue.N`      | 0-15    | show raw 0-127 instead of units                       | _Show Generic 0-127 Value_          |
+| `ExcludeMacroFromRandomization.N` | 0-15    | randomisation opt-out                                 | _Exclude Macro from Randomization_  |
+| `ExcludeMacroFromSnapshots.N`     | 0-15    | variation opt-out                                     | _Exclude Macro **From Variations**_ |
 
 **[V]** Every one of those was confirmed by a single-change diff.
 
-**[V]** Watch the vocabulary split on the last row: the UI says
-**Variations**, the XML says **Snapshots**, exactly as with
-`MacroVariations`/`MacroSnapshots` in Â§11. Grepping the UI word finds
-nothing.
+**[V]** Watch the vocabulary split on the last row: the UI says **Variations**, the XML says
+**Snapshots**, exactly as with `MacroVariations`/`MacroSnapshots` in §11. Grepping the UI word
+finds nothing.
 
-**[V]** `NumVisibleMacroControls` controls how many are shown (`8` by
-default). Changing it from 8 to 16 alters **exactly that one fact and adds
-no elements** - all 16 slots exist in every family regardless. A generator
-always writes 16 and sets the count.
+**[V]** `NumVisibleMacroControls` controls how many are shown (`8` by default). Changing it from 8
+to 16 alters **exactly that one fact and adds no elements** - all 16 slots exist in every family
+regardless. A generator always writes 16 and sets the count.
 
-**[I]** `MacroDefaults.N` is unreliable bookkeeping. Two behaviours were
-observed: it **lags one save** (a file's defaults equal the previous
-save's macro values - the same lag as `PresetRef` in Â§9 and `UserName` in
-Â§6), and **mapping a macro resets it to `-1`**. It drives only the *Return
-to Default* menu item and affects nothing audible. **Write `-1` and do not
-depend on it.**
+**[I]** `MacroDefaults.N` is unreliable bookkeeping. Two behaviours were observed: it **lags one
+save** (a file's defaults equal the previous save's macro values - the same lag as `PresetRef` in
+§9 and `UserName` in §6), and **mapping a macro resets it to `-1`**. It drives only the _Return to
+Default_ menu item and affects nothing audible. **Write `-1` and do not depend on it.**
 
-Other notable children, **[V]** present but not yet characterised:
-`MacroVariations`, `MacroSnapshots` (both empty in current samples),
-`ChainSelector`, `ChainSelectorFilterMidiCtrl`, `Branches`,
-`ReturnBranches`, `RangeTypeIndex`, `Annotation`.
+Other notable children, **[V]** present but not yet characterised: `MacroVariations`,
+`MacroSnapshots` (both empty in current samples), `ChainSelector`, `ChainSelectorFilterMidiCtrl`,
+`Branches`, `ReturnBranches`, `RangeTypeIndex`, `Annotation`.
 
-**[V]** `UserName` holds the rack's display name. It is written **one save
-behind** - a file records the name the device carried when that save
-began, not the name it is being saved as. Same lag as `PresetRef` (Â§9).
+**[V]** `UserName` holds the rack's display name. It is written **one save behind** - a file records
+the name the device carried when that save began, not the name it is being saved as. Same lag as
+`PresetRef` (§9).
 
-**[V]** `Branches` on the device node is distinct from `BranchPresets` on
-the preset node - see Â§3.
+**[V]** `Branches` on the device node is distinct from `BranchPresets` on the preset node - see §3.
 
 ## 7. Chain select zones
 
@@ -465,11 +425,11 @@ the preset node - see Â§3.
 
 **[V]** Stored as **bounds, not start plus length**.
 
-**[V]** Values are **absolute positions on the rack's `ChainSelector`
-scale**, whose `MidiControllerRange` is `0..127`. Not normalised.
+**[V]** Values are **absolute positions on the rack's `ChainSelector` scale**, whose
+`MidiControllerRange` is `0..127`. Not normalised.
 
-**[V]** Fade is **two independent values**, not one, and they are
-**absolute positions on the same 0..127 scale** - not widths or offsets.
+**[V]** Fade is **two independent values**, not one, and they are **absolute positions on the same
+0..127 scale** - not widths or offsets.
 
 **[V]** Fades grow **inward** from the bounds:
 
@@ -479,39 +439,37 @@ Min=8      CrossfadeMin=20    CrossfadeMax=32     Max=40
    fade in         full level          fade out
 ```
 
-| field | meaning |
-|---|---|
-| `Min` | zone start |
+| field          | meaning                          |
+| -------------- | -------------------------------- |
+| `Min`          | zone start                       |
 | `CrossfadeMin` | position where fade-in completes |
-| `CrossfadeMax` | position where fade-out begins |
-| `Max` | zone end |
+| `CrossfadeMax` | position where fade-out begins   |
+| `Max`          | zone end                         |
 
-**[V] Invariant: `Min <= CrossfadeMin <= CrossfadeMax <= Max`.** No fade on
-a side means that crossfade bound equals its zone bound. Resizing a zone
-drags the matching crossfade bound along to preserve that equality.
+**[V] Invariant: `Min <= CrossfadeMin <= CrossfadeMax <= Max`.** No fade on a side means that
+crossfade bound equals its zone bound. Resizing a zone drags the matching crossfade bound along to
+preserve that equality.
 
-**[V]** Zones are per chain and independent - editing one chain's zone
-leaves every sibling untouched.
+**[V]** Zones are per chain and independent - editing one chain's zone leaves every sibling
+untouched.
 
-**[V]** The rack's `ChainSelector` is itself an ordinary parameter, so it
-is macro-mappable exactly like any device parameter (Â§5). That is how the
-chain-select layout in `EXAMPLE_PLAYGRND.md` gets driven from a macro.
+**[V]** The rack's `ChainSelector` is itself an ordinary parameter, so it is macro-mappable exactly
+like any device parameter (§5). That is how the chain-select layout in `EXAMPLE_PLAYGRND.md` gets
+driven from a macro.
 
-**[?]** Whether `Max` is inclusive or exclusive is unsettled - it only
-matters at the single-value boundary between touching zones, and probably
-needs listening rather than a diff.
+**[?]** Whether `Max` is inclusive or exclusive is unsettled - it only matters at the single-value
+boundary between touching zones, and probably needs listening rather than a diff.
 
-**[V]** Live REPAIRS a zone that violates the ordering invariant rather
-than rejecting it, and repairs it by clamping: `Min 120, Max 20` came back
-out of Live as `Min = CrossfadeMin = CrossfadeMax = Max = 20`, a zone one
-value wide. So an inverted zone is accepted, silently, as something other
-than what was written. Q7, `build/Q7_bad_zone.adg` against
+**[V]** Live REPAIRS a zone that violates the ordering invariant rather than rejecting it, and
+repairs it by clamping: `Min 120, Max 20` came back out of Live as
+`Min = CrossfadeMin = CrossfadeMax = Max = 20`, a zone one value wide. So an inverted zone is
+accepted, silently, as something other than what was written. Q7, `build/Q7_bad_zone.adg` against
 `racks/q7_c.adg`.
 
 ### Key and velocity zones
 
-**[V]** A chain carries THREE zones of identical shape. Two of them sit
-inside `ZoneSettings`, and the chain selector does NOT:
+**[V]** A chain carries THREE zones of identical shape. Two of them sit inside `ZoneSettings`, and
+the chain selector does NOT:
 
 ```xml
 <InstrumentBranchPreset Id="1">
@@ -522,112 +480,97 @@ inside `ZoneSettings`, and the chain selector does NOT:
   </ZoneSettings>
 ```
 
-| zone | scale | full open |
-|---|---|---|
-| `BranchSelectorRange` | chain selector, 0..127 | 0..127 |
-| `ZoneSettings/KeyRange` | MIDI note, 0..127 | 0..127 |
-| `ZoneSettings/VelocityRange` | velocity, **1**..127 | 1..127 |
+| zone                         | scale                  | full open |
+| ---------------------------- | ---------------------- | --------- |
+| `BranchSelectorRange`        | chain selector, 0..127 | 0..127    |
+| `ZoneSettings/KeyRange`      | MIDI note, 0..127      | 0..127    |
+| `ZoneSettings/VelocityRange` | velocity, **1**..127   | 1..127    |
 
 Velocity starts at 1, not 0, because velocity 0 is a note-off.
 
-**[V]** All three exist on every chain of a rack Live saved, full open.
-Drawing a zone NARROWS what is already there; it does not create an
-element. So a generator that writes no zone writes a chain that answers to
-everything, which is the same file Live writes.
+**[V]** All three exist on every chain of a rack Live saved, full open. Drawing a zone NARROWS what
+is already there; it does not create an element. So a generator that writes no zone writes a chain
+that answers to everything, which is the same file Live writes.
 
-**[V]** A zero-width fade is stored as equality, not absence:
-`CrossfadeMin == Min` and `CrossfadeMax == Max`. The crossfade bound moves
-with the hard bound when nothing is drawn.
+**[V]** A zero-width fade is stored as equality, not absence: `CrossfadeMin == Min` and
+`CrossfadeMax == Max`. The crossfade bound moves with the hard bound when nothing is drawn.
 
 Q3, `racks/q3_a.adg` against `racks/q3_b.adg`.
 
 ## 8. Ids
 
-**[V]** Id-bearing fields seen: `Id` (an attribute), and elements
-`PointeeId`, `LomId`, `LomIdView`.
+**[V]** Id-bearing fields seen: `Id` (an attribute), and elements `PointeeId`, `LomId`, `LomIdView`.
 
-**[V]** **The one rule: an `Id` must be unique among its siblings.**
-Everything else about the value is free.
+**[V]** **The one rule: an `Id` must be unique among its siblings.** Everything else about the value
+is free.
 
-**[V]** With one boundary case: the document's top-level
-`GroupDevicePreset` has no siblings, and must carry no `Id` at all. See
-Â§3.
+**[V]** With one boundary case: the document's top-level `GroupDevicePreset` has no siblings, and
+must carry no `Id` at all. See §3.
 
-Established by deliberate-failure test. Two sibling `DrumBranchPreset`
-elements sharing `Id="0"` makes Live reject the whole preset with *"the
-preset cannot be loaded"*. Forcing every `AbletonDevicePreset` to `Id="7"`
+Established by deliberate-failure test. Two sibling `DrumBranchPreset` elements sharing `Id="0"`
+makes Live reject the whole preset with _"the preset cannot be loaded"_. Forcing every
+`AbletonDevicePreset` to `Id="7"`
+
 - gapped, out of range, but unique among siblings - loads fine.
 
-**[V]** Ids are **not file-unique**: `Id="0"` occurs 548 times in one real
-rack. They are **not contiguous**: a rack with `Id="2"` at index 1, left by
-a deleted device, opens fine. They are **not** required to equal the index,
-though 2347 of 2359 observed do - the value is a sequence number assigned
-on insert and never compacted.
+**[V]** Ids are **not file-unique**: `Id="0"` occurs 548 times in one real rack. They are **not
+contiguous**: a rack with `Id="2"` at index 1, left by a deleted device, opens fine. They are
+**not** required to equal the index, though 2347 of 2359 observed do - the value is a sequence
+number assigned on insert and never compacted.
 
-**[V]** **Nothing references them.** No `PointeeId` in any preset points
-anywhere. With S3's mappings also being containment-based, the preset
-format uses no cross-references at all.
+**[V]** **Nothing references them.** No `PointeeId` in any preset points anywhere. With S3's
+mappings also being containment-based, the preset format uses no cross-references at all.
 
-**[V]** **Ids are stable across saves.** Saving the same rack twice with
-no edits renumbers nothing.
+**[V]** **Ids are stable across saves.** Saving the same rack twice with no edits renumbers nothing.
 
-**[V]** In preset files most are `0`: every `AutomationTarget`,
-`ModulationTarget` and `Pointee` observed carries `Id="0"`, and container
-nodes like `AbletonDevicePreset Id="0"` repeat the value freely. Ids in
-`.adg` are largely inert.
+**[V]** In preset files most are `0`: every `AutomationTarget`, `ModulationTarget` and `Pointee`
+observed carries `Id="0"`, and container nodes like `AbletonDevicePreset Id="0"` repeat the value
+freely. Ids in `.adg` are largely inert.
 
-**[I]** This is consistent with ids mattering mainly inside `.als`, where
-automation and routing need real cross-references.
+**[I]** This is consistent with ids mattering mainly inside `.als`, where automation and routing
+need real cross-references.
 
-**[V]** Adding a device introduced 76 new `Id` facts and changed zero
-existing ones.
+**[V]** Adding a device introduced 76 new `Id` facts and changed zero existing ones.
 
 ### Consequence for cloning
 
-Landmine #1 in `CLAUDE.md` holds, but narrowly: duplicating a branch needs
-exactly one fixup - **an `Id` unused by its new siblings**. There is no web
-of references to remap, because there are no references.
+Landmine #1 in `CLAUDE.md` holds, but narrowly: duplicating a branch needs exactly one fixup - **an
+`Id` unused by its new siblings**. There is no web of references to remap, because there are no
+references.
 
-`patchbay.ids.next_free_id(parent, tag)` allocates one, and `patchbay ids`
-reports sibling collisions; its verdict matches Live's on every test file.
+`patchbay.ids.next_free_id(parent, tag)` allocates one, and `patchbay ids` reports sibling
+collisions; its verdict matches Live's on every test file.
 
 ### Devices may be partial
 
-**[V]** A device loads with **every one of its parameter nodes deleted** -
-all 18 of a Saturator's. Live fills defaults for whatever is absent. There
-is no required subset and no threshold.
+**[V]** A device loads with **every one of its parameter nodes deleted** - all 18 of a Saturator's.
+Live fills defaults for whatever is absent. There is no required subset and no threshold.
 
-So `donors/` is not needed for a file to *load*. It is needed for
-**fidelity**: absent parameters return as defaults, and a donor is how a
-device arrives configured. A generator may write **partial** device nodes,
-overriding only what it cares about - a much smaller surface than emitting
+So `donors/` is not needed for a file to _load_. It is needed for **fidelity**: absent parameters
+return as defaults, and a donor is how a device arrives configured. A generator may write
+**partial** device nodes, overriding only what it cares about - a much smaller surface than emitting
 a complete device.
 
-**[V]** Deleting a parameter deletes any mapping to it, since the mapping
-is a `KeyMidi` *inside* that parameter (Â§5). Mappings to *other* parameters
-survive untouched and still work.
+**[V]** Deleting a parameter deletes any mapping to it, since the mapping is a `KeyMidi` _inside_
+that parameter (§5). Mappings to _other_ parameters survive untouched and still work.
 
-**[V] A donor brings the mappings of the rack it was cut from.** The same
-containment that makes a mapping survive cloning makes it survive
-harvesting: `donors/Compressor2.adg` carries five `KeyMidi` blocks, on
-`Threshold`, `Ratio`, `Gain`, `DryWet` and `On`, all naming macro 4 of a
-rack that no longer exists. Placed unchanged, one knob of the new rack
-moves all five. `clone.strip_macro_mappings` clears a device as it is
-placed, for the same reason a Drift arrives with somebody's modulation row:
-a donor is for the parameter list and its ranges, never for anybody's
-decisions.
+**[V] A donor brings the mappings of the rack it was cut from.** The same containment that makes a
+mapping survive cloning makes it survive harvesting: `donors/Compressor2.adg` carries five `KeyMidi`
+blocks, on `Threshold`, `Ratio`, `Gain`, `DryWet` and `On`, all naming macro 4 of a rack that no
+longer exists. Placed unchanged, one knob of the new rack moves all five.
+`clone.strip_macro_mappings` clears a device as it is placed, for the same reason a Drift arrives
+with somebody's modulation row: a donor is for the parameter list and its ranges, never for
+anybody's decisions.
 
 ## 9. Save-time nondeterminism
 
-**[V]** Two things change on every save regardless of edits. Both are
-filtered by default in `patchbay diff`.
+**[V]** Two things change on every save regardless of edits. Both are filtered by default in
+`patchbay diff`.
 
-**`RoundRobinRandomSeed`** - one per Simpler, at
-`OriginalSimpler/Player/MultiSampleMap/`. Live reseeds sample round-robin
-selection on each save. Pure noise.
+**`RoundRobinRandomSeed`** - one per Simpler, at `OriginalSimpler/Player/MultiSampleMap/`. Live
+reseeds sample round-robin selection on each save. Pure noise.
 
-**Preset self-identity** - a preset records where it was last saved, in
-two places:
+**Preset self-identity** - a preset records where it was last saved, in two places:
 
 ```xml
 <GroupDevicePreset>
@@ -650,35 +593,33 @@ two places:
 
 and the device's `LastPresetRef` mirrors it.
 
-**[V]** A never-saved rack has `<AbletonDefaultPresetRef>` with an empty
-`FileRef` plus a `<DeviceId Name="AudioEffectGroupDevice" />` child. On
-first save to the User Library this is *replaced* by `<FilePresetRef>`,
-and the `DeviceId` child disappears.
+**[V]** A never-saved rack has `<AbletonDefaultPresetRef>` with an empty `FileRef` plus a
+`<DeviceId Name="AudioEffectGroupDevice" />` child. On first save to the User Library this is
+_replaced_ by `<FilePresetRef>`, and the `DeviceId` child disappears.
 
-**[V]** This is real state, not churn - but it changes whenever a spike
-pair is saved under two names, so it is filtered during discovery.
+**[V]** This is real state, not churn - but it changes whenever a spike pair is saved under two
+names, so it is filtered during discovery.
 
 ### FileRef shape
 
-**[V]** `FileRef` carries far more than a path, exactly as landmine #2 in
-`CLAUDE.md` warns: `RelativePathType`, `RelativePath`, `Path`, `Type`,
-`LivePackName`, `LivePackId`, `OriginalFileSize`, `OriginalCrc`,
-`SourceHint`. `RelativePathType="6"` appears to denote User Library.
+**[V]** `FileRef` carries far more than a path, exactly as landmine #2 in `CLAUDE.md` warns:
+`RelativePathType`, `RelativePath`, `Path`, `Type`, `LivePackName`, `LivePackId`,
+`OriginalFileSize`, `OriginalCrc`, `SourceHint`. `RelativePathType="6"` appears to denote User
+Library.
 
 **[V]** `Path` and `RelativePath` travel as a consistent pair.
 
-**[?]** Whether sample `FileRef`s carry the same field set, and which
-fields must be rewritten together to avoid an offline sample, is S7.
-The `PresetRef` case above is a strong hint at the shape but is not a
-substitute for the spike.
+**[?]** Whether sample `FileRef`s carry the same field set, and which fields must be rewritten
+together to avoid an offline sample, is S7. The `PresetRef` case above is a strong hint at the shape
+but is not a substitute for the spike.
 
 ---
 
 ## 10. Sample references
 
 **[V]** A Simpler's sample lives under
-`OriginalSimpler/Player/MultiSampleMap/SampleParts/MultiSamplePart`, and
-carries **two** `FileRef`s, not one:
+`OriginalSimpler/Player/MultiSampleMap/SampleParts/MultiSamplePart`, and carries **two** `FileRef`s,
+not one:
 
 ```
 MultiSamplePart/SampleRef/FileRef                     <- the live reference
@@ -686,74 +627,69 @@ MultiSamplePart/SampleRef/SourceContext/SourceContext/
                           OriginalFileRef/FileRef     <- where it was imported from
 ```
 
-**[V]** Both move when a sample is swapped. The second can point somewhere
-entirely different - a sample imported into the User Library keeps its
-pre-import path here indefinitely.
+**[V]** Both move when a sample is swapped. The second can point somewhere entirely different - a
+sample imported into the User Library keeps its pre-import path here indefinitely.
 
 ### FileRef fields
 
-| field | example | notes |
-|---|---|---|
-| `Path` | `C:/Music/.../Samples/Imported/kick.wav` | **[V]** absolute, forward slashes even on Windows |
-| `RelativePath` | `Samples/Imported/kick.wav` | **[V]** relative to the User Library |
-| `RelativePathType` | `6` | **[V]** `6` = inside User Library, `1` = escaping relative (`../../..`) |
-| `OriginalFileSize` | `24044` | **[V]** exact on-disk byte count |
-| `OriginalCrc` | `63283` | **[V]** 16-bit checksum. **[?]** algorithm unidentified |
-| `Type`, `LivePackName`, `LivePackId`, `SourceHint` | | present, unchanged by a swap |
+| field                                              | example                                  | notes                                                                   |
+| -------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------- |
+| `Path`                                             | `C:/Music/.../Samples/Imported/kick.wav` | **[V]** absolute, forward slashes even on Windows                       |
+| `RelativePath`                                     | `Samples/Imported/kick.wav`              | **[V]** relative to the User Library                                    |
+| `RelativePathType`                                 | `6`                                      | **[V]** `6` = inside User Library, `1` = escaping relative (`../../..`) |
+| `OriginalFileSize`                                 | `24044`                                  | **[V]** exact on-disk byte count                                        |
+| `OriginalCrc`                                      | `63283`                                  | **[V]** 16-bit checksum. **[?]** algorithm unidentified                 |
+| `Type`, `LivePackName`, `LivePackId`, `SourceHint` |                                          | present, unchanged by a swap                                            |
 
 ### Derived metadata outside FileRef
 
-**[V]** Swapping one sample moves 20 facts. Rewriting the path touches 2 of
-them. The rest:
+**[V]** Swapping one sample moves 20 facts. Rewriting the path touches 2 of them. The rest:
 
-| node | derivation |
-|---|---|
-| `MultiSamplePart/Name` | filename without extension |
-| `SampleRef/DefaultDuration` | frame count |
-| `MultiSamplePart/SampleEnd` | frames - 1 |
-| `SustainLoop/End`, `ReleaseLoop/End` | frames - 1 |
-| `SourceContext/BrowserContentPath` | browser URI, URL-encoded |
+| node                                      | derivation                                  |
+| ----------------------------------------- | ------------------------------------------- |
+| `MultiSamplePart/Name`                    | filename without extension                  |
+| `SampleRef/DefaultDuration`               | frame count                                 |
+| `MultiSamplePart/SampleEnd`               | frames - 1                                  |
+| `SustainLoop/End`, `ReleaseLoop/End`      | frames - 1                                  |
+| `SourceContext/BrowserContentPath`        | browser URI, URL-encoded                    |
 | `InitialSlicePointsFromOnsets/SlicePoint` | transient analysis; may be added or removed |
 
 **[V]** For plain PCM WAV, `frames = (filesize - 44) / (channels * bits/8)`
-- verified exactly against two files. So everything except the CRC is
-computable from the target file without Live.
+
+- verified exactly against two files. So everything except the CRC is computable from the target
+  file without Live.
 
 ### What is actually required
 
-**[V]** The derived metadata is **advisory**. Live re-reads the sample file
-on load and recomputes it. Six deliberately inconsistent variants were
-built and dragged into Live:
+**[V]** The derived metadata is **advisory**. Live re-reads the sample file on load and recomputes
+it. Six deliberately inconsistent variants were built and dragged into Live:
 
-| paths | size + crc | duration | result |
-|---|---|---|---|
-| correct | stale | stale | works |
-| correct | correct | stale | works |
-| correct | correct | correct | works |
-| correct | zeroed | stale | works |
-| correct | stale | correct | works |
-| correct | zeroed | correct | works |
+| paths   | size + crc | duration | result |
+| ------- | ---------- | -------- | ------ |
+| correct | stale      | stale    | works  |
+| correct | correct    | stale    | works  |
+| correct | correct    | correct  | works  |
+| correct | zeroed     | stale    | works  |
+| correct | stale      | correct  | works  |
+| correct | zeroed     | correct  | works  |
 
-**[V] All six load.** `OriginalFileSize` and `OriginalCrc` are not
-validated on load, and stale `DefaultDuration` / `SampleEnd` / loop ends do
-no harm.
+**[V] All six load.** `OriginalFileSize` and `OriginalCrc` are not validated on load, and stale
+`DefaultDuration` / `SampleEnd` / loop ends do no harm.
 
-**[V]** **A path-only rewrite is sufficient to retarget a sample.** The
-other 18 facts a real swap moves are Live keeping its own bookkeeping
-tidy. Write them for hygiene - a generated preset that diffs cleanly
-against a Live-saved one is worth having - but nothing depends on them.
+**[V]** **A path-only rewrite is sufficient to retarget a sample.** The other 18 facts a real swap
+moves are Live keeping its own bookkeeping tidy. Write them for hygiene - a generated preset that
+diffs cleanly against a Live-saved one is worth having - but nothing depends on them.
 
-**[V]** Nothing needs the CRC. See Â§11 rule 10.
+**[V]** Nothing needs the CRC. See §11 rule 10.
 
-An earlier reading of this table had one variant failing and inferred a
-cache-key mechanism; that variant had been double-clicked rather than
-dragged, which starts a second Live instance and hangs. See Â§11 rule 11 and
-`SCHEMA.md` S7.
+An earlier reading of this table had one variant failing and inferred a cache-key mechanism; that
+variant had been double-clicked rather than dragged, which starts a second Live instance and hangs.
+See §11 rule 11 and `SCHEMA.md` S7.
 
 ## 11. Macro variations
 
-**[V]** A variation is a `MacroSnapshot` in a positional list on the rack
-device. Live's UI calls them Variations; the XML calls them Snapshots.
+**[V]** A variation is a `MacroSnapshot` in a positional list on the rack device. Live's UI calls
+them Variations; the XML calls them Snapshots.
 
 ```xml
 <MacroVariations>
@@ -769,54 +705,46 @@ device. Live's UI calls them Variations; the XML calls them Snapshots.
 </MacroVariations>
 ```
 
-| field | meaning |
-|---|---|
-| `Id` | position, `0`-based, matches list order |
-| `SnapshotName` | display name, free text, defaults to `"Variation N"` |
-| `AutogeneratedNameIndex` | the `N` behind that default name |
-| `MacroHasValue.0-15` | whether this variation drives that macro |
-| `MacroValues.0-15` | the macro position, or `-1` when unset |
+| field                    | meaning                                              |
+| ------------------------ | ---------------------------------------------------- |
+| `Id`                     | position, `0`-based, matches list order              |
+| `SnapshotName`           | display name, free text, defaults to `"Variation N"` |
+| `AutogeneratedNameIndex` | the `N` behind that default name                     |
+| `MacroHasValue.0-15`     | whether this variation drives that macro             |
+| `MacroValues.0-15`       | the macro position, or `-1` when unset               |
 
-**[V]** **Values are absolute on the macro 0..127 scale**, the same units
-as `MacroControls.N/Manual` - not normalised. Verified by a snapshot
-holding `69, 127` in a file whose live macros were `69, 127`.
+**[V]** **Values are absolute on the macro 0..127 scale**, the same units as
+`MacroControls.N/Manual` - not normalised. Verified by a snapshot holding `69, 127` in a file whose
+live macros were `69, 127`.
 
-Combined with the transfer function in Â§5, this means variation generation
-happens entirely in macro space, and each engine's parameter ranges are
-applied by Live rather than by the generator.
+Combined with the transfer function in §5, this means variation generation happens entirely in
+macro space, and each engine's parameter ranges are applied by Live rather than by the generator.
 
-**[V]** All 16 slots are always written. Sparseness is expressed by
-`MacroHasValue.N`, with `-1` as the unset value - the same sentinel as
-`MacroDefaults.N`.
+**[V]** All 16 slots are always written. Sparseness is expressed by `MacroHasValue.N`, with `-1` as
+the unset value - the same sentinel as `MacroDefaults.N`.
 
-**[V]** A snapshot is captured when the user presses New and does not track
-the macros afterwards: a rack's live macro values say nothing about its
-variations.
+**[V]** A snapshot is captured when the user presses New and does not track the macros afterwards: a
+rack's live macro values say nothing about its variations.
 
-**[V]** Writing a variation set requires no id reconciliation and no
-interaction with mappings - append elements with sequential `Id`s.
+**[V]** Writing a variation set requires no id reconciliation and no interaction with mappings -
+append elements with sequential `Id`s.
 
-**[V]** Element order is `AutogeneratedNameIndex`, `SnapshotName`, the 16
-`MacroValues.N`, then the 16 `MacroHasValue.N`. The families are not
-interleaved. Clearing `racks/s8_c.adg`'s snapshots and rewriting them
-through `variations.write` diffs at zero facts against the original, so the
-writer agrees with Live on order, sentinel and scale.
+**[V]** Element order is `AutogeneratedNameIndex`, `SnapshotName`, the 16 `MacroValues.N`, then the
+16 `MacroHasValue.N`. The families are not interleaved. Clearing `racks/s8_c.adg`'s snapshots and
+rewriting them through `variations.write` diffs at zero facts against the original, so the writer
+agrees with Live on order, sentinel and scale.
 
-**[V]** A variation may drive the rack's `ChainSelector`, since that is an
-ordinary parameter and macro-mappable like any other (Â§5). So a variation
-can select its own chain, which is what makes a sound a variation rather
-than a chain.
+**[V]** A variation may drive the rack's `ChainSelector`, since that is an ordinary parameter and
+macro-mappable like any other (§5). So a variation can select its own chain, which is what makes a
+sound a variation rather than a chain.
 
-**[V]** An *unmapped* macro may carry `MacroHasValue = true`. The file loads
-and the entry appears in the panel, but recalling it moves nothing, since
-there is no mapping for the position to travel down. Accepted and inert, so
-`patchbay` refuses to write one: a variation that looks live and does
-nothing is worse than an error. Verified with
-`build/probe_q5_unmapped.adg`.
+**[V]** An _unmapped_ macro may carry `MacroHasValue = true`. The file loads and the entry appears
+in the panel, but recalling it moves nothing, since there is no mapping for the position to travel
+down. Accepted and inert, so `patchbay` refuses to write one: a variation that looks live and does
+nothing is worse than an error. Verified with `build/probe_q5_unmapped.adg`.
 
-**[V]** No snapshot ceiling at 256. Live loads and lists all 256 in
-`build/probe_q4_256.adg`, with no truncation. The template needs ~38 per
-rack, so variation grids do not need chunking.
+**[V]** No snapshot ceiling at 256. Live loads and lists all 256 in `build/probe_q4_256.adg`, with
+no truncation. The template needs ~38 per rack, so variation grids do not need chunking.
 
 ## 12. Drum racks, returns and sends
 
@@ -824,20 +752,19 @@ rack, so variation grids do not need chunking.
 
 **[V]** `DrumBranchPreset/ZoneSettings`:
 
-| field | meaning |
-|---|---|
-| `ReceivingNote` | the MIDI note that triggers this pad - its grid position |
-| `SendingNote` | the note handed to the chain's instrument, `60` (C3) on every pad |
-| `ChokeGroup` | `0` for none |
+| field           | meaning                                                           |
+| --------------- | ----------------------------------------------------------------- |
+| `ReceivingNote` | the MIDI note that triggers this pad - its grid position          |
+| `SendingNote`   | the note handed to the chain's instrument, `60` (C3) on every pad |
+| `ChokeGroup`    | `0` for none                                                      |
 
-Moving a pad in the grid changes `ReceivingNote` and nothing else.
-`SendingNote` staying at 60 is why a pad's sampler plays at root pitch
-wherever the pad sits.
+Moving a pad in the grid changes `ReceivingNote` and nothing else. `SendingNote` staying at 60 is
+why a pad's sampler plays at root pitch wherever the pad sits.
 
 ### Return chains
 
-**[V]** Returns live in `ReturnBranchPresets`, a sibling of `BranchPresets`
-under `GroupDevicePreset`:
+**[V]** Returns live in `ReturnBranchPresets`, a sibling of `BranchPresets` under
+`GroupDevicePreset`:
 
 ```
 GroupDevicePreset
@@ -846,16 +773,15 @@ GroupDevicePreset
 â””â”€ ReturnBranchPresets/AudioEffectBranchPreset[i]    the returns
 ```
 
-**[V]** A return branch is an `AudioEffectBranchPreset` whatever the parent
-rack type - it is an audio chain by nature.
+**[V]** A return branch is an `AudioEffectBranchPreset` whatever the parent rack type - it is an
+audio chain by nature.
 
-**[V]** As in Â§3, the device node's `ReturnBranches` is empty in presets,
-just like `Branches`. The `Presets`-suffixed containers are the real ones.
+**[V]** As in §3, the device node's `ReturnBranches` is empty in presets, just like `Branches`. The
+`Presets`-suffixed containers are the real ones.
 
 ### Sends
 
-**[V]** Every chain's mixer holds a `SendInfos` list with one
-`AudioBranchSendInfo` per return, at
+**[V]** Every chain's mixer holds a `SendInfos` list with one `AudioBranchSendInfo` per return, at
 `MixerPreset/AbletonDevicePreset/Device/AudioBranchMixerDevice/SendInfos`:
 
 ```xml
@@ -869,160 +795,90 @@ just like `Branches`. The `Presets`-suffixed containers are the real ones.
 </AudioBranchSendInfo>
 ```
 
-**[V]** `Index` names the return **positionally**, matching order in
-`ReturnBranchPresets`. No ids involved - consistent with Â§5.
+**[V]** `Index` names the return **positionally**, matching order in `ReturnBranchPresets`. No ids
+involved - consistent with §5.
 
-**[V]** Adding a return seeds a send entry on **every** existing chain at
-once. A generator adding a return must add the matching `AudioBranchSendInfo`
-to every chain, or the rack will be inconsistent.
+**[V]** Adding a return seeds a send entry on **every** existing chain at once. A generator adding a
+return must add the matching `AudioBranchSendInfo` to every chain, or the rack will be inconsistent.
 
-**[V]** Send level is **linear amplitude**: `Min` is `0.0003162277571`
-(10^(-70/20), -70 dB, the silent floor) and `Max` is `1` (0 dB).
+**[V]** Send level is **linear amplitude**: `Min` is `0.0003162277571` (10^(-70/20), -70 dB, the
+silent floor) and `Max` is `1` (0 dB).
 
 This is a **third and fourth scale** in the format. Keep them straight:
 
-| thing | scale |
-|---|---|
-| macros and variations | `0..127`, continuous (Â§5, Â§11) |
-| chain zones | `0..127` integer positions (Â§7) |
-| device parameters | native units, per-parameter range (Â§4) |
-| sends, stored | linear amplitude `0.000316..1` (Â§12) |
-| sends, on screen | slider position `0..1`, 20 dB per halving |
+| thing                 | scale                                     |
+| --------------------- | ----------------------------------------- |
+| macros and variations | `0..127`, continuous (§5, §11)          |
+| chain zones           | `0..127` integer positions (§7)          |
+| device parameters     | native units, per-parameter range (§4)   |
+| sends, stored         | linear amplitude `0.000316..1` (§12)     |
+| sends, on screen      | slider position `0..1`, 20 dB per halving |
 
-**[V] The send SLIDER loses 20 dB per halving of its travel**, so it is
-neither linear in amplitude nor linear in dB: half reads -20 dB and stores
-`0.1`, a quarter reads -40 dB and stores `0.01`. The conversion is
-`amplitude = position ** log2(10)`, and `params.send_amplitude` is it.
-Measured in Live 12.4.3, Q8.
+**[V] The send SLIDER loses 20 dB per halving of its travel**, so it is neither linear in amplitude
+nor linear in dB: half reads -20 dB and stores `0.1`, a quarter reads -40 dB and stores `0.01`. The
+conversion is `amplitude = position ** log2(10)`, and `params.send_amplitude` is it. Measured in
+Live 12.4.3, Q8.
 
-**[V] A send takes a macro like any other parameter.** `Send` carries
-`LomId`, `Manual`, `MidiControllerRange`, `AutomationTarget` and
-`ModulationTarget`, and a `KeyMidi` written inside one is a mapping
-addressed by containment like any other. Verified in Live 12.4.3 both ways:
-Live writes the identical element when the mapping is made by hand, and the
-knob sweeps the send (Q23).
+**[V] A send takes a macro like any other parameter.** `Send` carries `LomId`, `Manual`,
+`MidiControllerRange`, `AutomationTarget` and `ModulationTarget`, and a `KeyMidi` written inside one
+is a mapping addressed by containment like any other. Verified in Live 12.4.3 both ways: Live writes
+the identical element when the mapping is made by hand, and the knob sweeps the send (Q23).
 
-The mapping must go on the chain's OWN mixer. A chain holding a nested rack
-lists `DevicePresets` before `MixerPreset`, so a descendant search for
-`SendInfos` finds the INNER rack's first chain and every send lands one
-level too deep (Q29).
+The mapping must go on the chain's OWN mixer. A chain holding a nested rack lists `DevicePresets`
+before `MixerPreset`, so a descendant search for `SendInfos` finds the INNER rack's first chain and
+every send lands one level too deep (Q29).
 
-So a spec states send levels, and one macro may sweep every chain's send to
-one return.
+So a spec states send levels, and one macro may sweep every chain's send to one return.
 
 ### View state worth knowing
 
-**[V]** `AreSendsVisible` on the rack device gates the send column in the
-chain list, and defaults to `false`. Per-pad sends are invisible in Live
-until it is on, which is a UI trap rather than a format one.
+**[V]** `AreSendsVisible` on the rack device gates the send column in the chain list, and defaults
+to `false`. Per-pad sends are invisible in Live until it is on, which is a UI trap rather than a
+format one.
 
 ## 13. Practical rules for generators
 
 Derived from the above; these are the invariants `patchbay` must respect.
 
-1. **Never byte-compare.** Â§1.
-2. **Never guess a parameter's element name.** Diff for it. Drive is
-   `PreDrive`. Â§4.
-3. **To map parameter P to macro N:** insert a `KeyMidi` child with
-   `Channel=16`, `IsNote=false`, `NoteOrController=N-1`,
-   `ControllerMapMode=0`, empty `PersistentKeyString`, both range notes
-   `-1`. To unmap: delete the element. Â§5.
-4. **P must live in the `BranchPresets` subtree of the rack whose macro N
-   is.** There is nothing else to set - no table to register with. Â§5.
-5. **Cloning a chain may copy `KeyMidi` blocks verbatim.** They rebind
-   structurally. Â§5.
-6. **Write all 16 macro slots**, and set `NumVisibleMacroControls` to
-   control visibility. Â§6.
-7. **Values are absolute in native units.** Do not normalise, and do not
-   reuse one engine's figure on another without checking the unit: Operator
-   and Simpler keep envelope times in ms where Wavetable, Drift and Meld
-   keep them in seconds. Â§4.
-8. **Rewrite `Path` and `RelativePath` together**, never one alone. Â§9.
-9. **Chain zones are bounds on a 0..127 scale, stored per chain.** Â§7.
-10. **To retarget a sample:** rewriting `Path` + `RelativePath` on **both**
-    FileRefs is sufficient. Set `Name`, the frame-derived values and zero
-    the size/crc for hygiene, but none of that is load-bearing and the CRC
-    never needs computing. Â§10.
-11. **Load-test by dragging into a running Live**, never by double-clicking
-    the file - that starts a second instance and hangs, which is
-    indistinguishable from a rejected file. Â§10.
-12. **Variations are written in macro space, 0..127**, with all 16 slots
-    present and `MacroHasValue.N` carrying participation. Â§11.
-13. **A pad's grid position is `ReceivingNote`**; leave `SendingNote` at 60. Â§12.
-15. **When cloning a branch, give it an `Id` free among its siblings.** That
-    is the only id work required, and getting it wrong makes Live reject
-    the whole preset. Â§8.
-17. **A rack written into a chain's `DevicePresets` needs an `Id`; the
-    document's top-level rack must have none.** Moving a rack between
-    those two positions means adding or removing that one attribute, and
-    nothing else. Â§3.
-16. **Device nodes may be partial** - override the parameters you care
-    about and let Live default the rest. Â§8.
-14. **Adding a return chain means adding an `AudioBranchSendInfo` to every
-    chain**, and send levels are linear amplitude, not dB. Â§12.
+1. **Never byte-compare.** §1.
+2. **Never guess a parameter's element name.** Diff for it. Drive is `PreDrive`. §4.
+3. **To map parameter P to macro N:** insert a `KeyMidi` child with `Channel=16`, `IsNote=false`,
+   `NoteOrController=N-1`, `ControllerMapMode=0`, empty `PersistentKeyString`, both range notes
+   `-1`. To unmap: delete the element. §5.
+4. **P must live in the `BranchPresets` subtree of the rack whose macro N is.** There is nothing
+   else to set - no table to register with. §5.
+5. **Cloning a chain may copy `KeyMidi` blocks verbatim.** They rebind structurally. §5.
+6. **Write all 16 macro slots**, and set `NumVisibleMacroControls` to control visibility. §6.
+7. **Values are absolute in native units.** Do not normalise, and do not reuse one engine's figure
+   on another without checking the unit: Operator and Simpler keep envelope times in ms where
+   Wavetable, Drift and Meld keep them in seconds. §4.
+8. **Rewrite `Path` and `RelativePath` together**, never one alone. §9.
+9. **Chain zones are bounds on a 0..127 scale, stored per chain.** §7.
+10. **To retarget a sample:** rewriting `Path` + `RelativePath` on **both** FileRefs is sufficient.
+    Set `Name`, the frame-derived values and zero the size/crc for hygiene, but none of that is
+    load-bearing and the CRC never needs computing. §10.
+11. **Load-test by dragging into a running Live**, never by double-clicking the file - that starts a
+    second instance and hangs, which is indistinguishable from a rejected file. §10.
+12. **Variations are written in macro space, 0..127**, with all 16 slots present and
+    `MacroHasValue.N` carrying participation. §11.
+13. **A pad's grid position is `ReceivingNote`**; leave `SendingNote` at 60. §12.
+14. **When cloning a branch, give it an `Id` free among its siblings.** That is the only id work
+    required, and getting it wrong makes Live reject the whole preset. §8.
+15. **A rack written into a chain's `DevicePresets` needs an `Id`; the document's top-level rack
+    must have none.** Moving a rack between those two positions means adding or removing that one
+    attribute, and nothing else. §3.
+16. **Device nodes may be partial** - override the parameters you care about and let Live default
+    the rest. §8.
+17. **Adding a return chain means adding an `AudioBranchSendInfo` to every chain**, and send levels
+    are linear amplitude, not dB. §12.
+18. **Max for Live devices.** `patchbay extract` currently drops `MxDeviceMidiEffect` parameters
+    silently during decompilation, so native DSL generation for this specific device isn't possible
+    yet. The current workaround is direct XML injection from donor `.adg` files.
 
-## 14. Open questions
 
-Ordered by how much they gate the build.
-
-| | question | spike | gates |
-|---|---|---|---|
-| **[?]** | Chain zone: is `Max` inclusive? | S5 tail | Phase 4, low stakes |
-| **[V]** | Does Live repair a violated zone ordering? **Yes, by clamping every bound to `Max`.** Closed, see Â§7 | Q7 | nothing |
-| **[V]** | Key and velocity zone encoding. **`ZoneSettings/KeyRange` and `/VelocityRange`, same four fields.** Closed, see Â§7 | Q3 | multi-sampled racks |
-| **[?]** | `OriginalCrc` algorithm. 16-bit; zlib and 10 CRC-16 variants ruled out over 4 chunk choices. **Closed as irrelevant** - nothing reads it on load. | - | nothing |
-| **[V]** | Can an *unmapped* macro carry `MacroHasValue = true`? **Yes, and it does nothing.** Closed, see Â§11 | S8 tail | nothing |
-| **[V]** | Snapshot ceiling. **None at 256**, no truncation. Closed, see Â§11 | S8 tail | nothing |
-| **[?]** | Drum rack pad-to-note (`ReceivingNote`, `SendingNote` seen but uncharacterised), internal returns, per-chain sends. | S9 | Phase 4 |
-| **[V]** | `.als` structure: tracks, returns, and a rack in Set form. **Written by `live_set.py`.** Closed, see Â§3 and Q30 | S11 | nothing |
-| **[V]** | Routing a track into another TRACK. **`AudioOut/Track.<id>/TrackIn`**, the id being the target's `Id` attribute. Closed, see Q33 in `SCHEMA.md` | Q33 | nothing |
-| **[V]** | The sidechain source, at Set level. **`AudioIn/Track.<id>/PostFxOut`** in the `Routable` a preset already carries. Closed, see Q33 in `SCHEMA.md` | Q33 | nothing |
-| **[?]** | Does element order within a parameter matter? `KeyMidi` is written between `LomId` and `Manual`. | - | writer safety |
 
 ## 15. Evidence
 
-Every **[V]** claim above traces to these files, all in `racks/`.
+Every **[V]** claim above traces to specific files in `racks/` and `build/`.
 
-| file | what it is | establishes |
-|---|---|---|
-| `s1_source.adg` | AlienMind Drum Rack, 560 KB, 18,148 facts, 3 nesting levels, 3 mappings | round trip, DR1 nesting, macro-to-macro, ChainSelector mapping |
-| `q32_set.als` | a Set Live saved: 2 MIDI tracks, 1 audio, 2 returns, 3 of our racks placed, one track routed into another, one sidechain wired | Q33, Q35, Q36, Q37, Q38, Q39 - every Set-form finding the log could not name |
-| `s2_a.adg` / `s2_b.adg` | same rack saved twice, no edits | noise floor, id stability, `RoundRobinRandomSeed`, `PresetRef` |
-| `s3_a.adg` / `s3_b.adg` | Audio Effect Rack + Saturator, before/after mapping Drive to Macro 1 | the entire `KeyMidi` mechanism |
-| `s3b.adg` | same rack, Output additionally mapped to Macro 2, both macros moved | `NoteOrController` = macro index; the transfer function; `MacroDefaults` sentinel |
-| `s5_a.adg` / `s5_b.adg` | two-chain Audio Effect Rack, one chain's zone dragged 0 -> 8 | `BranchSelectorRange` |
-| `s5_len_a.adg` / `s5_len_b.adg` | same rack, zone right edge 16 -> 40 | `Crossfade*` are absolute positions |
-| `s5_fade_aa.adg` / `s5_fade_bb.adg` | same rack, left fade handle dragged inward | fades grow inward; the ordering invariant |
-| `s7_a.adg` / `s7_b.adg` | Instrument Rack + Simpler, one sample swapped | the 20 facts a swap moves; two FileRefs |
-| `s8_a/b/c.adg` | same rack with 0, 1 and 2 macro variations | the `MacroSnapshot` structure |
-| `s9_a/b/c/d.adg` | drum rack: 2 pads, then a return, then a send raised, then a pad moved | `ZoneSettings`, `ReturnBranchPresets`, `SendInfos` |
-| `s10_c..g.adg` | one macro-metadata change per save | each `.N` family, `NumVisibleMacroControls` |
-| `q3_a.adg` / `q3_b.adg` | two-chain Instrument Rack, split first by key then by velocity | `ZoneSettings/KeyRange`, `/VelocityRange` |
-| `q7_c.adg` | `build/Q7_bad_zone.adg` dragged back out of Live | an inverted zone is repaired by clamping |
-| `q20_a..d.adg` | one `MidiScale` saved at four scale settings | `Base`, `InternalScale`, `UseCurrentScale` |
-| `q21_hp.adg` / `q21_bell.adg` | one `Eq8`, band 1 high-pass then bell | the band `Mode` enum, per band |
-| `build/s10_range_test.adg` | Drive's `MidiControllerRange/Max` set to 12 | mapping ranges are `MidiControllerRange` |
-| `build/s6_*.adg` | duplicate vs merely-gapped ids | siblings must be unique; value is free |
-| `build/s12_*.adg` | 1, 5, 9 and all 18 parameters deleted | devices may be partial |
-| `build/s7_test_A..F.adg` | six deliberately inconsistent retargets, all loaded in Live | the cache-key model |
-| `build/PD1.adg` | 96 variations over four slots, one being the engine | variations load and recall; a variation may drive `ChainSelector` |
-| `build/probe_q4_256.adg` | 256 variations, count the only difference from PD1 | no snapshot ceiling at 256 |
-| `build/probe_q5_unmapped.adg` | one variation flagging an unmapped macro | accepted on load, inert on recall |
-| `build/probe_b_toplevel.adg` / `probe_c_id_added.adg` | one rack, differing only by `Id` on the top-level preset | a top-level `GroupDevicePreset` must carry no `Id` |
-| `build/VA1.adg` | two levels of nesting, written from scratch | a rack Live never saved survives being nested; macro-to-macro drives |
-
-Reproduce with:
-
-```
-patchbay roundtrip racks/s1_source.adg
-patchbay diff racks/s2_a.adg racks/s2_b.adg
-patchbay diff racks/s3_a.adg racks/s3_b.adg
-patchbay mappings racks/s1_source.adg
-patchbay diff racks/s3_b.adg racks/s3b.adg
-patchbay diff racks/s5_a.adg racks/s5_b.adg
-patchbay diff racks/s5_fade_aa.adg racks/s5_fade_bb.adg
-patchbay diff racks/s8_b.adg racks/s8_c.adg
-patchbay diff racks/s9_c.adg racks/s9_d.adg
-patchbay diff racks/s10_c.adg racks/s10_d.adg
-patchbay ids racks/s1_source.adg
-```
+See the **Evidence Files (s*, q*)** section in `doc/RESEARCH_CATALOGUE.md` for a complete mapping of files to the findings they establish, as well as the exact `patchbay` commands to reproduce the diffs.

@@ -20,10 +20,10 @@ costs against what it decides.
 | 8 | Donor tie-break is wrong for a device with optional slots | me | small | Which donor wins, on every Sampler-shaped device |
 | 9 | A track fed by other tracks needs Monitor = In | me | small, one value | Whether a written Set makes a sound without being touched |
 
-Items 6 to 8 all came out of `examples/techno.py`. `doc/EXAMPLE_TECHNO.md`
+Items 2, 5, and 6 all came out of `examples/techno.py`. `doc/EXAMPLE_TECHNO.md`
 has the comparison they sit in.
 
-## 6. A chain that holds a rack AND devices
+## 5. A chain that holds a rack AND devices
 
 Every drum pad in `donors/Techno/Techno.als` is
 
@@ -53,7 +53,7 @@ Two smaller gaps sit with this one and need no separate entry:
 - **A send from one RETURN to another.** `ret()` takes no `sends=`, and in
   the donor both delay returns feed the reverb return at 0.1413.
 
-## 7. A macro on a boolean writes no threshold
+## 2. A macro on a boolean writes no threshold
 
 `patchbay` has never written or read `MidiCCOnOffThresholds`. A continuous
 parameter's mapping range is `MidiControllerRange` and `Range` writes that;
@@ -71,7 +71,7 @@ load answers it, and the check table is at the bottom of
 `doc/EXAMPLE_TECHNO.md`. Until then `build/bt/*.adg` carry switch mappings
 whose behaviour is unverified.
 
-## 8. Donor tie-break, for a device with optional slots
+## 6. Donor tie-break, for a device with optional slots
 
 `Library.harvest` breaks a tie on PARAMETER COUNT, fuller wins. A Sampler's
 LFO, Shaper and AuxEnv are SLOTS, and an empty slot contributes no
@@ -88,7 +88,7 @@ this project uses most. What would settle it is unclear and that is the
 work: a rule that prefers a donor whose slots are all filled, or a merge,
 or simply refusing to guess and naming the donor per spec.
 
-## 1. Classifying by sound
+## 9. Classifying by sound
 
 We currently have a basic classification algorithm for samples based on file names `scripts/fetch_samples.py`,
 which sorts a drop folder. But this is not enough to properly cluster the samples as we want them to be:
@@ -156,7 +156,7 @@ finding reports and never deletes, and "is it good" stays under Standing
 manual work where it already is. The tool narrows what a person listens to;
 it does not decide.
 
-## 2. Ducking from the kick chain
+## 1. Ducking from the kick chain
 
 Every EQC but DR1's sidechains from **the whole DR1 track**, which triggers
 on hats and claps as much as on kicks. Musically that is wrong: only the
@@ -184,7 +184,7 @@ takes a chain as readily as a track.
 **Until then the low band stands**, and it is not a placeholder: it is the
 technique the manual recommends and it is already in every EQC.
 
-## 3. Colour inside a rack
+## 4. Colour inside a rack
 
 **Tracks and returns are done**, Q39: `<Color Value="N" />`, 0 to 69, `-1`
 for none, written by `live_set._color_track` and spread evenly across the
@@ -202,7 +202,7 @@ The open shape question is the DSL surface, not the format. A palette index
 is honest and unreadable; sixty-nine names are readable and are sixty-nine
 names to invent and defend.
 
-## 4. A `.alp` as a second output
+## 8. A `.alp` as a second output
 
 `patchbay session` writes a `.als`, which is one file that refers to
 samples wherever they happen to sit. A **Live Pack** is the packed form of
@@ -230,7 +230,7 @@ Samples used for this experiment cannot be redistributed, but at least we should
 provide a way to build a pack for any user willing to build it from their
 sample collection.
 
-## 5. The donor name scan
+## 10. The donor name scan
 
 Every donor has been compared by parameter NAME against Live 12.4.3's own
 factory library, 73 files over 59 devices, no Live open. Three renames
@@ -240,7 +240,7 @@ Worth re-running after a Live update, because a rename is the one change
 that breaks a spec silently: the DSL validates a binding against the donor,
 so a stale donor is a stale vocabulary and the check passes on a fiction.
 
-## 9. Monitor on a track that other tracks feed
+## 3. Monitor on a track that other tracks feed
 
 `patchbay session` routes seven tracks into PM1 and PM1 arrives with
 **Monitor = Off**, so the Set loads correct and silent. Confirmed in Live
@@ -267,6 +267,18 @@ manual step.
 
 **Until then it is one radio button per Set**, and it belongs in Standing
 manual work only until the value is known.
+
+## 7. Resolve remaining schema micro-items
+
+These are the final [?] items migrated from the old Open Questions section of the architecture
+document. They represent small, isolated uncertainties about the XML schema:
+
+- **Chain zone inclusiveness:** Is Max inclusive on a chain selector zone? (S5 tail)
+- **Drum rack routing details:** ReceivingNote and SendingNote on drum pads need
+  characterisation. Also need to clarify the exact structure of internal returns and per-chain sends
+  in drum racks. (S9)
+- **Element order safety:** Does element order within a parameter matter? Specifically, KeyMidi
+  is written between LomId and Manual. Does Live reject the preset if they are reordered?
 
 ## Standing manual work
 
